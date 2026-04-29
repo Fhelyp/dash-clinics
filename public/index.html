@@ -2124,7 +2124,59 @@ function setTxt(id, v){ const e = document.getElementById(id); if(e) e.textConte
 // ─────────────────────────────────────────────────────────────────
 // Chips de filtros aplicados (UX: mostrar o que está ativo)
 // ─────────────────────────────────────────────────────────────────
+function updateFilterButtonLabels(){
+  // Atualiza o texto de cada botão de filtro com o valor atualmente aplicado
+  const setBtnLabel = (ddId, value, defaultLabel) => {
+    const btn = document.querySelector(`.fw [onclick*="'${ddId}'"]`);
+    if(!btn) return;
+    const span = btn.querySelector('.fbtn-label');
+    if(!span) return;
+    span.textContent = value || defaultLabel;
+    btn.style.color = value ? 'var(--purple)' : '';
+    btn.style.borderColor = value ? 'rgba(168,85,247,.45)' : '';
+    btn.style.background = value ? 'rgba(168,85,247,.08)' : '';
+  };
+  // Período
+  let periodoLabel = null;
+  if(APPLIED.d1 || APPLIED.d2){
+    const dInputs = document.querySelectorAll('#ddp input[type=date]');
+    const v1 = APPLIED.d1, v2 = APPLIED.d2;
+    if(v1 && v2){
+      const t = new Date(); const ymd = d => d.toISOString().slice(0,10);
+      const mtdStart = ymd(new Date(t.getFullYear(),t.getMonth(),1));
+      const mtdEnd   = ymd(new Date(t.getFullYear(),t.getMonth()+1,0));
+      const todayY   = ymd(t);
+      if(v1 === mtdStart && v2 === mtdEnd) periodoLabel = 'Mês atual';
+      else if(v1 === todayY && v2 === todayY) periodoLabel = 'Hoje';
+      else periodoLabel = `${v1.split('-').reverse().join('/')} — ${v2.split('-').reverse().join('/')}`;
+    }
+  }
+  setBtnLabel('ddp', periodoLabel, 'Período');
+  // Unidade
+  let unitLabel = null;
+  if(APPLIED.units && APPLIED.units.size){
+    const arr = [...APPLIED.units];
+    unitLabel = arr.length === 1 ? arr[0] : `${arr.length} unidades`;
+  }
+  setBtnLabel('ddu', unitLabel, 'Unidade');
+  // Especialidade
+  let specLabel = null;
+  if(APPLIED.specs && APPLIED.specs.size){
+    const arr = [...APPLIED.specs];
+    specLabel = arr.length === 1 ? arr[0] : `${arr.length} especialidades`;
+  }
+  setBtnLabel('dde', specLabel, 'Especialidade');
+  // Status
+  let stLabel = null;
+  if(APPLIED.statuses && APPLIED.statuses.size){
+    const arr = [...APPLIED.statuses];
+    stLabel = arr.length === 1 ? arr[0] : `${arr.length} status`;
+  }
+  setBtnLabel('dds', stLabel, 'Status');
+}
+
 function renderActiveFilterChips(){
+  updateFilterButtonLabels();
   const wrap = document.getElementById('activeFilters');
   const list = document.getElementById('activeFiltersList');
   if(!wrap || !list) return;
@@ -2152,8 +2204,13 @@ function renderActiveFilterChips(){
     const arr = [...APPLIED.creators];
     chips.push({label:`Criador: ${arr.length===1?arr[0]:arr.length+' selecionados'}`, clear: () => { APPLIED.creators=null; updateDashboard(); }});
   }
-  if(chips.length === 0){ wrap.style.display='none'; list.innerHTML=''; return; }
+  // SEMPRE visível, mesmo sem filtros, pra você sempre saber o estado atual
   wrap.style.display='flex';
+  if(chips.length === 0){
+    list.innerHTML = '<span style="color:var(--gray-l);font-style:italic;font-size:10.5px;">Mostrando todos os dados — nenhum filtro aplicado</span>';
+    document.body.style.paddingTop = wrap.offsetHeight + 'px';
+    return;
+  }
   list.innerHTML = chips.map((c, i) =>
     `<span class="afchip" data-i="${i}" style="display:inline-flex;align-items:center;gap:6px;background:rgba(168,85,247,.18);color:var(--white);border:1px solid rgba(168,85,247,.35);padding:3px 4px 3px 9px;border-radius:14px;font-size:10.5px;font-weight:600;">
       ${c.label}
