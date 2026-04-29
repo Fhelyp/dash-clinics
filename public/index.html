@@ -1173,17 +1173,26 @@ const barObs=new IntersectionObserver(en=>{en.forEach(e=>{if(e.isIntersecting){e
 
 
 // == MARIA CLARA ==
-const MC={agend:1284,convPct:52,revTotal:2140500,revShare:48.8,vsMC:55};
-function mcInit(){setTimeout(()=>{setRing('rvMC1',MC.vsMC,452.4);setRing('rvMC2',MC.convPct,213.6);},500);}
+// MC: dados calculados em tempo real no updateDashboard (sem hardcoded)
+function mcInit(){setTimeout(()=>{setRing('rvMC1',0,452.4);setRing('rvMC2',0,213.6);},500);}
 mcInit();
-function updateMC(R){
-  const agend=Math.round(MC.agend*R);
-  const rev=Math.round(MC.revTotal*R);
-  const totalRev=Math.round(4387500*R);
-  const share=totalRev>0?(rev/totalRev*100).toFixed(1):MC.revShare.toFixed(1);
+function updateMC(metrics){
+  const { mcAgend, mcConvPct, mcRevenue, totalRev, vsMCpct } = metrics || { mcAgend:0, mcConvPct:0, mcRevenue:0, totalRev:0, vsMCpct:0 };
+  const share = totalRev > 0 ? Math.round((mcRevenue/totalRev)*1000)/10 : 0;
   const el=id=>document.getElementById(id);
-  if(el('mcAgend'))el('mcAgend').textContent=agend.toLocaleString('pt-BR');
-  if(el('mcConvPct'))el('mcConvPct').textContent=MC.convPct+'%';
+  if(el('mcAgend'))el('mcAgend').textContent=mcAgend.toLocaleString('pt-BR');
+  if(el('mcConvPct'))el('mcConvPct').textContent=mcConvPct+'%';
+  if(el('mcRevenue'))el('mcRevenue').textContent='R$ '+mcRevenue.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  if(el('mcRevTotal'))el('mcRevTotal').textContent='R$ '+mcRevenue.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  if(el('mcRevShare'))el('mcRevShare').textContent=share.toFixed(1)+'%';
+  if(el('rvMC1txt'))el('rvMC1txt').textContent=vsMCpct+'%';
+  if(el('mcPctLeg'))el('mcPctLeg').textContent=vsMCpct+'%';
+  if(el('humPctLeg'))el('humPctLeg').textContent=(100-vsMCpct)+'%';
+  if(el('rvMC2txt'))el('rvMC2txt').textContent=mcConvPct+'%';
+  setRing('rvMC1',vsMCpct,452.4);
+  setRing('rvMC2',mcConvPct,213.6);
+}
+function _legacyMCDead(R){ /* removed: hardcoded MC */ return; /*
   if(el('mcRevenue'))el('mcRevenue').textContent='R '+rev.toLocaleString('pt-BR');
   if(el('mcRevTotal'))el('mcRevTotal').textContent='R$ '+rev.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
   if(el('mcRevShare'))el('mcRevShare').textContent=share+'%';
@@ -1193,7 +1202,7 @@ function updateMC(R){
   if(el('rvMC2txt'))el('rvMC2txt').textContent=MC.convPct+'%';
   setRing('rvMC1',MC.vsMC,452.4);
   setRing('rvMC2',MC.convPct,213.6);
-}
+*/ }
 
 
 
@@ -1601,18 +1610,16 @@ function updateDashboard(){
   const newOrigemTot = origemVals.reduce((a,b)=>a+b,0) || 1;
   if(typeof renderOleg==='function') renderOleg(origemVals.slice(), newOrigemTot);
 
-  // CHART_DONUT e CHART_CAMP: estes gráficos usavam dados fixos demo.
-  // Vou ocultá-los se não tiverem campaign_token nos dados reais para não confundir.
-  // (Se você quiser remover esses cards do HTML, fica fácil — me avise.)
+  // CHART_DONUT e CHART_CAMP: gráficos de demo sem dados reais — mantém zerados
+  // (já fica oculto via CSS quando todos zeros, ver showHideEmptyCharts)
   CHART_DONUT.data.datasets[0].data = adVals.map(_=>0);
   CHART_DONUT.update();
   if(typeof renderDleg==='function') renderDleg([0,0,0,0,0], 1);
   CHART_CAMP.data.datasets[0].data = cVals.map(_=>0);
   CHART_CAMP.update();
 
-  // ── Marketing: Faixa Etária — scale ─────────────────
-  CHART_AGE.data.datasets[0].data=ageInitData.map(v=>Math.round(v*R));
-  CHART_AGE.update();
+  // CHART_AGE já foi atualizado na linha ~1570 com dados filtrados reais (ageDist).
+  // Bloco antigo que reescalava ageInitData (= [0,0,0,0,0]) foi REMOVIDO — zerava o chart.
 
   // ── Financeiro: Horizontal bars — RECALCULA real dos filteredPays ──
   const unitRevReal = {};
@@ -1633,12 +1640,21 @@ function updateDashboard(){
   if(rcvTotal)rcvTotal.textContent='R$ '+filteredRevTotal.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
   const ovRevTotal=document.getElementById('ovRevTotal');
   if(ovRevTotal)ovRevTotal.textContent='R$ '+filteredRevTotal.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
-  // Melhor Mês (escalado pelo ratio também, para manter consistência)
-  const scaledBestVal=scf(INIT.revBestVal||0);
+  // Melhor Mês: calcula dos pagamentos filtrados (não escalar INIT)
+  const monthRev = {};
+  filteredPays.forEach(p => {
+    const dt = new Date(p.date);
+    const k = dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0');
+    monthRev[k] = (monthRev[k]||0) + parseFloat(p.amount||0);
+  });
+  let bestMonthKey = '—', bestMonthVal = 0;
+  Object.entries(monthRev).forEach(([k,v]) => { if(v > bestMonthVal){ bestMonthVal = v; bestMonthKey = k; } });
+  const bestMonthLabel = bestMonthKey === '—' ? '—' :
+    (MONTHS[parseInt(bestMonthKey.slice(5,7))-1] + '/' + bestMonthKey.slice(0,4));
   const rcvBestVal=document.getElementById('rcvBestVal');
   const rcvBestMonth=document.getElementById('rcvBestMonth');
-  if(rcvBestVal)rcvBestVal.textContent='R$ '+scaledBestVal.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
-  if(rcvBestMonth)rcvBestMonth.textContent=INIT.revBestMonth||'—';
+  if(rcvBestVal)rcvBestVal.textContent='R$ '+bestMonthVal.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  if(rcvBestMonth)rcvBestMonth.textContent=bestMonthLabel;
 
   // ── Métricas Thauany (recalcula a cada filtro) ──────────────────────────
   if(typeof computeThauanyMetrics==='function') computeThauanyMetrics().catch(()=>{});
@@ -1649,24 +1665,56 @@ function updateDashboard(){
   // Charts: força resize após DOM atualizar pra textos não cortarem
   setTimeout(() => { try { resizeAllCharts && resizeAllCharts(); } catch(_){} }, 60);
 
-  // ── MC Comparativo Bar ──────────────────────────────────────────────────
+  // ── MC Comparativo Bar — usa números REAIS do recorte (sem escalar INIT) ─
   const fdAll   = filteredNoMC();
   const fdAllMC = fdAll.filter(p=>p.agent==='MC').length;
   const fdAllHUM= fdAll.length - fdAllMC;
   const totalAll= fdAll.length || 1;
   const pctMC   = Math.round(fdAllMC / totalAll * 100);
   const pctHUM  = 100 - pctMC;
-  const scAgend = v => Math.round(INIT.agend * v / (ALL.length||1));
-  const agendMC  = scAgend(fdAllMC);
-  const agendHUM = scAgend(fdAllHUM);
   const elMcPct  = document.getElementById('mcBarPct');
   const elHumPct = document.getElementById('humBarPct');
   const elMcAbs  = document.getElementById('mcBarAbs');
   const elHumAbs = document.getElementById('humBarAbs');
   if(elMcPct)  elMcPct.textContent  = pctMC + '%';
   if(elHumPct) elHumPct.textContent = pctHUM + '%';
-  if(elMcAbs)  elMcAbs.textContent  = '(' + agendMC.toLocaleString('pt-BR') + ' agend.)';
-  if(elHumAbs) elHumAbs.textContent = '(' + agendHUM.toLocaleString('pt-BR') + ' agend.)';
+  if(elMcAbs)  elMcAbs.textContent  = '(' + fdAllMC.toLocaleString('pt-BR') + ' agend.)';
+  if(elHumAbs) elHumAbs.textContent = '(' + fdAllHUM.toLocaleString('pt-BR') + ' agend.)';
+
+  // ── MC Card: métricas reais (sem hardcoded) ──────────────────────────────
+  // Atribuição: MC só leva receita de Avaliação Inicial CONCLUÍDA que ela agendou
+  // (regra confirmada pelo usuário). Resto vai pro operador.
+  const SPEC_AVAL_NAMES = new Set(['Avaliação','Avaliacao','AVALIAÇÃO','Avaliação Inicial']);
+  const mcAppts = fd.filter(p => p.agent === 'MC');
+  const mcAgendCount = mcAppts.length;
+  // MC conclusão: % das consultas MC que foram concluídas (status 8) ou atendidas (7)
+  const mcConcluded = mcAppts.filter(p => p.status === 8 || p.status === 7).length;
+  const mcConvPctVal = mcAgendCount > 0 ? Math.round(mcConcluded / mcAgendCount * 100) : 0;
+
+  // MC revenue: pagamentos de Avaliação atribuídos a pacientes cuja avaliação foi
+  // agendada pela MC E foi concluída/atendida.
+  // Mapa: patient_id → true se tem avaliação concluída agendada pela MC
+  const mcCreditPatients = new Set();
+  mcAppts
+    .filter(p => p.status === 8 || p.status === 7)
+    .filter(p => SPEC_AVAL_NAMES.has(p.spec))
+    .forEach(p => { if(p.patient_id) mcCreditPatients.add(p.patient_id); });
+  const mcRevenue = filteredPays
+    .filter(p => mcCreditPatients.has(p.patient_id) && SPEC_AVAL_NAMES.has(p.specialty_name))
+    .reduce((s,p) => s + parseFloat(p.amount||0), 0);
+
+  // vsMC: % dos agendamentos totais (filtrados) que foram MC
+  const vsMCpctVal = totalAll > 0 ? Math.round((fdAllMC / totalAll) * 100) : 0;
+
+  if(typeof updateMC === 'function'){
+    updateMC({
+      mcAgend: mcAgendCount,
+      mcConvPct: mcConvPctVal,
+      mcRevenue: mcRevenue,
+      totalRev: filteredRevTotal,
+      vsMCpct: vsMCpctVal
+    });
+  }
 
   // ── Auditoria: Tables ────────────────────────────────
   const CONF2=fd.filter(p=>p.status===4);
