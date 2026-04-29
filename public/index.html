@@ -593,6 +593,13 @@
   </div>
 </nav>
 
+<!-- Chips de filtros aplicados -->
+<div id="activeFilters" style="position:fixed;top:var(--nav);left:0;right:0;display:none;align-items:center;gap:8px;padding:7px 36px;background:rgba(168,85,247,.06);border-bottom:1px solid rgba(168,85,247,.18);z-index:999;font-size:11px;flex-wrap:wrap;">
+  <span style="color:var(--gray-l);font-weight:600;text-transform:uppercase;letter-spacing:.08em;font-size:9.5px;">Filtros ativos:</span>
+  <span id="activeFiltersList" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;"></span>
+  <button onclick="clearAllFilters()" style="margin-left:auto;background:transparent;border:1px solid rgba(168,85,247,.4);color:var(--purple);padding:3px 9px;border-radius:12px;cursor:pointer;font-family:inherit;font-size:10.5px;font-weight:600;">Limpar tudo</button>
+</div>
+
 <div id="main-scale" style="zoom:1.1;">
 
 <!-- ╔══ OVERVIEW ══╗ -->
@@ -1325,13 +1332,84 @@ function updateDashboard(){
   document.querySelectorAll('.rval').forEach(el=>el.textContent=conv+'%');
   setRing('rv0',conv,213.6);setRing('rv1',conv,339.3);
 
-  // ── Overview: Financial chart — scale initial fixed data ─────────────────
-  CHART_FIN.data.datasets.forEach((ds,i)=>{ds.data=finRaw[i].map(v=>Math.round(v*R));});
+  // ── Charts: recalcular de verdade a partir dos dados filtrados ─────
+  // Lista de meses que entram no chart (do filtro de período se aplicado, senão todos do dataset)
+  const allDatesForChart = [
+    ...fd.map(p=>p.dateRaw),
+    ...filteredPays.map(p=>new Date(p.date))
+  ];
+  let chartMinDate, chartMaxDate;
+  if(d1 && d2){
+    chartMinDate = new Date(d1); chartMaxDate = new Date(d2);
+  } else if(allDatesForChart.length){
+    chartMinDate = new Date(Math.min(...allDatesForChart.map(d=>d.getTime())));
+    chartMaxDate = new Date(Math.max(...allDatesForChart.map(d=>d.getTime())));
+  } else {
+    chartMinDate = new Date(); chartMaxDate = new Date();
+  }
+  const chartMonthKeys=[], chartMonthLabels=[];
+  const cur = new Date(chartMinDate.getFullYear(), chartMinDate.getMonth(), 1);
+  const endM = new Date(chartMaxDate.getFullYear(), chartMaxDate.getMonth(), 1);
+  while(cur <= endM){
+    const k = cur.getFullYear()+'-'+String(cur.getMonth()+1).padStart(2,'0');
+    chartMonthKeys.push(k);
+    chartMonthLabels.push(MONTHS[cur.getMonth()]+'/'+String(cur.getFullYear()).slice(2));
+    cur.setMonth(cur.getMonth()+1);
+    if(chartMonthKeys.length>36) break; // sanity
+  }
+  if(chartMonthKeys.length===0){ chartMonthKeys.push('—'); chartMonthLabels.push('—'); }
+
+  // CHART_FIN: receita por TOP-8 specs × meses (filtrado)
+  const specRevF = {};
+  filteredPays.forEach(p => { specRevF[p.specialty_name] = (specRevF[p.specialty_name]||0) + parseFloat(p.amount||0); });
+  const topSpecsF = Object.entries(specRevF).sort((a,b)=>b[1]-a[1]).slice(0,8).map(e=>e[0]);
+  const finRawF = topSpecsF.map(spec =>
+    chartMonthKeys.map(mk =>
+      filteredPays.filter(p => p.specialty_name === spec)
+                  .filter(p => { const d=new Date(p.date); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0') === mk; })
+                  .reduce((s,p) => s + parseFloat(p.amount||0), 0)
+    )
+  );
+  CHART_FIN.data.labels = chartMonthLabels;
+  CHART_FIN.data.datasets = topSpecsF.map((sp, i) => ({
+    label: sp, data: finRawF[i],
+    backgroundColor: fCols[i % fCols.length],
+    borderColor: 'transparent', borderWidth: 0,
+    borderRadius: i === topSpecsF.length - 1 ? {topLeft:3, topRight:3} : 0
+  }));
   CHART_FIN.update();
 
-  // ── Overview: Status chart — scale initial fixed data ────────────────────
-  CHART_ST.data.datasets.forEach((ds,i)=>{ds.data=sData[i].map(v=>Math.round(v*R));});
+  // CHART_ST: count por TOP-8 status × meses (filtrado)
+  const statusCountF = {};
+  fd.forEach(p => { statusCountF[p.status] = (statusCountF[p.status]||0) + 1; });
+  const topStatusesF = Object.entries(statusCountF).sort((a,b)=>b[1]-a[1]).slice(0,8).map(e=>parseInt(e[0]));
+  const sDataF = topStatusesF.map(st =>
+    chartMonthKeys.map(mk =>
+      fd.filter(p => p.status === st).filter(p => {
+        const d = p.dateRaw;
+        return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0') === mk;
+      }).length
+    )
+  );
+  CHART_ST.data.labels = chartMonthLabels;
+  CHART_ST.data.datasets = topStatusesF.map((st, i) => ({
+    label: STM[st] || ('Status '+st), data: sDataF[i],
+    backgroundColor: sCols[i % sCols.length],
+    borderColor: 'transparent', borderWidth: 0,
+    borderRadius: i === topStatusesF.length - 1 ? {topLeft:3, topRight:3} : 0
+  }));
   CHART_ST.update();
+
+  // CHART_AGE: faixa etária dos pacientes únicos no recorte
+  const ageDist = {'0–10':0,'11–20':0,'21–40':0,'41–60':0,'60+':0};
+  const seenP = new Set();
+  fd.forEach(p => {
+    if(seenP.has(p.patient_id)) return;
+    seenP.add(p.patient_id);
+    if(p.age && p.age in ageDist) ageDist[p.age]++;
+  });
+  CHART_AGE.data.datasets[0].data = ['0–10','11–20','21–40','41–60','60+'].map(k => ageDist[k]);
+  CHART_AGE.update();
 
   // ── Marketing: Conversion mini stats ────────────────
   const mktL=document.getElementById('mktLeads');
@@ -1388,6 +1466,9 @@ function updateDashboard(){
 
   // ── Métricas Thauany (recalcula a cada filtro) ──────────────────────────
   if(typeof computeThauanyMetrics==='function') computeThauanyMetrics().catch(()=>{});
+
+  // ── Chips de filtros aplicados ──────────────────────────────────────────
+  renderActiveFilterChips();
 
   // ── MC Comparativo Bar ──────────────────────────────────────────────────
   const fdAll   = filteredNoMC();
@@ -1513,11 +1594,14 @@ const clinicName = id => CLINIC_MAP[id] || ('Clínica ' + (id||'—').slice(0,8)
 // Mapa canônico de speciality_id → nome da especialidade.
 // Fonte: lista oficial passada pelo usuário. Se um ID não estiver aqui,
 // o loader tenta preencher a partir do BI Payments (specialty_id + specialty_name).
+// IMPORTANTE: nomes alinhados ao que vem em BI Payments.specialty_name (canonical).
+// Ecuro envia "Clinico Geral" (sem acento) — mantemos para evitar duplicidade no UI.
 const SPECIALTY_MAP = {
   '8409c08e-f3fa-43a0-b9bd-53128cecdbdc': 'Avaliação',
   '01721964-940e-4de3-91ee-928132c8f478': 'Pediatria',
   '24f8018c-6ee8-4b6d-ac69-082db6af4976': 'Alinhadores Invisíveis',
   '29c265e2-9924-4ace-99bd-d61ce4bf482f': 'Outros',
+  '29ec61ef-5cca-4091-aef7-77b3f20306df': 'Clinico Geral',
   '6af3ce7d-0903-43a9-b7a3-9b668f585752': 'Escaneamento',
   '6e577463-d4a8-4a2d-bfeb-680473a46b0f': 'Estética',
   '75185971-d682-4ef8-a72f-bb57e856e6d3': 'Procedimentos Especiais',
@@ -1527,8 +1611,7 @@ const SPECIALTY_MAP = {
   'bb1ba0bb-cbae-4c5b-8bd2-133c6bcbb593': 'Implante',
   'd4fe1a9a-7ba3-42dd-b023-5c85b47fa5aa': 'Teste Covid',
   'd5f1612a-e000-47d4-a72f-081b35f9c2b1': 'Endodontia',
-  'd5f1612a-e000-47d4-a72f-081b35f9c2bx': 'Medicina',
-  'e9d893b3-1de5-4f13-895d-37b06a2ea52f': 'Clínico Geral'
+  'e9d893b3-1de5-4f13-895d-37b06a2ea52f': 'Clinico Geral'
 };
 
 const T_APP = 'BI Appointments';
@@ -2037,6 +2120,73 @@ async function computeThauanyMetrics(){
   setTxt('vdFollowOrg', fmtMoney(vFOrg));
 }
 function setTxt(id, v){ const e = document.getElementById(id); if(e) e.textContent = v; }
+
+// ─────────────────────────────────────────────────────────────────
+// Chips de filtros aplicados (UX: mostrar o que está ativo)
+// ─────────────────────────────────────────────────────────────────
+function renderActiveFilterChips(){
+  const wrap = document.getElementById('activeFilters');
+  const list = document.getElementById('activeFiltersList');
+  if(!wrap || !list) return;
+  const chips = [];
+  if(MC_MODE === 'MC') chips.push({label:'Agente: Maria Clara', clear: () => setMCMode('ALL')});
+  if(MC_MODE === 'OP') chips.push({label:'Agente: Operadores',   clear: () => setMCMode('ALL')});
+  if(APPLIED.d1 || APPLIED.d2){
+    const d1 = APPLIED.d1 ? APPLIED.d1.split('-').reverse().join('/') : '—';
+    const d2 = APPLIED.d2 ? APPLIED.d2.split('-').reverse().join('/') : '—';
+    chips.push({label:`Período: ${d1} → ${d2}`, clear: () => { APPLIED.d1=null; APPLIED.d2=null; updateDashboard(); }});
+  }
+  if(APPLIED.units && APPLIED.units.size){
+    const arr = [...APPLIED.units];
+    chips.push({label:`Unidade: ${arr.length===1?arr[0]:arr.length+' selecionadas'}`, clear: () => { APPLIED.units=null; selectAllInDropdown('ddu'); updateDashboard(); }});
+  }
+  if(APPLIED.specs && APPLIED.specs.size){
+    const arr = [...APPLIED.specs];
+    chips.push({label:`Especialidade: ${arr.length===1?arr[0]:arr.length+' selecionadas'}`, clear: () => { APPLIED.specs=null; selectAllInDropdown('dde'); updateDashboard(); }});
+  }
+  if(APPLIED.statuses && APPLIED.statuses.size){
+    const arr = [...APPLIED.statuses];
+    chips.push({label:`Status: ${arr.length===1?arr[0]:arr.length+' selecionados'}`, clear: () => { APPLIED.statuses=null; selectAllInDropdown('dds'); updateDashboard(); }});
+  }
+  if(APPLIED.creators && APPLIED.creators.size){
+    const arr = [...APPLIED.creators];
+    chips.push({label:`Criador: ${arr.length===1?arr[0]:arr.length+' selecionados'}`, clear: () => { APPLIED.creators=null; updateDashboard(); }});
+  }
+  if(chips.length === 0){ wrap.style.display='none'; list.innerHTML=''; return; }
+  wrap.style.display='flex';
+  list.innerHTML = chips.map((c, i) =>
+    `<span class="afchip" data-i="${i}" style="display:inline-flex;align-items:center;gap:6px;background:rgba(168,85,247,.18);color:var(--white);border:1px solid rgba(168,85,247,.35);padding:3px 4px 3px 9px;border-radius:14px;font-size:10.5px;font-weight:600;">
+      ${c.label}
+      <button onclick="window.__clearChip(${i})" title="Remover" style="background:rgba(255,255,255,.1);border:none;color:#fff;width:16px;height:16px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;font-size:11px;line-height:1;padding:0;">×</button>
+    </span>`
+  ).join('');
+  window.__chips = chips;
+  window.__clearChip = (i) => { window.__chips[i]?.clear(); };
+  // body padding-top compensa altura extra
+  document.body.style.paddingTop = wrap.offsetHeight + 'px';
+}
+function clearAllFilters(){
+  MC_MODE = 'ALL'; if(typeof setMCMode==='function') setMCMode('ALL');
+  APPLIED.d1=null; APPLIED.d2=null;
+  APPLIED.units=null; APPLIED.specs=null; APPLIED.statuses=null; APPLIED.creators=null;
+  ['ddu','dde','dds'].forEach(selectAllInDropdown);
+  updateDashboard();
+}
+function selectAllInDropdown(ddId){
+  const dd = document.getElementById(ddId); if(!dd) return;
+  const items = [...dd.querySelectorAll('.ddi')];
+  if(!items.length) return;
+  items.forEach(it => it.classList.remove('sl'));
+  items[0].classList.add('sl');
+  // marca o checkbox visualmente
+  const ck = items[0].querySelector('.dck');
+  if(ck && !ck.innerHTML.includes('polyline')){
+    ck.innerHTML = '<svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>';
+  }
+  for(let j = 1; j < items.length; j++) {
+    const c = items[j].querySelector('.dck'); if(c) c.innerHTML = '';
+  }
+}
 
 // Kick off load after DOM ready + charts initialized
 if(document.readyState === 'complete' || document.readyState === 'interactive'){
