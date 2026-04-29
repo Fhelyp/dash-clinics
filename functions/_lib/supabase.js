@@ -25,7 +25,9 @@ export async function supaInsert(env, table, rows, prefer = 'return=representati
     body: JSON.stringify(rows)
   });
   if (!res.ok) throw new Error(`Supabase insert ${table}: ${res.status} ${await res.text()}`);
-  return res.json();
+  if (prefer.includes('return=minimal')) return null;
+  const txt = await res.text();
+  return txt ? JSON.parse(txt) : null;
 }
 
 export async function supaUpsert(env, table, rows, onConflict = 'id') {

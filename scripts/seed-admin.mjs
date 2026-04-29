@@ -24,7 +24,7 @@ function b64url(bytes) {
 }
 async function hashPassword(password) {
   const salt = crypto.getRandomValues(new Uint8Array(16));
-  const ITER = 210000;
+  const ITER = 100000; // limite do Cloudflare Workers
   const key = await crypto.subtle.importKey('raw', enc.encode(password), { name: 'PBKDF2' }, false, ['deriveBits']);
   const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt, iterations: ITER, hash: 'SHA-256' }, key, 256);
   return `pbkdf2$${ITER}$${b64url(salt)}$${b64url(new Uint8Array(bits))}`;

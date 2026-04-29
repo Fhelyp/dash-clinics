@@ -2,6 +2,14 @@ import { verifyPassword, signJWT, makeAuthCookie, sha256Hex } from '../_lib/auth
 import { supaSelect, supaInsert, supaUpdate } from '../_lib/supabase.js';
 
 export async function onRequestPost({ request, env }) {
+  try {
+    return await handle({ request, env });
+  } catch (e) {
+    return j(500, { error: 'server_error', message: String(e?.message || e), stack: String(e?.stack || '').split('\n').slice(0, 6) });
+  }
+}
+
+async function handle({ request, env }) {
   let body;
   try { body = await request.json(); } catch { return j(400, { error: 'invalid_json' }); }
   const email = String(body.email || '').trim().toLowerCase();

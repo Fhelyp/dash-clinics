@@ -20,7 +20,8 @@ export function b64urlDecode(s) {
 
 // ── PBKDF2 password hashing ───────────────────────────────
 // Format: pbkdf2$<iter>$<saltB64>$<hashB64>
-const PBKDF2_ITER = 210_000;
+// Cloudflare Workers limita PBKDF2 a 100k iterations max.
+const PBKDF2_ITER = 100_000;
 const PBKDF2_KEYLEN = 32;
 
 export async function hashPassword(password) {
@@ -38,7 +39,8 @@ export async function hashPassword(password) {
 export async function verifyPassword(password, stored) {
   const parts = String(stored || '').split('$');
   if (parts.length !== 4 || parts[0] !== 'pbkdf2') return false;
-  const iter = parseInt(parts[1], 10);
+  // Clamp iter ao máximo permitido pelo runtime (Cloudflare = 100k).
+  const iter = Math.min(parseInt(parts[1], 10), 100_000);
   const salt = b64urlDecode(parts[2]);
   const expected = b64urlDecode(parts[3]);
   const key = await crypto.subtle.importKey(
