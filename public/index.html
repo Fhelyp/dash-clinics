@@ -545,7 +545,8 @@
   body.light .snav-item.on{background:linear-gradient(90deg,rgba(168,85,247,.12),rgba(168,85,247,.02));}
   /* Topbar */
   nav{left:200px !important;padding:0 24px !important;justify-content:flex-end !important;gap:8px;transition:left .25s;}
-  .nfilt{justify-content:flex-start !important;align-items:center;flex-wrap:nowrap !important;}
+  /* .nfilt sem width:100% — nav (flex-end) empurra .nfilt para direita; .nfilt mantém largura natural */
+  .nfilt{align-items:center;flex-wrap:nowrap !important;flex-shrink:0;}
   /* Reduz padding-top do conteúdo (era muito grande) */
   .ovg{padding-top:calc(var(--nav) + 14px) !important;}
   /* Charts contidos no card (não extrapolam pra cobrir o card seguinte) */
@@ -576,9 +577,7 @@
 </style>
 
 <nav>
-  <div class="nfilt" style="width:100%;flex-wrap:nowrap;">
-    <!-- Espaçador: empurra todos os filtros para a direita -->
-    <div style="flex:1 1 auto;min-width:0;"></div>
+  <div class="nfilt" style="flex-wrap:nowrap;max-width:100%;overflow:hidden;">
     <!-- Filtro 3-estados: Todos / Maria Clara / Operadores -->
     <div id="mcSwitch" role="tablist" aria-label="Filtro por agente" style="display:inline-flex;align-items:center;background:var(--card);border:1px solid var(--border);border-radius:20px;padding:3px;font-size:11px;font-weight:600;flex-shrink:0;">
       <button class="mcs-opt mcs-on" data-mc="ALL" onclick="setMCMode('ALL')" style="background:var(--purple);color:#fff;border:none;padding:5px 11px;border-radius:16px;cursor:pointer;font-family:inherit;font-size:11px;font-weight:600;transition:all .2s;">Todos</button>
@@ -725,15 +724,15 @@
       </div>
       <div class="bn" style="--ac:var(--green)">
         <div class="bnl">Concluídos</div><div class="bnv">0</div>
-        <div class="bns">status = 8</div>
+        <div class="bns">consultas com status Concluído</div>
       </div>
       <div class="bn" style="--ac:var(--teal)">
         <div class="bnl">Confirmações</div><div class="bnv">0</div>
-        <div class="bns">status = 4</div>
+        <div class="bns">consultas com status Confirmado</div>
       </div>
       <div class="bn" style="--ac:var(--orange)">
         <div class="bnl">Reagendamentos</div><div class="bnv">0</div>
-        <div class="bns" id="reagSrc">logs ou heurística</div>
+        <div class="bns" id="reagSrc">remarcações registradas</div>
       </div>
       <!-- Taxa de Conclusão ring: concluídos / total agendamentos -->
       <div class="crc">
@@ -904,7 +903,7 @@
       <!-- Conversão por Faixa Etária -->
       <div class="card">
         <div class="chd"><span class="clbl">Conversão por Faixa Etária</span></div>
-        <div class="cbdy" style="min-height:260px"><canvas id="chAge"></canvas></div>
+        <div class="cbdy" style="height:280px;position:relative;"><canvas id="chAge"></canvas></div>
       </div>
 
     </div>
@@ -1480,12 +1479,12 @@ function updateDashboard(){
   if(bns[2])bns[2].querySelector('.bnv').textContent=conc.toLocaleString('pt-BR');
   if(bns[3])bns[3].querySelector('.bnv').textContent=conf.toLocaleString('pt-BR');
   if(bns[4])bns[4].querySelector('.bnv').textContent=reag.toLocaleString('pt-BR');
-  // Atualiza a fonte da métrica de reagendamento (logs oficial OU heurística)
+  // Atualiza a fonte da métrica de reagendamento (sempre em PT, sem termos técnicos)
   const reagSrcEl=document.getElementById('reagSrc');
   if(reagSrcEl){
     reagSrcEl.textContent = window.REAG_SOURCE === 'logs'
-      ? 'via logs (to_status=3)'
-      : 'via heurística (Δ>24h)';
+      ? 'auditado pelos logs'
+      : 'estimado por horário alterado';
   }
 
   // ── Overview: Conversion rings ───────────────────────
@@ -1799,24 +1798,40 @@ const T_LOG = 'BI Appointment Logs';
 const T_PAY = 'BI Payments';
 
 // ── Utility ───────────────────────────────────────────────────────
+// Toast discreto canto inferior direito (sem mais barra horizontal full-width)
 function showBanner(msg, type='info'){
   let b = document.getElementById('sbBanner');
   if(!b){
     b = document.createElement('div');
     b.id = 'sbBanner';
-    b.style.cssText = 'position:fixed;top:58px;left:0;right:0;z-index:999;padding:10px 36px;font-size:12px;text-align:center;font-weight:500;';
+    b.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:9999;padding:12px 18px;font-size:12.5px;font-weight:500;border-radius:10px;backdrop-filter:blur(12px);box-shadow:0 8px 32px rgba(0,0,0,.4);display:flex;align-items:center;gap:10px;max-width:320px;transition:opacity .25s;';
     document.body.appendChild(b);
   }
   const colors = {
-    info:  'background:rgba(59,130,246,.12);border-bottom:1px solid rgba(59,130,246,.25);color:#93c5fd;',
-    warn:  'background:rgba(251,191,36,.12);border-bottom:1px solid rgba(251,191,36,.3);color:#fbbf24;',
-    error: 'background:rgba(239,68,68,.12);border-bottom:1px solid rgba(239,68,68,.3);color:#fca5a5;',
-    ok:    'background:rgba(16,185,129,.1);border-bottom:1px solid rgba(16,185,129,.25);color:#6ee7b7;'
+    info:  'background:rgba(59,130,246,.18);border:1px solid rgba(59,130,246,.35);color:#bfdbfe;',
+    warn:  'background:rgba(251,191,36,.15);border:1px solid rgba(251,191,36,.4);color:#fde68a;',
+    error: 'background:rgba(239,68,68,.18);border:1px solid rgba(239,68,68,.4);color:#fecaca;',
+    ok:    'background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.35);color:#a7f3d0;'
   };
-  b.style.cssText += colors[type];
-  b.innerHTML = msg;
+  // Reset cssText para não acumular cores antigas
+  b.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:9999;padding:12px 18px;font-size:12.5px;font-weight:500;border-radius:10px;backdrop-filter:blur(12px);box-shadow:0 8px 32px rgba(0,0,0,.4);display:flex;align-items:center;gap:10px;max-width:320px;transition:opacity .25s;' + colors[type];
+  // Spinner SVG inline pra estado info
+  const spinner = type === 'info' ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation:spin 1s linear infinite;flex-shrink:0;"><path d="M21 12a9 9 0 11-6.219-8.56"/></svg>' : '';
+  b.innerHTML = spinner + '<span>'+msg+'</span>';
 }
-function hideBanner(){ const b = document.getElementById('sbBanner'); if(b) b.remove(); }
+function hideBanner(){
+  const b = document.getElementById('sbBanner');
+  if(!b) return;
+  b.style.opacity = '0';
+  setTimeout(()=>{ try{ b.remove(); }catch(_){} }, 250);
+}
+// CSS keyframes pro spinner (injetado uma vez)
+if(!document.getElementById('sbSpinKf')){
+  const s = document.createElement('style');
+  s.id = 'sbSpinKf';
+  s.textContent = '@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}';
+  document.head.appendChild(s);
+}
 
 function fmtMoney(v){ return 'R$ '+Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function fmtDateTime(iso){ const d=new Date(iso); return d.toLocaleDateString('pt-BR')+' '+d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}); }
@@ -1927,11 +1942,14 @@ async function loadFromSupabase(){
       age: ageBucketFromDOB(a.patient_date_of_birth) || '—',
       dateRaw: d,
       datetime: fmtDateTime(a.start_time),
-      agent: mcApptIds.has(a.id) ? 'MC' : 'HUM',
+      // MC se: channel é da MC OU logs registram MC
+      agent: (getChannelIdRaw(a) === MC_USER_ID || mcApptIds.has(a.id)) ? 'MC' : 'HUM',
       status: a.status,
       revenue: 0, // aggregated separately from payments
-      // Sem created_by_name mas com log da MC → atribuir a Maria Clara
-      creator: getCreatorNameRaw(a) || (mcApptIds.has(a.id) ? 'Maria Clara' : ''),
+      // Channel MC OU created_by vazio com log MC → atribuir a Maria Clara
+      creator: (getChannelIdRaw(a) === MC_USER_ID)
+        ? 'Maria Clara'
+        : (getCreatorNameRaw(a) || (mcApptIds.has(a.id) ? 'Maria Clara' : '')),
       channelId: getChannelIdRaw(a)
     };
   });
@@ -2104,15 +2122,18 @@ async function loadFromSupabase(){
   // ── Agendamentos por Criador — agrupamento por created_by_name ─────
   // Helpers getCreatorNameRaw / getChannelIdRaw já definidos acima.
 
-  // Excluímos do gráfico appointments cujo channel_id corresponde à Maria Clara
-  // (agendamentos criados pelo canal dela, não por humanos).
-  const EXCLUDED_CHANNEL_IDS = new Set([MC_USER_ID]);
+  // Channel IDs da Maria Clara (canal automático dela). Quando channel_id bate, é MC.
+  const MC_CHANNEL_IDS = new Set([MC_USER_ID]);
+  const isMCAppointment = (a) => MC_CHANNEL_IDS.has(getChannelIdRaw(a)) || mcApptIds.has(a.id);
 
-  // Top 7 criadores humanos + "Outros" (cauda) + "Sem criador" (nomes vazios/null)
+  // Top 7 criadores humanos + "Outros" (cauda) + "Maria Clara" + "Sem criador" (raros)
   const creatorCount = {};
   let semCriador = 0, comCriador = 0, excluidosMC = 0;
   appointments.forEach(a => {
-    if(EXCLUDED_CHANNEL_IDS.has(getChannelIdRaw(a))){ excluidosMC++; return; }
+    // Channel da MC OU log da MC com created_by_name vazio → Maria Clara
+    if(MC_CHANNEL_IDS.has(getChannelIdRaw(a))){
+      creatorCount['Maria Clara'] = (creatorCount['Maria Clara']||0)+1; comCriador++; return;
+    }
     const nome = getCreatorNameRaw(a);
     if(!nome){
       // Sem created_by_name: se a MC logou nesse appointment → atribuir a Maria Clara
