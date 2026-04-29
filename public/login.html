@@ -3,47 +3,65 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Login · Dashboard S-Pragel</title>
+<title>Login · Dashboard de Clínicas</title>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
     --bg:#060810; --card:#0f1623; --border:rgba(255,255,255,.06);
     --purple:#a855f7; --blue:#3b82f6; --white:#f1f5f9; --gray:#475569; --gray-l:#94a3b8;
   }
+  body.light {
+    --bg:#f0f2f7; --card:#ffffff; --border:rgba(0,0,0,.08);
+    --white:#1e293b; --gray:#94a3b8; --gray-l:#475569;
+  }
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
   body{font-family:'Sora',sans-serif;background:var(--bg);color:var(--white);min-height:100vh;
     display:flex;align-items:center;justify-content:center;padding:20px;
-    background-image:radial-gradient(circle at 20% 20%,rgba(168,85,247,.08),transparent 60%),radial-gradient(circle at 80% 80%,rgba(59,130,246,.06),transparent 60%);}
+    background-image:radial-gradient(circle at 20% 20%,rgba(168,85,247,.08),transparent 60%),radial-gradient(circle at 80% 80%,rgba(59,130,246,.06),transparent 60%);
+    transition:background .3s,color .3s;}
+  body.light{background-image:radial-gradient(circle at 20% 20%,rgba(168,85,247,.07),transparent 60%),radial-gradient(circle at 80% 80%,rgba(59,130,246,.05),transparent 60%);}
   .box{background:var(--card);border:1px solid var(--border);border-radius:14px;
     padding:38px 36px;width:100%;max-width:380px;
     box-shadow:0 30px 60px rgba(0,0,0,.5);}
+  body.light .box{box-shadow:0 8px 32px rgba(15,22,35,.08);}
   h1{font-size:22px;font-weight:800;letter-spacing:-.02em;margin-bottom:4px;
     background:linear-gradient(130deg,#fff 30%,var(--purple) 100%);
     -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+  body.light h1{background:linear-gradient(130deg,#1e293b 30%,var(--purple) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
   .sub{font-size:12px;color:var(--gray-l);margin-bottom:28px;}
   label{display:block;font-size:10px;font-weight:700;letter-spacing:.1em;
     text-transform:uppercase;color:var(--gray-l);margin-bottom:7px;margin-top:14px;}
   label:first-of-type{margin-top:0;}
-  input{width:100%;background:rgba(255,255,255,.04);border:1px solid var(--border);
+  input{width:100%;background:rgba(0,0,0,.02);border:1px solid var(--border);
     color:var(--white);font-family:'Sora',sans-serif;font-size:13px;
     padding:11px 13px;border-radius:8px;outline:none;transition:border-color .2s;}
+  body:not(.light) input{background:rgba(255,255,255,.04);}
   input:focus{border-color:var(--purple);}
   button{width:100%;margin-top:22px;background:linear-gradient(90deg,var(--purple),var(--blue));
     color:#fff;border:none;font-family:'Sora',sans-serif;font-size:13px;font-weight:700;
     padding:12px;border-radius:8px;cursor:pointer;letter-spacing:.02em;transition:opacity .2s;}
   button:hover{opacity:.9;}
   button:disabled{opacity:.5;cursor:not-allowed;}
-  .err{margin-top:14px;font-size:11.5px;color:#fca5a5;
-    background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);
+  .err{margin-top:14px;font-size:11.5px;color:#dc2626;
+    background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.22);
     padding:10px 12px;border-radius:8px;display:none;}
+  body:not(.light) .err{color:#fca5a5;background:rgba(239,68,68,.08);border-color:rgba(239,68,68,.25);}
   .err.on{display:block;}
   .foot{margin-top:24px;font-size:10.5px;color:var(--gray);text-align:center;}
   .foot strong{color:var(--gray-l);}
+  .theme-tog{position:fixed;top:18px;right:18px;width:38px;height:38px;border-radius:50%;
+    background:var(--card);border:1px solid var(--border);cursor:pointer;display:flex;
+    align-items:center;justify-content:center;color:var(--gray-l);transition:all .2s;}
+  .theme-tog:hover{border-color:var(--purple);color:var(--purple);}
 </style>
 </head>
-<body>
+<body class="light">
+  <button class="theme-tog" onclick="toggleTheme()" title="Alternar tema" id="themeBtn">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+  </button>
+
   <div class="box">
-    <h1>Dashboard S-Pragel</h1>
+    <h1>Dashboard de Clínicas</h1>
     <div class="sub">Acesse com seu e-mail autorizado.</div>
     <form id="f" autocomplete="on">
       <label for="email">E-mail</label>
@@ -53,22 +71,30 @@
       <button id="btn" type="submit">Entrar</button>
       <div id="err" class="err"></div>
     </form>
-    <div class="foot">Acesso restrito · <strong>S-Pragel</strong></div>
+    <div class="foot">Acesso restrito</div>
   </div>
 
 <script>
-const f = document.getElementById('f');
-const btn = document.getElementById('btn');
-const err = document.getElementById('err');
+// Tema claro por padrão (mesma lógica do dashboard)
+function applyTheme(){
+  const t = localStorage.getItem('dc_theme') || 'light';
+  document.body.classList.toggle('light', t === 'light');
+}
+function toggleTheme(){
+  const t = document.body.classList.contains('light') ? 'dark' : 'light';
+  localStorage.setItem('dc_theme', t);
+  applyTheme();
+}
+applyTheme();
 
+const f = document.getElementById('f'), btn = document.getElementById('btn'), err = document.getElementById('err');
 f.addEventListener('submit', async (e) => {
   e.preventDefault();
   err.classList.remove('on');
   btn.disabled = true; btn.textContent = 'Entrando…';
   try {
     const res = await fetch('/api/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         email: document.getElementById('email').value.trim(),
         password: document.getElementById('password').value
@@ -76,23 +102,16 @@ f.addEventListener('submit', async (e) => {
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      err.textContent = data.error === 'invalid_credentials'
-        ? 'E-mail ou senha inválidos.'
-        : 'Não foi possível entrar. Tente novamente.';
+      err.textContent = data.error === 'invalid_credentials' ? 'E-mail ou senha inválidos.' : 'Não foi possível entrar.';
       err.classList.add('on');
       return;
     }
-    if (data.user && data.user.must_change_password) {
-      window.location.href = '/change-password.html';
-    } else {
-      window.location.href = '/';
-    }
+    if (data.user && data.user.must_change_password) window.location.href = '/change-password.html';
+    else window.location.href = '/';
   } catch (_) {
     err.textContent = 'Erro de conexão.';
     err.classList.add('on');
-  } finally {
-    btn.disabled = false; btn.textContent = 'Entrar';
-  }
+  } finally { btn.disabled = false; btn.textContent = 'Entrar'; }
 });
 </script>
 </body>
