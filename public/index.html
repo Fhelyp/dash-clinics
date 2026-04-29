@@ -545,6 +545,10 @@
         <div class="ddi" onclick="tdi(this)"><span class="dck"></span>Check-in</div>
         <div class="ddi" onclick="tdi(this)"><span class="dck"></span>Atendido</div>
         <div class="ddi" onclick="tdi(this)"><span class="dck"></span>Concluído</div>
+        <div class="ddi" onclick="tdi(this)"><span class="dck"></span>Não Resolvido</div>
+        <div class="ddi" onclick="tdi(this)"><span class="dck"></span>Aprovação</div>
+        <div class="ddi" onclick="tdi(this)"><span class="dck"></span>Aguardando Retorno</div>
+        <div class="ddi" onclick="tdi(this)"><span class="dck"></span>Retorno Criado</div>
       </div>
     </div>
     <div class="fw">
@@ -888,7 +892,12 @@ const SPECS=['Avaliação','Ortodontia','Clínico Geral','Implante','Estética',
 const MONTHS=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 const CAMPS=['Meta Ads','Google Ads','Indicação','Orgânico','WhatsApp','Email'];
 const ADS=['Implante – Meta','Ortodontia – Meta','Avaliação – Google','Clínico – Google','Retorno – WhatsApp','Estética – Meta','Emergência – Google','Indicação Direta'];
-const STM={1:'À Confirmar',2:'Não Respondido',3:'Reagendado',4:'Confirmado',5:'Cancelado',6:'Check-in',7:'Atendido',8:'Concluído',9:'Não Resolvido',10:'Aprovação',11:'Cancelado (Ret.)',12:'Retorno Criado'};
+// Status oficial da API Ecuro (openapi.json):
+//   1=Pendente, 2=Não atendeu, 3=Reagendado, 4=Confirmado, 5=Cancelado,
+//   6=Check-in, 7=Atendido, 8=Finalizado, 9=Não resolvido, 10=Sign-off,
+//   11=Aguardando retorno, 12=Retorno criado.
+// Mantemos nomes mais usados internamente em PT-BR.
+const STM={1:'À Confirmar',2:'Não Respondido',3:'Reagendado',4:'Confirmado',5:'Cancelado',6:'Check-in',7:'Atendido',8:'Concluído',9:'Não Resolvido',10:'Aprovação',11:'Aguardando Retorno',12:'Retorno Criado'};
 const STS={
   1:'background:rgba(234,179,8,.13);color:#eab308',2:'background:rgba(100,116,139,.13);color:#94a3b8',
   3:'background:rgba(249,115,22,.13);color:#f97316',4:'background:rgba(16,185,129,.13);color:#10b981',
@@ -2258,6 +2267,13 @@ async function doLogout(){
 }
 window.doLogout = doLogout;
 </script>
+
+<!-- ── FOOTER ─────────────────────────────────── -->
+<div style="max-width:var(--mw);margin:0 auto;padding:18px 36px 28px;text-align:center;border-top:1px solid var(--border);font-size:11px;color:var(--gray);">
+  <a href="/regras-de-negocio.html" style="color:var(--purple);text-decoration:none;font-weight:600;">📋 Regras de Negócio</a>
+  <span style="margin:0 12px;color:var(--gray);">·</span>
+  <span>Como cada métrica é calculada</span>
+</div>
 
 <!-- ── STARFIELD BACKGROUND ───────────────────────── -->
 <canvas id="stars" style="position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none;"></canvas>

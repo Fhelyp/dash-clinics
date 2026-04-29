@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Regras de Negócio · Dashboard de Clínicas</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#060810;--card:#0f1623;--card2:#141d2b;--border:rgba(255,255,255,.06);
+    --purple:#a855f7;--blue:#3b82f6;--green:#10b981;--orange:#f97316;
+    --white:#f1f5f9;--gray:#475569;--gray-l:#94a3b8;
+  }
+  body.light{
+    --bg:#f0f2f7;--card:#ffffff;--card2:#f8f9fc;--border:rgba(0,0,0,.08);
+    --white:#1e293b;--gray:#94a3b8;--gray-l:#475569;
+  }
+  *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:'Sora',sans-serif;background:var(--bg);color:var(--white);min-height:100vh;line-height:1.55;transition:background .3s;}
+  .top{position:sticky;top:0;background:var(--bg);border-bottom:1px solid var(--border);padding:16px 36px;display:flex;align-items:center;justify-content:space-between;z-index:10;backdrop-filter:blur(8px);}
+  .top a{color:var(--gray-l);text-decoration:none;font-size:13px;font-weight:600;display:flex;align-items:center;gap:8px;}
+  .top a:hover{color:var(--purple);}
+  .wrap{max-width:880px;margin:0 auto;padding:36px;}
+  h1{font-size:28px;font-weight:800;letter-spacing:-.03em;margin-bottom:6px;}
+  .lead{font-size:13px;color:var(--gray-l);margin-bottom:32px;}
+  h2{font-size:17px;font-weight:700;margin-top:36px;margin-bottom:14px;color:var(--purple);letter-spacing:-.01em;border-bottom:1px solid var(--border);padding-bottom:8px;}
+  h3{font-size:14px;font-weight:700;margin-top:22px;margin-bottom:8px;}
+  p,li{font-size:13px;color:var(--gray-l);}
+  ul{padding-left:20px;margin:6px 0 12px;}
+  li{margin:4px 0;}
+  code{font-family:'JetBrains Mono',monospace;font-size:11.5px;background:var(--card);padding:2px 6px;border-radius:4px;color:var(--purple);border:1px solid var(--border);}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px 22px;margin:14px 0;}
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:12px;}
+  th,td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--border);color:var(--gray-l);}
+  th{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--purple);font-weight:700;}
+  td:first-child{color:var(--white);font-weight:600;}
+  td code{font-size:10.5px;}
+  .note{font-size:12px;background:rgba(168,85,247,.08);border:1px solid rgba(168,85,247,.22);padding:12px 14px;border-radius:8px;color:var(--gray-l);margin:10px 0;}
+  .note strong{color:var(--purple);}
+  .warn{font-size:12px;background:rgba(249,115,22,.08);border:1px solid rgba(249,115,22,.25);padding:12px 14px;border-radius:8px;color:var(--gray-l);margin:10px 0;}
+  .warn strong{color:var(--orange);}
+  .formula{background:var(--card2);border-left:3px solid var(--purple);padding:10px 14px;border-radius:0 6px 6px 0;font-family:'JetBrains Mono',monospace;font-size:11.5px;color:var(--white);margin:10px 0;overflow-x:auto;}
+</style>
+</head>
+<body class="light">
+<div class="top">
+  <a href="/">← Voltar ao dashboard</a>
+  <span style="font-size:11px;color:var(--gray);">Atualizado em <strong style="color:var(--gray-l);">2026-04-29</strong></span>
+</div>
+<div class="wrap">
+  <h1>Regras de Negócio</h1>
+  <p class="lead">Como cada métrica do dashboard é calculada. Esta página existe para que decisões financeiras (comissionamento, atribuição de receita, performance de campanhas) sejam <strong style="color:var(--white);">auditáveis e questionáveis</strong>.</p>
+
+  <h2>1 · Origem dos dados</h2>
+  <div class="card">
+    <p>Todos os dados vêm de 3 feeds da API Ecuro <code>/api/v1/ecuro-light</code>:</p>
+    <ul>
+      <li><code>/bi/appointments</code> → tabela <code>BI Appointments</code></li>
+      <li><code>/bi/appointment-logs</code> → tabela <code>BI Appointment Logs</code> (trilha de mudanças de status)</li>
+      <li><code>/bi/payments</code> → tabela <code>BI Payments</code> (com <code>deleted_at</code> para exclusões lógicas)</li>
+    </ul>
+    <p style="margin-top:8px;">A sincronização é <strong style="color:var(--white);">incremental</strong> com lookback de 6 dias. Para histórico completo (até 31 dias), bootstrap noturno entre 20:00–08:00 BRT (regra da API).</p>
+    <div class="note"><strong>Dados vivos:</strong> qualquer paciente que tenha registro em <code>BI Payments</code> mas não em <code>BI Appointments</code> não aparece — Ecuro só vincula pagamento a quem teve agendamento.</div>
+  </div>
+
+  <h2>2 · Status de agendamento</h2>
+  <div class="card">
+    <p>Mapeamento oficial (fonte: OpenAPI da Ecuro):</p>
+    <table>
+      <thead><tr><th>Código</th><th>Nome interno</th><th>Significado oficial</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>À Confirmar</td><td>Pendente</td></tr>
+        <tr><td>2</td><td>Não Respondido</td><td>Não atendeu (ligação/mensagem)</td></tr>
+        <tr><td>3</td><td>Reagendado</td><td>Mudou data/hora</td></tr>
+        <tr><td>4</td><td>Confirmado</td><td>Paciente confirmou comparecimento</td></tr>
+        <tr><td>5</td><td>Cancelado</td><td>Cancelou explicitamente</td></tr>
+        <tr><td>6</td><td>Check-in</td><td>Compareceu</td></tr>
+        <tr><td>7</td><td>Atendido</td><td>Em consulta</td></tr>
+        <tr><td>8</td><td>Concluído</td><td>Atendimento finalizado</td></tr>
+        <tr><td>9</td><td>Não Resolvido</td><td>—</td></tr>
+        <tr><td>10</td><td>Aprovação</td><td>Sign-off (revisão administrativa)</td></tr>
+        <tr><td>11</td><td>Aguardando Retorno</td><td>Aguarda retorno futuro</td></tr>
+        <tr><td>12</td><td>Retorno Criado</td><td>Retorno já agendado</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>3 · Pacientes Únicos</h2>
+  <div class="card">
+    <div class="formula">Pacientes únicos = COUNT(DISTINCT patient_id) em BI Appointments filtrados pelo período/unidade/etc.</div>
+    <p>É <strong style="color:var(--white);">contagem de pessoas distintas que aparecem como agendamentos no recorte</strong>. Um mesmo paciente com 3 agendamentos = 1 paciente único.</p>
+    <div class="warn"><strong>Atenção:</strong> Como Ecuro só registra paciente que teve agendamento, "Pacientes Únicos" ≠ "Leads totais". Para leads sem agendamento, ver Chatwoot (próxima seção).</div>
+  </div>
+
+  <h2>4 · Reagendamentos</h2>
+  <div class="card">
+    <p>Estratégia em 2 níveis:</p>
+    <ol style="padding-left:22px;color:var(--gray-l);font-size:13px;">
+      <li><strong style="color:var(--white);">Preferencial (logs oficial):</strong> linhas em <code>BI Appointment Logs</code> com <code>to_status = 3</code></li>
+      <li><strong style="color:var(--white);">Fallback (heurística 24h):</strong> quando logs não preenchem essa info, considera reagendamento se <code>|start_time − scheduled_start_time| &gt; 24h</code></li>
+    </ol>
+    <p>O banner indica qual estratégia está em uso a cada carregamento.</p>
+  </div>
+
+  <h2>5 · Origem dos Pacientes (Campanha / Orgânico / Indicação / Resgate)</h2>
+  <div class="card">
+    <p>Critério atual:</p>
+    <ul>
+      <li><strong style="color:var(--purple);">Campanha:</strong> paciente cujo <strong>primeiro</strong> agendamento (mais antigo) tem <code>campaign_token</code> preenchido</li>
+      <li><strong style="color:var(--blue);">Orgânico:</strong> paciente cujo primeiro agendamento NÃO tem <code>campaign_token</code></li>
+      <li><strong style="color:#06b6d4;">Indicação:</strong> a definir — Ecuro tem categoria <code>indicacao</code> em <code>/orto-patients</code>, mas é específica de ortodontia. Precisa de tag/regra dedicada</li>
+      <li><strong style="color:var(--orange);">Resgate:</strong> a definir — sugestão: paciente cujo agendamento mais recente foi precedido por outro com status 5 (Cancelado) ou 11 (Aguardando Retorno) há mais de N dias</li>
+    </ul>
+    <div class="note">A definição de Indicação/Resgate impacta diretamente comissionamento. Quando alinharmos as regras, atualizar este documento e o código.</div>
+  </div>
+
+  <h2>6 · Receita do Período</h2>
+  <div class="card">
+    <div class="formula">Receita = SUM(amount) em BI Payments WHERE is_confirmed = true AND deleted_at IS NULL AND date BETWEEN d1 AND d2 AND clinic_id IN unidades_filtradas</div>
+    <p>"Melhor Mês" exibe o mês com maior receita confirmada no dataset completo (não respeita filtro de período, por design).</p>
+  </div>
+
+  <h2>7 · Vendas: 1ª Consulta vs Follow-Up</h2>
+  <div class="card">
+    <ul>
+      <li><strong style="color:var(--green);">1ª Consulta:</strong> pagamentos da especialidade <code>Avaliação</code></li>
+      <li><strong style="color:var(--blue);">Follow-Up:</strong> qualquer outra especialidade</li>
+      <li><strong>Follow-Up Campanha:</strong> follow-up de paciente classificado como Campanha (origem)</li>
+      <li><strong>Follow-Up Orgânico:</strong> follow-up de paciente classificado como Orgânico</li>
+    </ul>
+  </div>
+
+  <h2>8 · Atribuição Maria Clara vs Operadores</h2>
+  <div class="card">
+    <p>Em desenvolvimento. Regras propostas (a confirmar):</p>
+    <ul>
+      <li><strong>Criação do agendamento:</strong> bonificação para quem aparece em <code>created_by_id</code> (se = MC, MC; senão operador)</li>
+      <li><strong>Confirmação:</strong> última linha em <code>BI Appointment Logs</code> com <code>to_status = 4</code> e seu <code>user_id</code></li>
+      <li><strong>Reagendamento:</strong> última linha com <code>to_status = 3</code></li>
+    </ul>
+    <p>Filtro 3-estados no topo (Todos / Maria Clara / Operadores) atualmente classifica appointment como <code>agent='MC'</code> se o channel_id ou user_id em logs corresponde ao ID conhecido da Maria Clara.</p>
+    <div class="warn"><strong>Próximo passo:</strong> alinhar com a operação se a comissão segue a regra acima ou se há nuances (ex: comissão dividida quando MC e operador atuam no mesmo agendamento).</div>
+  </div>
+
+  <h2>9 · Leads de Campanha (Chatwoot)</h2>
+  <div class="card">
+    <p>Conta contatos únicos cujas conversas têm a tag <code>campanha</code>, no mês corrente.</p>
+    <div class="formula">Leads campanha (mês) = COUNT(DISTINCT conversation.contact_id) em /api/v1/accounts/{id}/conversations?labels[]=campanha onde conversation.created_at &ge; primeiro dia do mês</div>
+    <p>Cada uma das 32 unidades tem seu próprio Chatwoot account. O agregador roda com throttle pesado (8s/unidade, 2,5s/página) para não comprometer o atendimento em produção.</p>
+  </div>
+
+  <h2>10 · Filtros</h2>
+  <div class="card">
+    <p>Cada filtro <strong style="color:var(--white);">recalcula todas as métricas</strong> (não escala valores pré-calculados):</p>
+    <ul>
+      <li><strong>Período</strong> — janela de datas; charts mensais limitam aos meses dentro</li>
+      <li><strong>Unidade</strong> — filtra por <code>clinic_id</code>; afeta receita também</li>
+      <li><strong>Especialidade</strong> — match por <code>specialty_name</code> canonical (sem acento)</li>
+      <li><strong>Status</strong> — match por nome PT-BR (lookup em STM)</li>
+      <li><strong>Maria Clara / Operadores</strong> — switch 3-estados; classifica via campo <code>agent</code> derivado dos logs</li>
+    </ul>
+  </div>
+
+  <h2>11 · O que ainda não é coberto</h2>
+  <div class="card">
+    <ul>
+      <li><strong>Indicações / Resgates</strong> — categoria de origem ainda sem regra definida</li>
+      <li><strong>Atribuição WhatsApp → Ecuro</strong> — clique em ad de campanha vira agendamento? depende de match por telefone (a fazer)</li>
+      <li><strong>Meta Marketing API</strong> — performance de campanhas, gasto, CTR, leads gerados (planejado)</li>
+      <li><strong>Pré-cálculo noturno</strong> — atualmente recalcula no client; previsto cron 02:00 BRT em <code>dashboard_snapshots</code></li>
+    </ul>
+  </div>
+
+  <p style="margin-top:40px;font-size:11.5px;color:var(--gray);text-align:center;">Quando uma regra mudar, esta página é atualizada antes do código.</p>
+</div>
+<script>
+  const t = localStorage.getItem('dc_theme') || 'light';
+  document.body.classList.toggle('light', t === 'light');
+</script>
+</body>
+</html>
