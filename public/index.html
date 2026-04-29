@@ -474,7 +474,7 @@
 
 <!-- ╔══ NAV ══╗ -->
 <!-- ╔══ SIDEBAR LATERAL (retrátil) ══╗ -->
-<aside id="sidebar" style="position:fixed;top:0;left:0;bottom:0;width:200px;background:var(--card);border-right:1px solid var(--border);z-index:1001;display:flex;flex-direction:column;padding:18px 14px;transition:width .25s,padding .25s;">
+<aside id="sidebar">
   <button id="sbToggle" onclick="toggleSidebar()" title="Recolher menu" style="position:absolute;top:18px;right:-12px;width:24px;height:24px;border-radius:50%;background:var(--card);border:1px solid var(--border);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--gray-l);z-index:1002;box-shadow:0 2px 8px rgba(0,0,0,.15);">
     <svg id="sbToggleIcon" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
   </button>
@@ -522,6 +522,7 @@
 </aside>
 
 <style>
+  #sidebar{position:fixed;top:0;left:0;bottom:0;width:200px;background:var(--card);border-right:1px solid var(--border);z-index:1001;display:flex;flex-direction:column;padding:18px 14px;transition:width .25s,padding .25s;}
   /* Sidebar items */
   .snav-item{position:relative;display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;color:var(--gray-l);text-decoration:none;font-size:13px;font-weight:600;transition:all .2s;white-space:nowrap;overflow:hidden;}
   .snav-item:hover{background:rgba(168,85,247,.08);color:var(--white);}
@@ -610,6 +611,21 @@
         <div class="ddi" onclick="tdi(this)"><span class="dck"></span>Endodontia</div>
         <div class="ddi" onclick="tdi(this)"><span class="dck"></span>Pediatria</div>
         <div class="ddi" onclick="tdi(this)"><span class="dck"></span>Radiologia</div>
+      </div>
+    </div>
+    <div class="fw">
+      <button class="fbtn" onclick="tdd('ddo')">
+        <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        <span class="fbtn-label">Operador</span> <svg width="9" height="9" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="dd" id="ddo" style="min-width:240px;max-height:340px;">
+        <div style="padding:8px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--card2);z-index:1;">
+          <input type="text" id="ddoSearch" placeholder="Buscar operador…" oninput="filterOperatorList(this.value)" style="width:100%;background:rgba(0,0,0,.04);border:1px solid var(--border);color:var(--white);font-family:inherit;font-size:11.5px;padding:7px 10px;border-radius:6px;outline:none;">
+        </div>
+        <div id="ddoList" style="max-height:240px;overflow-y:auto;">
+          <div class="ddi sl" onclick="tdiOperator(this, null)"><span class="dck"><svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></span>Todos</div>
+          <!-- itens populados dinamicamente em loadFromSupabase -->
+        </div>
       </div>
     </div>
     <div class="fw">
@@ -1253,16 +1269,13 @@ function setMCMode(mode) {
 //           '__outros__' (bucket cauda) e '__sem_criador__' (nomes vazios)
 const APPLIED={units:null,specs:null,statuses:null,d1:null,d2:null,creators:null};
 
-// Verifica se um item passa no filtro de criador
+// Verifica se um item passa no filtro de criador (operador)
 function matchCreatorFilter(p){
   if(!APPLIED.creators || APPLIED.creators.size === 0) return true;
-  // Excluímos o canal MC do filtro de criador (mesma regra do gráfico)
-  if(p.channelId === MC_USER_ID) return false;
-  const topSet = window.TOP_CREATORS_SET || new Set();
-  if(!p.creator){
-    return APPLIED.creators.has('__sem_criador__');
-  }
+  if(!p.creator) return APPLIED.creators.has('__sem_criador__');
   if(APPLIED.creators.has(p.creator)) return true;
+  // Manter compatibilidade com tokens especiais antigos
+  const topSet = window.TOP_CREATORS_SET || new Set();
   if(APPLIED.creators.has('__outros__') && !topSet.has(p.creator)) return true;
   return false;
 }
@@ -1292,6 +1305,62 @@ function applyDateFilter(){
   APPLIED.units=getSelectedItems('ddu');
   APPLIED.specs=getSelectedItems('dde');
   APPLIED.statuses=getSelectedItems('dds');
+  updateDashboard();
+}
+
+// ── FILTRO POR OPERADOR (com search) ──────────────────────
+let OPERATOR_LIST = []; // { name, count }
+function populateOperatorList(){
+  // Conta operadores no dataset completo (sem filtro de unidade ainda)
+  // Para filtro respeitando unidade: regenerar quando unidade mudar
+  const counts = {};
+  ALL.forEach(p => {
+    if(p.creator) counts[p.creator] = (counts[p.creator]||0) + 1;
+  });
+  OPERATOR_LIST = Object.entries(counts).sort((a,b)=>b[1]-a[1]).map(([name,count])=>({name,count}));
+  renderOperatorList('');
+}
+function renderOperatorList(search){
+  const list = document.getElementById('ddoList');
+  if(!list) return;
+  const q = (search||'').toLowerCase();
+  const filtered = q ? OPERATOR_LIST.filter(o => o.name.toLowerCase().includes(q)) : OPERATOR_LIST;
+  const todasSel = !APPLIED.creators || APPLIED.creators.size === 0;
+  const items = ['<div class="ddi'+(todasSel?' sl':'')+'" onclick="tdiOperator(this, null)"><span class="dck">'+(todasSel?'<svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>':'')+'</span>Todos</div>'];
+  filtered.forEach(o => {
+    const sel = APPLIED.creators && APPLIED.creators.has(o.name);
+    items.push('<div class="ddi'+(sel?' sl':'')+'" onclick="tdiOperator(this, &quot;'+o.name.replace(/"/g,'&quot;')+'&quot;)"><span class="dck">'+(sel?'<svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>':'')+'</span>'+o.name+' <span style="margin-left:auto;font-size:10px;color:var(--gray);">'+o.count+'</span></div>');
+  });
+  list.innerHTML = items.join('');
+}
+function filterOperatorList(q){ renderOperatorList(q); }
+function tdiOperator(el, name){
+  const items = [...document.querySelectorAll('#ddoList .ddi')];
+  if(name === null){
+    // "Todos" — limpa seleção
+    items.forEach(i => i.classList.remove('sl'));
+    items[0].classList.add('sl');
+    items[0].querySelector('.dck').innerHTML = '<svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>';
+    for(let i=1; i<items.length; i++) items[i].querySelector('.dck').innerHTML = '';
+    APPLIED.creators = null;
+  } else {
+    items[0].classList.remove('sl');
+    items[0].querySelector('.dck').innerHTML = '';
+    el.classList.toggle('sl');
+    const ck = el.querySelector('.dck');
+    if(el.classList.contains('sl')){
+      ck.innerHTML = '<svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>';
+      APPLIED.creators = APPLIED.creators || new Set();
+      APPLIED.creators.add(name);
+    } else {
+      ck.innerHTML = '';
+      if(APPLIED.creators){ APPLIED.creators.delete(name); if(APPLIED.creators.size===0) APPLIED.creators = null; }
+      if(!APPLIED.creators) {
+        items[0].classList.add('sl');
+        items[0].querySelector('.dck').innerHTML = '<svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>';
+      }
+    }
+  }
   updateDashboard();
 }
 
@@ -1509,12 +1578,15 @@ function updateDashboard(){
   const newOrigemVals   = Object.values(creatorCountF);
   if(outrosF>0){ newOrigemLabels.push('Outros'); newOrigemVals.push(outrosF); }
   if(semCriadorF>0){ newOrigemLabels.push('Sem criador'); newOrigemVals.push(semCriadorF); }
-  CHART_ORIGEM.data.labels = newOrigemLabels.length ? newOrigemLabels : ['—'];
-  CHART_ORIGEM.data.datasets[0].data = newOrigemVals.length ? newOrigemVals : [0];
-  CHART_ORIGEM.data.datasets[0].backgroundColor = origemCols.slice(0, Math.max(1, newOrigemVals.length));
+  // Atualiza GLOBAIS pra renderOleg pegar labels corretos
+  origemLabels.length = 0; (newOrigemLabels.length ? newOrigemLabels : ['—']).forEach(x=>origemLabels.push(x));
+  origemVals.length   = 0; (newOrigemVals.length   ? newOrigemVals   : [0]).forEach(x=>origemVals.push(x));
+  CHART_ORIGEM.data.labels = origemLabels.slice();
+  CHART_ORIGEM.data.datasets[0].data = origemVals.slice();
+  CHART_ORIGEM.data.datasets[0].backgroundColor = origemCols.slice(0, Math.max(1, origemVals.length));
   CHART_ORIGEM.update();
-  const newOrigemTot = newOrigemVals.reduce((a,b)=>a+b,0) || 1;
-  if(typeof renderOleg==='function') renderOleg(newOrigemVals, newOrigemTot);
+  const newOrigemTot = origemVals.reduce((a,b)=>a+b,0) || 1;
+  if(typeof renderOleg==='function') renderOleg(origemVals.slice(), newOrigemTot);
 
   // CHART_DONUT e CHART_CAMP: estes gráficos usavam dados fixos demo.
   // Vou ocultá-los se não tiverem campaign_token nos dados reais para não confundir.
@@ -2101,6 +2173,9 @@ async function loadFromSupabase(){
   // ── Métricas Thauany: Campanha + Origem + Vendas Diretas/Follow-up ──
   // Calcula uma vez no load, e também a cada filtro (chamado em updateDashboard)
   await computeThauanyMetrics();
+
+  // Popula a lista de Operadores no dropdown de filtro
+  if(typeof populateOperatorList==='function') populateOperatorList();
 
   showBanner(`✅ ${ALL.length} agendamentos · ${logs.length} logs · ${livePayments.length} pagamentos · ${uniquePatients} pacientes únicos · reag: ${reag} (${reagSource === 'logs' ? 'logs oficial' : 'heurística 24h'})`, 'ok');
   setTimeout(hideBanner, 5000);
