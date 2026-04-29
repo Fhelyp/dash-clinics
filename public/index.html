@@ -473,45 +473,48 @@
 <body class="light">
 
 <!-- ╔══ NAV ══╗ -->
-<!-- ╔══ SIDEBAR LATERAL ══╗ -->
-<aside id="sidebar" style="position:fixed;top:0;left:0;bottom:0;width:200px;background:var(--card);border-right:1px solid var(--border);z-index:1001;display:flex;flex-direction:column;padding:18px 14px;">
-  <div style="font-size:14px;font-weight:800;letter-spacing:-.02em;padding:6px 10px 18px;border-bottom:1px solid var(--border);margin-bottom:14px;">
+<!-- ╔══ SIDEBAR LATERAL (retrátil) ══╗ -->
+<aside id="sidebar" style="position:fixed;top:0;left:0;bottom:0;width:200px;background:var(--card);border-right:1px solid var(--border);z-index:1001;display:flex;flex-direction:column;padding:18px 14px;transition:width .25s,padding .25s;">
+  <button id="sbToggle" onclick="toggleSidebar()" title="Recolher menu" style="position:absolute;top:18px;right:-12px;width:24px;height:24px;border-radius:50%;background:var(--card);border:1px solid var(--border);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--gray-l);z-index:1002;box-shadow:0 2px 8px rgba(0,0,0,.15);">
+    <svg id="sbToggleIcon" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+  </button>
+  <div class="sb-brand" style="font-size:14px;font-weight:800;letter-spacing:-.02em;padding:6px 10px 18px;border-bottom:1px solid var(--border);margin-bottom:14px;overflow:hidden;white-space:nowrap;">
     <div style="background:linear-gradient(130deg,var(--white) 30%,var(--purple) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Dashboard</div>
     <div style="font-size:9.5px;color:var(--gray-l);font-weight:600;letter-spacing:.1em;text-transform:uppercase;margin-top:2px;">de Clínicas</div>
   </div>
   <div class="snav" style="display:flex;flex-direction:column;gap:3px;flex:1;">
-    <a href="#overview" class="snav-item on" id="nl0" style="display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;color:var(--gray-l);text-decoration:none;font-size:13px;font-weight:600;transition:all .2s;">
-      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
-      Overview
+    <a href="#overview" class="snav-item on" id="nl0" title="Overview">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+      <span class="sb-label">Overview</span>
     </a>
-    <a href="#marketing" class="snav-item" id="nl1" style="display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;color:var(--gray-l);text-decoration:none;font-size:13px;font-weight:600;transition:all .2s;">
-      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 12l4-4 4 4 5-5"/></svg>
-      Marketing
+    <a href="#marketing" class="snav-item" id="nl1" title="Marketing">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 12l4-4 4 4 5-5"/></svg>
+      <span class="sb-label">Marketing</span>
     </a>
-    <a href="#financeiro" class="snav-item" id="nl2" style="display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;color:var(--gray-l);text-decoration:none;font-size:13px;font-weight:600;transition:all .2s;">
-      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
-      Financeiro
+    <a href="#financeiro" class="snav-item" id="nl2" title="Financeiro">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+      <span class="sb-label">Financeiro</span>
     </a>
-    <a href="#auditoria" class="snav-item" id="nl3" style="display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;color:var(--gray-l);text-decoration:none;font-size:13px;font-weight:600;transition:all .2s;">
-      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg>
-      Auditoria
+    <a href="#auditoria" class="snav-item" id="nl3" title="Auditoria">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg>
+      <span class="sb-label">Auditoria</span>
     </a>
-    <a href="/regras-de-negocio.html" class="snav-item" style="display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;color:var(--gray-l);text-decoration:none;font-size:13px;font-weight:600;transition:all .2s;margin-top:14px;border-top:1px solid var(--border);padding-top:18px;">
-      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-      Regras de Negócio
+    <a href="/regras-de-negocio.html" class="snav-item snav-sep" title="Regras de Negócio">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+      <span class="sb-label">Regras de Negócio</span>
     </a>
   </div>
-  <div style="border-top:1px solid var(--border);padding-top:14px;display:flex;flex-direction:column;gap:8px;">
-    <div id="userBadge" style="display:none;align-items:center;gap:8px;padding:8px 10px;background:rgba(168,85,247,.08);border:1px solid rgba(168,85,247,.18);border-radius:8px;">
-      <div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,var(--purple),var(--blue));display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700;flex-shrink:0;" id="userInitial">·</div>
-      <span id="userEmail" style="font-size:11px;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;"></span>
+  <div class="sb-bottom" style="border-top:1px solid var(--border);padding-top:14px;display:flex;flex-direction:column;gap:8px;">
+    <div id="userBadge" class="sb-userbadge" style="display:none;">
+      <div class="sb-avatar" id="userInitial">·</div>
+      <span id="userEmail" class="sb-label" style="font-size:11px;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;"></span>
     </div>
-    <div style="display:flex;gap:6px;align-items:center;">
-      <button id="logoutBtn" onclick="doLogout()" title="Sair" style="flex:1;background:var(--card2);border:1px solid var(--border);color:var(--gray-l);padding:8px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:11.5px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:6px;">
-        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-        Sair
+    <div class="sb-actions">
+      <button id="logoutBtn" onclick="doLogout()" title="Sair" class="sb-btn">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        <span class="sb-label">Sair</span>
       </button>
-      <button id="themeToggle" onclick="toggleTheme()" title="Alternar tema" style="background:var(--card2);border:1px solid var(--border);width:38px;height:36px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--gray-l);">
+      <button id="themeToggle" onclick="toggleTheme()" title="Alternar tema" class="sb-btn-icon">
         <svg id="iconMoon" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
       </button>
     </div>
@@ -519,17 +522,40 @@
 </aside>
 
 <style>
-  /* Sidebar */
+  /* Sidebar items */
+  .snav-item{position:relative;display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;color:var(--gray-l);text-decoration:none;font-size:13px;font-weight:600;transition:all .2s;white-space:nowrap;overflow:hidden;}
   .snav-item:hover{background:rgba(168,85,247,.08);color:var(--white);}
   .snav-item.on{background:linear-gradient(90deg,rgba(168,85,247,.18),rgba(168,85,247,.04));color:var(--white);}
   .snav-item.on::before{content:'';position:absolute;left:-14px;top:8px;bottom:8px;width:3px;background:var(--purple);border-radius:0 3px 3px 0;}
-  .snav-item{position:relative;}
+  .snav-item.snav-sep{margin-top:14px;border-top:1px solid var(--border);padding-top:18px;border-radius:0 8px 8px 0;}
+  .snav-item.snav-sep::before{display:none;}
+  /* User badge */
+  .sb-userbadge{display:none;align-items:center;gap:8px;padding:8px 10px;background:rgba(168,85,247,.08);border:1px solid rgba(168,85,247,.18);border-radius:8px;overflow:hidden;}
+  .sb-avatar{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,var(--purple),var(--blue));display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700;flex-shrink:0;}
+  /* Actions */
+  .sb-actions{display:flex;gap:6px;align-items:center;}
+  .sb-btn{flex:1;background:var(--card2);border:1px solid var(--border);color:var(--gray-l);padding:8px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:11.5px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap;overflow:hidden;}
+  .sb-btn-icon{background:var(--card2);border:1px solid var(--border);width:38px;height:36px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--gray-l);flex-shrink:0;}
   /* Body shift */
-  body{padding-left:200px !important;}
+  body{padding-left:200px !important;transition:padding-left .25s;}
   body.light #sidebar{background:#ffffff;}
   body.light .snav-item.on{background:linear-gradient(90deg,rgba(168,85,247,.12),rgba(168,85,247,.02));}
-  /* Topbar adjustments */
-  nav{left:200px !important;padding:0 24px !important;justify-content:flex-start !important;gap:8px;}
+  /* Topbar */
+  nav{left:200px !important;padding:0 24px !important;justify-content:flex-start !important;gap:8px;transition:left .25s;}
+  /* ━━━ COLLAPSED MODE ━━━ */
+  body.sb-collapsed{padding-left:60px !important;}
+  body.sb-collapsed #sidebar{width:60px;padding:18px 8px;}
+  body.sb-collapsed nav{left:60px !important;}
+  body.sb-collapsed .sb-label,
+  body.sb-collapsed .sb-brand,
+  body.sb-collapsed .sb-userbadge span{display:none !important;}
+  body.sb-collapsed .snav-item{justify-content:center;padding:11px 6px;}
+  body.sb-collapsed .snav-item.on::before{left:-8px;}
+  body.sb-collapsed .sb-userbadge{justify-content:center;padding:6px;display:flex !important;}
+  body.sb-collapsed .sb-actions{flex-direction:column;}
+  body.sb-collapsed .sb-btn{padding:8px;justify-content:center;}
+  body.sb-collapsed #sbToggleIcon{transform:rotate(180deg);}
+  /* Mobile */
   @media (max-width: 768px){
     body{padding-left:0 !important;}
     #sidebar{transform:translateX(-100%);transition:transform .25s;}
@@ -538,8 +564,8 @@
   }
 </style>
 
-<nav>
-  <div class="nfilt" style="width:100%;justify-content:flex-start;">
+<nav style="height:auto;flex-direction:column;align-items:stretch;padding:8px 24px !important;">
+  <div class="nfilt" style="width:100%;justify-content:flex-start;flex-wrap:wrap;">
     <!-- Filtro 3-estados: Todos / Maria Clara / Operadores -->
     <div id="mcSwitch" role="tablist" aria-label="Filtro por agente" style="display:inline-flex;align-items:center;background:var(--card);border:1px solid var(--border);border-radius:20px;padding:3px;font-size:11px;font-weight:600;flex-shrink:0;">
       <button class="mcs-opt mcs-on" data-mc="ALL" onclick="setMCMode('ALL')" style="background:var(--purple);color:#fff;border:none;padding:5px 11px;border-radius:16px;cursor:pointer;font-family:inherit;font-size:11px;font-weight:600;transition:all .2s;">Todos</button>
@@ -629,14 +655,16 @@
       </div>
     </div>
   </div>
+  <!-- Linha de chips de filtros ativos DENTRO da nav -->
+  <div id="activeFiltersInline" style="display:flex;align-items:center;gap:8px;padding:6px 0 2px;font-size:11px;border-top:1px solid var(--border);margin-top:6px;flex-wrap:wrap;">
+    <span style="color:var(--gray);font-weight:700;text-transform:uppercase;letter-spacing:.08em;font-size:9px;">Filtros:</span>
+    <span id="activeFiltersList" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;flex:1;"></span>
+    <button onclick="clearAllFilters()" style="background:transparent;border:1px solid rgba(168,85,247,.4);color:var(--purple);padding:3px 9px;border-radius:12px;cursor:pointer;font-family:inherit;font-size:10.5px;font-weight:600;">Limpar</button>
+  </div>
 </nav>
 
-<!-- Chips de filtros aplicados (NÃO position:fixed pra não sobrepor conteúdo) -->
-<div id="activeFilters" style="display:none;align-items:center;gap:8px;padding:8px 36px;background:rgba(168,85,247,.06);border-bottom:1px solid rgba(168,85,247,.18);font-size:11px;flex-wrap:wrap;margin-top:var(--nav);position:sticky;top:var(--nav);z-index:998;backdrop-filter:blur(8px);">
-  <span style="color:var(--gray-l);font-weight:600;text-transform:uppercase;letter-spacing:.08em;font-size:9.5px;">Filtros ativos:</span>
-  <span id="activeFiltersList" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;"></span>
-  <button onclick="clearAllFilters()" style="margin-left:auto;background:transparent;border:1px solid rgba(168,85,247,.4);color:var(--purple);padding:3px 9px;border-radius:12px;cursor:pointer;font-family:inherit;font-size:10.5px;font-weight:600;">Limpar tudo</button>
-</div>
+<!-- Barra de chips integrada à nav (já está dentro do espaço da nav, não duplica) -->
+<div id="activeFilters" style="display:none;"></div>
 
 <div id="main-scale" style="zoom:1.1;">
 
@@ -2242,7 +2270,8 @@ function updateFilterButtonLabels(){
 
 function renderActiveFilterChips(){
   updateFilterButtonLabels();
-  const wrap = document.getElementById('activeFilters');
+  // Agora a barra fica DENTRO da nav (id=activeFiltersInline). A lista de chips fica em activeFiltersList.
+  const wrap = document.getElementById('activeFiltersInline');
   const list = document.getElementById('activeFiltersList');
   if(!wrap || !list) return;
   const chips = [];
@@ -2269,12 +2298,10 @@ function renderActiveFilterChips(){
     const arr = [...APPLIED.creators];
     chips.push({label:`Criador: ${arr.length===1?arr[0]:arr.length+' selecionados'}`, clear: () => { APPLIED.creators=null; updateDashboard(); }});
   }
-  // SEMPRE visível, mesmo sem filtros, pra você sempre saber o estado atual
+  // Sempre visível dentro da nav
   wrap.style.display='flex';
-  // OVG está em position:absolute via padding-top: var(--nav). A barra de chips
-  // agora é position:sticky abaixo da nav — não precisa mexer em padding-top.
   if(chips.length === 0){
-    list.innerHTML = '<span style="color:var(--gray-l);font-style:italic;font-size:10.5px;">Mostrando todos os dados — nenhum filtro aplicado</span>';
+    list.innerHTML = '<span style="color:var(--gray-l);font-style:italic;font-size:10.5px;">nenhum filtro aplicado</span>';
     return;
   }
   list.innerHTML = chips.map((c, i) =>
@@ -2321,6 +2348,18 @@ async function doLogout(){
   window.location.href = '/login.html';
 }
 window.doLogout = doLogout;
+
+function toggleSidebar(){
+  const collapsed = document.body.classList.toggle('sb-collapsed');
+  localStorage.setItem('dc_sb_collapsed', collapsed ? '1' : '0');
+  // forçar reflow dos charts pra ajustar largura
+  setTimeout(() => {
+    [CHART_FIN, CHART_ST, CHART_AGE, CHART_DONUT, CHART_CAMP, CHART_ORIGEM].forEach(c => { try { c?.resize(); c?.update('none'); } catch(_){} });
+  }, 280);
+}
+window.toggleSidebar = toggleSidebar;
+// Aplica estado salvo no boot
+if(localStorage.getItem('dc_sb_collapsed') === '1') document.body.classList.add('sb-collapsed');
 </script>
 
 
