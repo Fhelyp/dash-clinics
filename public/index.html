@@ -794,6 +794,44 @@
   </div>
 </div>
 
+<!-- ═══ Ações por Agente: Confirmações + Reagendamentos (MC vs Humano) ═══ -->
+<div style="max-width:1400px;margin:0 auto var(--gap);padding:0 24px;">
+  <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:var(--gap);">
+    <div class="card" style="padding:18px 22px;">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--gray-l);margin-bottom:12px;">Confirmações por Agente</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:16px;">
+        <div style="flex:1;">
+          <div style="font-size:11px;color:rgba(168,85,247,.85);margin-bottom:3px;">Maria Clara</div>
+          <div style="font-size:26px;font-weight:800;color:var(--white);" id="confMC">0</div>
+          <div style="font-size:10.5px;color:var(--gray);" id="confMCpct">0% do total</div>
+        </div>
+        <div style="width:1px;height:50px;background:var(--border);"></div>
+        <div style="flex:1;">
+          <div style="font-size:11px;color:var(--gray-l);margin-bottom:3px;">Humanos</div>
+          <div style="font-size:26px;font-weight:800;color:var(--white);" id="confHUM">0</div>
+          <div style="font-size:10.5px;color:var(--gray);" id="confHUMpct">0% do total</div>
+        </div>
+      </div>
+    </div>
+    <div class="card" style="padding:18px 22px;">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--gray-l);margin-bottom:12px;">Reagendamentos por Agente</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:16px;">
+        <div style="flex:1;">
+          <div style="font-size:11px;color:rgba(168,85,247,.85);margin-bottom:3px;">Maria Clara</div>
+          <div style="font-size:26px;font-weight:800;color:var(--white);" id="reagMC">0</div>
+          <div style="font-size:10.5px;color:var(--gray);" id="reagMCpct">0% do total</div>
+        </div>
+        <div style="width:1px;height:50px;background:var(--border);"></div>
+        <div style="flex:1;">
+          <div style="font-size:11px;color:var(--gray-l);margin-bottom:3px;">Humanos</div>
+          <div style="font-size:26px;font-weight:800;color:var(--white);" id="reagHUM">0</div>
+          <div style="font-size:10.5px;color:var(--gray);" id="reagHUMpct">0% do total</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 
 <div id="marketing" class="sec-anchor">
   <div class="sintro">
@@ -1047,6 +1085,8 @@ function tdi(el){
   APPLIED.units=getSelectedItems('ddu');
   APPLIED.specs=getSelectedItems('dde');
   APPLIED.statuses=getSelectedItems('dds');
+  // Repopula dropdown de operador respeitando o filtro de unidade selecionado
+  if(typeof populateOperatorList === 'function') populateOperatorList();
   updateDashboard();
 }
 
@@ -1314,6 +1354,8 @@ function applyFilter(ddId){
   APPLIED.units=getSelectedItems('ddu');
   APPLIED.specs=getSelectedItems('dde');
   APPLIED.statuses=getSelectedItems('dds');
+  // Repopula dropdown de operador respeitando o filtro de unidade selecionado
+  if(typeof populateOperatorList === 'function') populateOperatorList();
   updateDashboard();
 }
 
@@ -1325,16 +1367,21 @@ function applyDateFilter(){
   APPLIED.units=getSelectedItems('ddu');
   APPLIED.specs=getSelectedItems('dde');
   APPLIED.statuses=getSelectedItems('dds');
+  // Repopula dropdown de operador respeitando o filtro de unidade selecionado
+  if(typeof populateOperatorList === 'function') populateOperatorList();
   updateDashboard();
 }
 
 // ── FILTRO POR OPERADOR (com search) ──────────────────────
 let OPERATOR_LIST = []; // { name, count }
 function populateOperatorList(){
-  // Conta operadores no dataset completo (sem filtro de unidade ainda)
-  // Para filtro respeitando unidade: regenerar quando unidade mudar
+  // Operadores: conta apenas em appointments que respeitam o filtro de unidade
+  // (operador só aparece se tem agendamento em alguma das unidades selecionadas)
   const counts = {};
-  ALL.forEach(p => {
+  const sourceList = (APPLIED.units && APPLIED.units.size)
+    ? ALL.filter(p => APPLIED.units.has(p.unit))
+    : ALL;
+  sourceList.forEach(p => {
     if(p.creator) counts[p.creator] = (counts[p.creator]||0) + 1;
   });
   OPERATOR_LIST = Object.entries(counts).sort((a,b)=>b[1]-a[1]).map(([name,count])=>({name,count}));
@@ -1715,6 +1762,38 @@ function updateDashboard(){
       vsMCpct: vsMCpctVal
     });
   }
+
+  // ── Ações por Agente: confirmações (to_status=4) e reagendamentos (to_status=3) ──
+  // Filtra logs pelos appointments que estão no recorte filtrado E pelo período
+  const fdAppointmentIds = new Set(fd.map(p => p.id));
+  const logs = (typeof RAW_LOGS !== 'undefined' ? RAW_LOGS : []);
+  const logsInScope = logs.filter(l => {
+    if(!fdAppointmentIds.has(l.appointment_id)) return false;
+    if(d1 || d2){
+      const ld = new Date(l.changeDate);
+      if(d1 && ld < d1) return false;
+      if(d2 && ld > d2) return false;
+    }
+    return true;
+  });
+  let confMCcount = 0, confHUMcount = 0, reagMCcount = 0, reagHUMcount = 0;
+  logsInScope.forEach(l => {
+    const isMC = l.user_id === MC_USER_ID;
+    if(l.to_status === 4){ if(isMC) confMCcount++; else confHUMcount++; }
+    if(l.to_status === 3){ if(isMC) reagMCcount++; else reagHUMcount++; }
+  });
+  const confTotal = confMCcount + confHUMcount;
+  const reagTotal = reagMCcount + reagHUMcount;
+  const setText = (id, v) => { const e = document.getElementById(id); if(e) e.textContent = v; };
+  const pct = (a, b) => b > 0 ? Math.round(a/b*100) : 0;
+  setText('confMC', confMCcount.toLocaleString('pt-BR'));
+  setText('confHUM', confHUMcount.toLocaleString('pt-BR'));
+  setText('confMCpct', pct(confMCcount, confTotal) + '% do total');
+  setText('confHUMpct', pct(confHUMcount, confTotal) + '% do total');
+  setText('reagMC', reagMCcount.toLocaleString('pt-BR'));
+  setText('reagHUM', reagHUMcount.toLocaleString('pt-BR'));
+  setText('reagMCpct', pct(reagMCcount, reagTotal) + '% do total');
+  setText('reagHUMpct', pct(reagHUMcount, reagTotal) + '% do total');
 
   // ── Auditoria: Tables ────────────────────────────────
   const CONF2=fd.filter(p=>p.status===4);
