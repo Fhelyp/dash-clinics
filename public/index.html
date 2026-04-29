@@ -986,7 +986,7 @@
     <!-- Main table -->
     <div class="tc">
       <div class="thd"><span class="ttl">Agendamentos / Consultas</span></div>
-      <div class="sb"><svg width="12" height="12" fill="none" stroke="var(--gray)" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg><input placeholder="Pesquisar por nome do paciente…" oninput="flt('mn',this.value)"></div>
+      <div class="sb"><svg width="12" height="12" fill="none" stroke="var(--gray)" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg><input placeholder="Pesquisar por nome ou telefone…" oninput="flt('mn',this.value)"></div>
       <div style="overflow-x:auto"><table class="atbl"><tbody id="tbMn"></tbody></table></div>
       <div class="pgbar" id="pgMn"></div>
     </div>
@@ -994,13 +994,13 @@
     <div class="audrow">
       <div class="tc">
         <div class="thd"><span class="ttl" style="color:var(--green)">Confirmações</span></div>
-        <div class="sb"><svg width="12" height="12" fill="none" stroke="var(--gray)" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg><input placeholder="Pesquisar…" oninput="flt('cf',this.value)"></div>
+        <div class="sb"><svg width="12" height="12" fill="none" stroke="var(--gray)" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg><input placeholder="Pesquisar por nome ou telefone…" oninput="flt('cf',this.value)"></div>
         <div style="overflow-x:auto"><table class="atbl"><tbody id="tbCf"></tbody></table></div>
         <div class="pgbar" id="pgCf"></div>
       </div>
       <div class="tc">
         <div class="thd"><span class="ttl" style="color:var(--orange)">Reagendamentos</span></div>
-        <div class="sb"><svg width="12" height="12" fill="none" stroke="var(--gray)" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg><input placeholder="Pesquisar…" oninput="flt('rg',this.value)"></div>
+        <div class="sb"><svg width="12" height="12" fill="none" stroke="var(--gray)" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg><input placeholder="Pesquisar por nome ou telefone…" oninput="flt('rg',this.value)"></div>
         <div style="overflow-x:auto"><table class="atbl"><tbody id="tbRg"></tbody></table></div>
         <div class="pgbar" id="pgRg"></div>
       </div>
@@ -1193,7 +1193,7 @@ function renderCreatorFilterIndicator(){
 
 // Chart 5: Age bar (original fixed data)
 const ageInitData=[0,0,0,0,0];
-const CHART_AGE=new Chart(document.getElementById('chAge'),{type:'bar',data:{labels:['0–10','11–20','21–40','41–60','60+'],datasets:[{label:'Pacientes',data:ageInitData,backgroundColor:ctx=>{const{chart}=ctx;const{chartArea}=chart;if(!chartArea)return'#a855f7cc';const g=chart.ctx.createLinearGradient(chartArea.left,0,chartArea.right,0);g.addColorStop(0,'#a855f7cc');g.addColorStop(1,'#06b6d4cc');return g;},borderRadius:5,borderSkipped:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{...TTP,callbacks:{label:c=>` ${c.raw} pacientes`}}},scales:{x:{grid:{display:false}},y:{grid:{color:'rgba(255,255,255,.03)'}}}}});
+const CHART_AGE=new Chart(document.getElementById('chAge'),{type:'bar',data:{labels:['0–10','11–20','21–40','41–60','60+'],datasets:[{label:'Pacientes',data:ageInitData,backgroundColor:ctx=>{const{chart}=ctx;const{chartArea}=chart;if(!chartArea)return'#a855f7cc';const g=chart.ctx.createLinearGradient(chartArea.left,0,chartArea.right,0);g.addColorStop(0,'#a855f7cc');g.addColorStop(1,'#06b6d4cc');return g;},borderRadius:5,borderSkipped:false}]},options:{responsive:true,maintainAspectRatio:false,layout:{padding:{right:18,left:4,top:8,bottom:0}},plugins:{legend:{display:false},tooltip:{...TTP,callbacks:{label:c=>` ${c.raw} pacientes`}}},scales:{x:{grid:{display:false}},y:{grid:{color:'rgba(255,255,255,.03)'},beginAtZero:true}}}});
 
 // ── HORIZONTAL BARS ──────────────────────────────────
 function hbars(id,items){
@@ -1829,7 +1829,20 @@ function rPag(k,tp){
 }
 function gp(k,p){const s=TS[k];const tp=Math.ceil(s.filt.length/s.pp)||1;s.page=Math.min(Math.max(1,p),tp);rTbl(k);}
 function cpp(k,v){TS[k].pp=+v;TS[k].page=1;rTbl(k);}
-function flt(k,q){TS[k].filt=TS[k].data.filter(p=>p.name.toLowerCase().includes(q.toLowerCase()));TS[k].page=1;rTbl(k);}
+function flt(k,q){
+  const ql = (q||'').toLowerCase().trim();
+  if(!ql){ TS[k].filt = TS[k].data; TS[k].page = 1; rTbl(k); return; }
+  // Normaliza: remove non-digits do query e do phone para match parcial sem formatação
+  const qDigits = ql.replace(/\D/g,'');
+  TS[k].filt = TS[k].data.filter(p => {
+    const name = (p.name||'').toLowerCase();
+    if(name.includes(ql)) return true;
+    const phone = (p.phone||'').replace(/\D/g,'');
+    if(qDigits && phone && phone.includes(qDigits)) return true;
+    return false;
+  });
+  TS[k].page = 1; rTbl(k);
+}
 ['mn','cf','rg'].forEach(rTbl);
 
 
@@ -1856,6 +1869,13 @@ setTimeout(()=>{ setRing('rv0', 48, 213.6); setRing('rv1', 48, 339.3); }, 400);
 
 const CAMPO_LIMPO_CLINIC_ID = '878b3cf8-fc89-4e4d-9185-49d96b458cd0'; // kept for backward compat
 const MC_USER_ID            = 'fs22aka-7860-431d-b312-a9a72eb7d27a';
+// Todos os channel_ids da Maria Clara (canais 100% automatizados, sem humano)
+// Identificados por null_creator=100% no histórico de appointments.
+const MC_CHANNELS = new Set([
+  'fs22aka-7860-431d-b312-a9a72eb7d27a',  // MC principal
+  'hs22aka-7860-434d-b312-a9a72eb7d27a',  // MC secundário (5+ appointments null creator)
+]);
+const isMCChannel = (channelId) => channelId && MC_CHANNELS.has(channelId);
 
 // Mapa clinic_id → nome da unidade (espelho do unitConfigs.Ecuro_clinicId → Unidade).
 // Hardcoded de propósito: assim o dashboard NUNCA precisa acessar unitConfigs
@@ -2069,12 +2089,13 @@ async function loadFromSupabase(){
       age: ageBucketFromDOB(a.patient_date_of_birth) || '—',
       dateRaw: d,
       datetime: fmtDateTime(a.start_time),
-      // MC se: channel é da MC OU logs registram MC
-      agent: (getChannelIdRaw(a) === MC_USER_ID || mcApptIds.has(a.id)) ? 'MC' : 'HUM',
+      // MC se: channel é qualquer um dos canais MC OU logs registram MC
+      agent: (isMCChannel(getChannelIdRaw(a)) || mcApptIds.has(a.id)) ? 'MC' : 'HUM',
       status: a.status,
       revenue: 0, // aggregated separately from payments
+      phone: (a.phone || '').toString(),
       // Channel MC OU created_by vazio com log MC → atribuir a Maria Clara
-      creator: (getChannelIdRaw(a) === MC_USER_ID)
+      creator: isMCChannel(getChannelIdRaw(a))
         ? 'Maria Clara'
         : (getCreatorNameRaw(a) || (mcApptIds.has(a.id) ? 'Maria Clara' : '')),
       channelId: getChannelIdRaw(a)
@@ -2249,16 +2270,15 @@ async function loadFromSupabase(){
   // ── Agendamentos por Criador — agrupamento por created_by_name ─────
   // Helpers getCreatorNameRaw / getChannelIdRaw já definidos acima.
 
-  // Channel IDs da Maria Clara (canal automático dela). Quando channel_id bate, é MC.
-  const MC_CHANNEL_IDS = new Set([MC_USER_ID]);
-  const isMCAppointment = (a) => MC_CHANNEL_IDS.has(getChannelIdRaw(a)) || mcApptIds.has(a.id);
+  // Usa os canais MC globais (MC_CHANNELS) — definido no topo do arquivo
+  const isMCAppointment = (a) => isMCChannel(getChannelIdRaw(a)) || mcApptIds.has(a.id);
 
   // Top 7 criadores humanos + "Outros" (cauda) + "Maria Clara" + "Sem criador" (raros)
   const creatorCount = {};
   let semCriador = 0, comCriador = 0, excluidosMC = 0;
   appointments.forEach(a => {
     // Channel da MC OU log da MC com created_by_name vazio → Maria Clara
-    if(MC_CHANNEL_IDS.has(getChannelIdRaw(a))){
+    if(isMCChannel(getChannelIdRaw(a))){
       creatorCount['Maria Clara'] = (creatorCount['Maria Clara']||0)+1; comCriador++; return;
     }
     const nome = getCreatorNameRaw(a);
@@ -2515,6 +2535,15 @@ function updateFilterButtonLabels(){
     specLabel = arr.length === 1 ? arr[0] : `${arr.length} especialidades`;
   }
   setBtnLabel('dde', specLabel, 'Especialidade');
+  // Operador
+  let opLabel = null;
+  if(APPLIED.creators && APPLIED.creators.size){
+    const arr = [...APPLIED.creators].map(k =>
+      k === '__outros__' ? 'Outros' : (k === '__sem_criador__' ? 'Sem criador' : k)
+    );
+    opLabel = arr.length === 1 ? arr[0] : `${arr.length} operadores`;
+  }
+  setBtnLabel('ddo', opLabel, 'Operador');
   // Status
   let stLabel = null;
   if(APPLIED.statuses && APPLIED.statuses.size){
