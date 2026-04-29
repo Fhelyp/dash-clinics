@@ -1,0 +1,57 @@
+name: Deploy to Cloudflare
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  # ─── Pages (frontend dashboard) ──────────────────────────────
+  deploy-pages:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Deploy Pages (dash-clinics)
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: de356bf3b5b6db75835e33e84876eefb
+          command: pages deploy public --project-name=dash-clinics --branch=main --commit-dirty=true
+
+  # ─── Worker: sync-ecuro ───────────────────────────────────────
+  deploy-worker-ecuro:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Deploy sync-ecuro worker
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: de356bf3b5b6db75835e33e84876eefb
+          workingDirectory: workers/sync-ecuro
+          command: deploy
+
+  # ─── Worker: sync-chatwoot ────────────────────────────────────
+  deploy-worker-chatwoot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Deploy sync-chatwoot worker
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: de356bf3b5b6db75835e33e84876eefb
+          workingDirectory: workers/sync-chatwoot
+          command: deploy
