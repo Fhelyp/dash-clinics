@@ -597,8 +597,8 @@
   </div>
 </nav>
 
-<!-- Chips de filtros aplicados -->
-<div id="activeFilters" style="position:fixed;top:var(--nav);left:0;right:0;display:none;align-items:center;gap:8px;padding:7px 36px;background:rgba(168,85,247,.06);border-bottom:1px solid rgba(168,85,247,.18);z-index:999;font-size:11px;flex-wrap:wrap;">
+<!-- Chips de filtros aplicados (NÃO position:fixed pra não sobrepor conteúdo) -->
+<div id="activeFilters" style="display:none;align-items:center;gap:8px;padding:8px 36px;background:rgba(168,85,247,.06);border-bottom:1px solid rgba(168,85,247,.18);font-size:11px;flex-wrap:wrap;margin-top:var(--nav);position:sticky;top:var(--nav);z-index:998;backdrop-filter:blur(8px);">
   <span style="color:var(--gray-l);font-weight:600;text-transform:uppercase;letter-spacing:.08em;font-size:9.5px;">Filtros ativos:</span>
   <span id="activeFiltersList" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;"></span>
   <button onclick="clearAllFilters()" style="margin-left:auto;background:transparent;border:1px solid rgba(168,85,247,.4);color:var(--purple);padding:3px 9px;border-radius:12px;cursor:pointer;font-family:inherit;font-size:10.5px;font-weight:600;">Limpar tudo</button>
@@ -1307,10 +1307,13 @@ function updateDashboard(){
   // Taxa de Conclusão = concluídos / agendamentos
   const conv=agend>0?Math.round((conc/agend)*100):0;
 
-  // ── Receita real do período (a partir de RAW_PAYMENTS, intersectando datas e filtros) ──
+  // ── Receita real do período (a partir de RAW_PAYMENTS, intersectando TODOS os filtros) ──
   const d1=APPLIED.d1?new Date(APPLIED.d1):null;
   const d2=APPLIED.d2?new Date(APPLIED.d2+'T23:59:59'):null;
   const activeUnitsSet=APPLIED.units;
+  // Pacientes que aparecem no recorte de appointments filtrado (respeita MC/OP, status, etc.)
+  // Pagamento só conta se o paciente estiver no recorte.
+  const fdPatients = new Set(fd.map(p=>p.patient_id).filter(Boolean));
   const filteredPays=(typeof RAW_PAYMENTS!=='undefined'?RAW_PAYMENTS:[]).filter(p=>{
     if(p.deleted_at)return false;
     if(!p.is_confirmed)return false;
@@ -1318,6 +1321,9 @@ function updateDashboard(){
     if(d1&&dt<d1)return false;
     if(d2&&dt>d2)return false;
     if(activeUnitsSet){const n=clinicName(p.clinic_id);if(!activeUnitsSet.has(n))return false;}
+    // Quando há filtro de agente/status/spec, só conta pagamento de paciente no recorte
+    const hasNonDateFilter = MC_MODE!=='ALL' || APPLIED.statuses || APPLIED.specs || APPLIED.creators;
+    if(hasNonDateFilter && p.patient_id && !fdPatients.has(p.patient_id)) return false;
     return true;
   });
   const filteredRevTotal=filteredPays.reduce((s,p)=>s+parseFloat(p.amount||0),0);
@@ -2215,9 +2221,10 @@ function renderActiveFilterChips(){
   }
   // SEMPRE visível, mesmo sem filtros, pra você sempre saber o estado atual
   wrap.style.display='flex';
+  // OVG está em position:absolute via padding-top: var(--nav). A barra de chips
+  // agora é position:sticky abaixo da nav — não precisa mexer em padding-top.
   if(chips.length === 0){
     list.innerHTML = '<span style="color:var(--gray-l);font-style:italic;font-size:10.5px;">Mostrando todos os dados — nenhum filtro aplicado</span>';
-    document.body.style.paddingTop = wrap.offsetHeight + 'px';
     return;
   }
   list.innerHTML = chips.map((c, i) =>
@@ -2228,8 +2235,6 @@ function renderActiveFilterChips(){
   ).join('');
   window.__chips = chips;
   window.__clearChip = (i) => { window.__chips[i]?.clear(); };
-  // body padding-top compensa altura extra
-  document.body.style.paddingTop = wrap.offsetHeight + 'px';
 }
 function clearAllFilters(){
   MC_MODE = 'ALL'; if(typeof setMCMode==='function') setMCMode('ALL');

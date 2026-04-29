@@ -85,14 +85,16 @@ async function upsertRows(table, rows) {
 
 async function pullAndUpsert(feed, clinicId, opts) {
   let total = 0, cursorValue = null, cursorId = null, page = 0;
-  while (true) {
+  const HARD_PAGE_LIMIT = 25; // safety contra loop infinito (25 × 1000 = 25k rows)
+  while (page < HARD_PAGE_LIMIT) {
     const params = { clinicId, limit: 1000 };
     if (opts.mode === 'bootstrap') {
       params.startDate = opts.startDate; params.endDate = opts.endDate;
       if (cursorValue) params.cursorValue = cursorValue;
       if (cursorId)    params.cursorId    = cursorId;
     } else {
-      params.updatedAfter = opts.updatedAfter;
+      // Incremental: cada página avança updatedAfter pro nextCursor.updatedAt
+      params.updatedAfter = cursorValue || opts.updatedAfter;
       if (cursorId) params.cursorId = cursorId;
     }
     if (page > 0) await sleep(SLEEP_BETWEEN_REQUESTS_MS); // pausa entre páginas dentro do mesmo feed

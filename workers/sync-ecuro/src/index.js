@@ -179,16 +179,18 @@ async function runBootstrap(env, { startDate, endDate, feeds = [], onlyClinics =
 
 async function pullAndUpsert(env, feed, clinicId, opts) {
   let total = 0;
-  let cursorValue = null, cursorId = null;
+  let cursorValue = null, cursorId = null, page = 0;
   const LIMIT = 1000;
-  while (true) {
+  const HARD_PAGE_LIMIT = 25;
+  while (page < HARD_PAGE_LIMIT) {
     const params = { clinicId, limit: LIMIT };
     if (opts.mode === 'bootstrap') {
       params.startDate = opts.startDate; params.endDate = opts.endDate;
       if (cursorValue) params.cursorValue = cursorValue;
       if (cursorId)    params.cursorId    = cursorId;
     } else {
-      params.updatedAfter = opts.updatedAfter;
+      // Incremental: cada página avança updatedAfter pro nextCursor.updatedAt
+      params.updatedAfter = cursorValue || opts.updatedAfter;
       if (cursorId) params.cursorId = cursorId;
     }
     const j = await ecuroFetch(env, feed.path, params);
@@ -201,6 +203,7 @@ async function pullAndUpsert(env, feed, clinicId, opts) {
     if (!data.hasMore || !data.nextCursor) break;
     cursorValue = data.nextCursor.cursorValue || data.nextCursor.updatedAt;
     cursorId    = data.nextCursor.id;
+    page++;
   }
   return total;
 }
