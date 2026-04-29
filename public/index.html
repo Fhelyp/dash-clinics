@@ -553,8 +553,18 @@
         <span class="fbtn-label">Período</span> <svg width="9" height="9" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       <div class="dd ddate" id="ddp">
-        <label>Data Inicial</label><input type="date" value="2024-01-01">
-        <label>Data Final</label><input type="date" value="2024-12-31">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;">
+          <button type="button" onclick="quickPeriod('today')" style="background:rgba(168,85,247,.08);border:1px solid var(--border);color:var(--gray-l);padding:6px 8px;border-radius:6px;font-family:inherit;font-size:10.5px;cursor:pointer;">Hoje</button>
+          <button type="button" onclick="quickPeriod('mtd')" style="background:rgba(168,85,247,.08);border:1px solid var(--border);color:var(--gray-l);padding:6px 8px;border-radius:6px;font-family:inherit;font-size:10.5px;cursor:pointer;">Mês atual</button>
+          <button type="button" onclick="quickPeriod('15d')" style="background:rgba(168,85,247,.08);border:1px solid var(--border);color:var(--gray-l);padding:6px 8px;border-radius:6px;font-family:inherit;font-size:10.5px;cursor:pointer;">Últimos 15d</button>
+          <button type="button" onclick="quickPeriod('30d')" style="background:rgba(168,85,247,.08);border:1px solid var(--border);color:var(--gray-l);padding:6px 8px;border-radius:6px;font-family:inherit;font-size:10.5px;cursor:pointer;">Últimos 30d</button>
+          <button type="button" onclick="quickPeriod('lastMonth')" style="background:rgba(168,85,247,.08);border:1px solid var(--border);color:var(--gray-l);padding:6px 8px;border-radius:6px;font-family:inherit;font-size:10.5px;cursor:pointer;">Mês passado</button>
+          <button type="button" onclick="quickPeriod('quarter')" style="background:rgba(168,85,247,.08);border:1px solid var(--border);color:var(--gray-l);padding:6px 8px;border-radius:6px;font-family:inherit;font-size:10.5px;cursor:pointer;">Trimestre</button>
+          <button type="button" onclick="quickPeriod('ytd')" style="background:rgba(168,85,247,.08);border:1px solid var(--border);color:var(--gray-l);padding:6px 8px;border-radius:6px;font-family:inherit;font-size:10.5px;cursor:pointer;">Ano</button>
+          <button type="button" onclick="quickPeriod('all')" style="background:rgba(168,85,247,.08);border:1px solid var(--border);color:var(--gray-l);padding:6px 8px;border-radius:6px;font-family:inherit;font-size:10.5px;cursor:pointer;">Tudo</button>
+        </div>
+        <label>Data Inicial</label><input type="date" value="2026-04-01">
+        <label>Data Final</label><input type="date" value="2026-04-29">
         <button class="dapply" onclick="applyDateFilter()">Aplicar Período</button>
       </div>
     </div>
@@ -1207,6 +1217,37 @@ function applyDateFilter(){
   updateDashboard();
 }
 
+function quickPeriod(kind){
+  const today=new Date(); today.setHours(0,0,0,0);
+  let d1,d2=new Date(today); d2.setHours(23,59,59,0);
+  const ymd=d=>d.toISOString().slice(0,10);
+  switch(kind){
+    case 'today':     d1=new Date(today); break;
+    case 'mtd':       d1=new Date(today.getFullYear(),today.getMonth(),1); break;
+    case '15d':       d1=new Date(today); d1.setDate(d1.getDate()-14); break;
+    case '30d':       d1=new Date(today); d1.setDate(d1.getDate()-29); break;
+    case 'lastMonth': {
+      d1=new Date(today.getFullYear(),today.getMonth()-1,1);
+      d2=new Date(today.getFullYear(),today.getMonth(),0); d2.setHours(23,59,59,0);
+      break;
+    }
+    case 'quarter': {
+      const q=Math.floor(today.getMonth()/3);
+      d1=new Date(today.getFullYear(),q*3,1);
+      break;
+    }
+    case 'ytd':       d1=new Date(today.getFullYear(),0,1); break;
+    case 'all':       d1=null; d2=null; break;
+  }
+  const dInputs=document.querySelectorAll('#ddp input[type=date]');
+  if(d1&&dInputs[0]) dInputs[0].value=ymd(d1);
+  if(d2&&dInputs[1]) dInputs[1].value=ymd(d2);
+  APPLIED.d1=d1?ymd(d1):null;
+  APPLIED.d2=d2?ymd(d2):null;
+  tdd('ddp');
+  updateDashboard();
+}
+
 function filteredNoMC(){
   return ALL.filter(p=>{
     if(APPLIED.units&&!APPLIED.units.has(p.unit))return false;
@@ -1234,18 +1275,36 @@ function filteredALL(){
 
 function updateDashboard(){
   const fd=filteredALL();
-  // Ratio relative to full dataset — scales all INIT_* values proportionally
+  // Ratio para escalar charts/breakdowns que dependem de pré-cálculos (finRaw, sData, adVals…)
   const R=ALL.length>0?fd.length/ALL.length:1;
   const sc=v=>Math.round(v*R);
   const scf=v=>Math.round(v*R*100)/100;
-  // Scale INIT values proportionally — when R=1 (no filter) values match original display
-  const total=sc(INIT.total);
-  const agend=sc(INIT.agend);
-  const conc=sc(INIT.conc);
-  const conf=sc(INIT.conf);
-  const reag=sc(INIT.reag);
-  // Taxa de Conclusão = concluídos / agendamentos (antes era agend/total = % conversão de leads, que não se aplica aos dados atuais)
+
+  // ── Big numbers: CALCULAR de fd (não escalar INIT) ──────────
+  // Pacientes únicos no recorte
+  const total=new Set(fd.map(p=>p.patient_id).filter(Boolean)).size;
+  const agend=fd.length;
+  const conc=fd.filter(p=>p.status===8).length;
+  const conf=fd.filter(p=>p.status===4||p.status===5||p.status===6||p.status===7||p.status===8).length;
+  const reagSet=window.REAG_IDS||new Set();
+  const reag=fd.filter(p=>reagSet.has(p.id)).length;
+  // Taxa de Conclusão = concluídos / agendamentos
   const conv=agend>0?Math.round((conc/agend)*100):0;
+
+  // ── Receita real do período (a partir de RAW_PAYMENTS, intersectando datas e filtros) ──
+  const d1=APPLIED.d1?new Date(APPLIED.d1):null;
+  const d2=APPLIED.d2?new Date(APPLIED.d2+'T23:59:59'):null;
+  const activeUnitsSet=APPLIED.units;
+  const filteredPays=(window.RAW_PAYMENTS||[]).filter(p=>{
+    if(p.deleted_at)return false;
+    if(!p.is_confirmed)return false;
+    const dt=new Date(p.date);
+    if(d1&&dt<d1)return false;
+    if(d2&&dt>d2)return false;
+    if(activeUnitsSet){const n=clinicName(p.clinic_id);if(!activeUnitsSet.has(n))return false;}
+    return true;
+  });
+  const filteredRevTotal=filteredPays.reduce((s,p)=>s+parseFloat(p.amount||0),0);
 
   // ── Overview: Big number cards ───────────────────────
   const bns=document.querySelectorAll('.bn');
@@ -1315,12 +1374,11 @@ function updateDashboard(){
   hbars('hbEsp',scaledEspV);
   ['hbEsp','hbUnit'].forEach(id=>{const el=document.getElementById(id);if(el)el.querySelectorAll('.hbf').forEach(b=>{b.style.width='0%';setTimeout(()=>{b.style.transition='width 1.2s cubic-bezier(.4,0,.2,1)';b.style.width=b.dataset.w+'%';},50);});});
 
-  // ── Financeiro: Receita Operacional + Melhor Mês ─────
-  const scaledRevTotal=scf(INIT.revTotal);
+  // ── Financeiro: Receita Operacional REAL do período ───
   const rcvTotal=document.getElementById('rcvTotal');
-  if(rcvTotal)rcvTotal.textContent='R$ '+scaledRevTotal.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  if(rcvTotal)rcvTotal.textContent='R$ '+filteredRevTotal.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
   const ovRevTotal=document.getElementById('ovRevTotal');
-  if(ovRevTotal)ovRevTotal.textContent='R$ '+scaledRevTotal.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  if(ovRevTotal)ovRevTotal.textContent='R$ '+filteredRevTotal.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
   // Melhor Mês (escalado pelo ratio também, para manter consistência)
   const scaledBestVal=scf(INIT.revBestVal||0);
   const rcvBestVal=document.getElementById('rcvBestVal');

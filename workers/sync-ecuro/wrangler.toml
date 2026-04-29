@@ -10,9 +10,8 @@ crons = ["0 7 * * *"]
 [vars]
 SUPABASE_URL = "https://reeuuxkeqosiyjntyzma.supabase.co"
 ECURO_BASE_URL = "https://clinics.api.ecuro.com.br/api/v1/ecuro-light"
-# Header name que a Ecuro espera. Ajustar se necessário (ex: "X-Ecuro-Token", "apiKey", etc).
-ECURO_AUTH_HEADER = "apiKey"
-# Estratégia de envio do token: "header" | "bearer" | "query"
+# Header de auth da API Ecuro
+ECURO_AUTH_HEADER = "app-access-token"
 ECURO_AUTH_MODE = "header"
 # Ativar bootstrap manual via fetch (POST /backfill?startDate=...&endDate=...)
 ALLOW_MANUAL_BACKFILL = "true"

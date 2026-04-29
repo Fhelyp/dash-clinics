@@ -124,7 +124,10 @@ async function ecuroFetch(env, path, params) {
 // ── Sync run modes ──────────────────────────────────────────────────
 async function runIncremental(env, { lookbackHours = 36 } = {}) {
   const clinics = await listClinics(env);
-  const since = new Date(Date.now() - lookbackHours * 3600 * 1000).toISOString();
+  // API Ecuro rejeita updatedAfter > 7 dias. Margem de 6 dias para garantir.
+  const MAX_LOOKBACK_HOURS = 6 * 24;
+  const safeHours = Math.min(lookbackHours, MAX_LOOKBACK_HOURS);
+  const since = new Date(Date.now() - safeHours * 3600 * 1000).toISOString();
   console.log(`[incremental] ${clinics.length} clínicas, since=${since}`);
 
   for (const c of clinics) {
