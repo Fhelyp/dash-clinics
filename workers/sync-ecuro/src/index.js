@@ -13,7 +13,22 @@ const FEEDS = [
 
 export default {
   async scheduled(event, env, ctx) {
-    ctx.waitUntil(runIncremental(env, { lookbackHours: 36 }));
+    // Despacha conforme o cron que disparou:
+    //  "0 1 * * *" (22h BRT) → bootstrap últimos 7 dias (catch-up)
+    //  "0 7 * * *" (04h BRT) → incremental últimas 36h
+    if (event.cron === '0 1 * * *') {
+      // Bootstrap profundo (catch-up): inclui mês corrente + 7 dias atrás como buffer
+      // Garante que dados perdidos pela incremental sejam reprocessados
+      const today = new Date();
+      const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+      const start = new Date(Math.min(monthStart.getTime(), today.getTime() - 30 * 24 * 3600 * 1000));
+      const ymd = (d) => d.toISOString().slice(0, 10);
+      console.log(`[cron 22h BRT] Bootstrap ${ymd(start)} → ${ymd(today)}`);
+      ctx.waitUntil(runBootstrap(env, { startDate: ymd(start), endDate: ymd(today), feeds: [], onlyClinics: [] }));
+    } else {
+      console.log(`[cron 04h BRT] Incremental 36h lookback`);
+      ctx.waitUntil(runIncremental(env, { lookbackHours: 36 }));
+    }
   },
   async fetch(req, env, ctx) {
     const url = new URL(req.url);
@@ -182,6 +197,7 @@ async function pullAndUpsert(env, feed, clinicId, opts) {
   let cursorValue = null, cursorId = null, page = 0;
   const LIMIT = 1000;
   const HARD_PAGE_LIMIT = 25;
+  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
   while (page < HARD_PAGE_LIMIT) {
     const params = { clinicId, limit: LIMIT };
     if (opts.mode === 'bootstrap') {
@@ -193,6 +209,8 @@ async function pullAndUpsert(env, feed, clinicId, opts) {
       params.updatedAfter = cursorValue || opts.updatedAfter;
       if (cursorId) params.cursorId = cursorId;
     }
+    // Throttle entre páginas pra não saturar API Ecuro (compartilhada com MC em prod)
+    if (page > 0) await sleep(800);
     const j = await ecuroFetch(env, feed.path, params);
     const data = j?.data || {};
     const rows = data.rows || [];

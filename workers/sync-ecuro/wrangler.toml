@@ -3,9 +3,11 @@ main = "src/index.js"
 compatibility_date = "2025-04-01"
 compatibility_flags = ["nodejs_compat"]
 
-# Cron diário às 04:00 BRT (07:00 UTC) — dentro da janela 20:00–08:00 BRT que a API exige
+# Crons (todos dentro da janela 20:00–08:00 BRT que a API exige):
+#  - 22:00 BRT (01:00 UTC) → bootstrap dos últimos 7 dias (catch-up agressivo)
+#  - 04:00 BRT (07:00 UTC) → incremental (dados atualizados nas últimas 36h)
 [triggers]
-crons = ["0 7 * * *"]
+crons = ["0 1 * * *", "0 7 * * *"]
 
 [vars]
 SUPABASE_URL = "https://reeuuxkeqosiyjntyzma.supabase.co"

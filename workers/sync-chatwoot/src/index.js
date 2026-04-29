@@ -12,8 +12,9 @@
 //  Atenção: Chatwoot é PRODUÇÃO (Maria Clara + operadores). Throttle pesado.
 // ════════════════════════════════════════════════════════════════════
 
-const SLEEP_REQUEST_MS = 2000; // entre páginas de conversations
-const SLEEP_UNIT_MS    = 8000; // entre clínicas
+// Throttle reduzido: cron roda 22h BRT (sem usuários ativos), pode pegar mais agressivo
+const SLEEP_REQUEST_MS = 600;  // entre páginas de conversations
+const SLEEP_UNIT_MS    = 1500; // entre clínicas
 const PAGE_SIZE        = 25;   // padrão Chatwoot
 const MAX_PAGES        = 40;   // teto pra não rodar pra sempre
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
@@ -114,14 +115,23 @@ async function runAggregation(env, { onlyClinic = null } = {}) {
         if (list.length < PAGE_SIZE) break;
         page++;
       }
-      cacheRows.push({
+      const row = {
         clinic_id: u.Ecuro_clinicId,
         year_month: ym,
         campaign_tag: tag,
         contacts_count: contactsInMonth.size,
         conversations_count: conversationsInMonth.size,
         refreshed_at: new Date().toISOString()
-      });
+      };
+      cacheRows.push(row);
+      // Upsert IMEDIATO por clínica — se o worker morrer no meio, o que rodou tá salvo
+      try {
+        await fetch(`${env.SUPABASE_URL}/rest/v1/campaign_contacts_cache?on_conflict=clinic_id,year_month,campaign_tag`, {
+          method: 'POST',
+          headers: supaHeaders(env, 'resolution=merge-duplicates,return=minimal'),
+          body: JSON.stringify([row])
+        });
+      } catch (_) {}
       console.log(`[chatwoot][${u.Unidade}] tag="${tag}" contatos=${contactsInMonth.size} conversas=${conversationsInMonth.size}`);
     } catch (e) {
       console.error(`[chatwoot][${u.Unidade}]`, e.message);
