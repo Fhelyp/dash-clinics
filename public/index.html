@@ -1295,7 +1295,7 @@ function updateDashboard(){
   const d1=APPLIED.d1?new Date(APPLIED.d1):null;
   const d2=APPLIED.d2?new Date(APPLIED.d2+'T23:59:59'):null;
   const activeUnitsSet=APPLIED.units;
-  const filteredPays=(window.RAW_PAYMENTS||[]).filter(p=>{
+  const filteredPays=(typeof RAW_PAYMENTS!=='undefined'?RAW_PAYMENTS:[]).filter(p=>{
     if(p.deleted_at)return false;
     if(!p.is_confirmed)return false;
     const dt=new Date(p.date);
@@ -1385,6 +1385,9 @@ function updateDashboard(){
   const rcvBestMonth=document.getElementById('rcvBestMonth');
   if(rcvBestVal)rcvBestVal.textContent='R$ '+scaledBestVal.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
   if(rcvBestMonth)rcvBestMonth.textContent=INIT.revBestMonth||'—';
+
+  // ── Métricas Thauany (recalcula a cada filtro) ──────────────────────────
+  if(typeof computeThauanyMetrics==='function') computeThauanyMetrics().catch(()=>{});
 
   // ── MC Comparativo Bar ──────────────────────────────────────────────────
   const fdAll   = filteredNoMC();
@@ -1920,7 +1923,8 @@ async function loadFromSupabase(){
   renderCreatorFilterIndicator();
 
   // ── Métricas Thauany: Campanha + Origem + Vendas Diretas/Follow-up ──
-  computeThauanyMetrics(appointments, livePayments);
+  // Calcula uma vez no load, e também a cada filtro (chamado em updateDashboard)
+  await computeThauanyMetrics();
 
   showBanner(`✅ ${ALL.length} agendamentos · ${logs.length} logs · ${livePayments.length} pagamentos · ${uniquePatients} pacientes únicos · reag: ${reag} (${reagSource === 'logs' ? 'logs oficial' : 'heurística 24h'})`, 'ok');
   setTimeout(hideBanner, 5000);
@@ -1932,7 +1936,25 @@ async function loadFromSupabase(){
 const ATTENDED_STATUSES = new Set([6, 7, 8]); // check-in, atendido, concluído
 const SPEC_AVALIACAO_NAMES = new Set(['Avaliação', 'Avaliacao', 'AVALIAÇÃO']);
 
-async function computeThauanyMetrics(appointments, payments){
+async function computeThauanyMetrics(){
+  // Trabalha sempre sobre os dados FILTRADOS por período/unidade/etc.
+  const fd = filteredALL();
+  // appointments filtrados (objetos no formato bruto do Supabase, dentro de RAW_APPOINTMENTS)
+  const fdIds = new Set(fd.map(p => p.id));
+  const appointments = (typeof RAW_APPOINTMENTS!=='undefined'?RAW_APPOINTMENTS:[]).filter(a => fdIds.has(a.id));
+  // pagamentos filtrados pelo mesmo período + unidades aplicadas
+  const d1=APPLIED.d1?new Date(APPLIED.d1):null;
+  const d2=APPLIED.d2?new Date(APPLIED.d2+'T23:59:59'):null;
+  const activeUnitsSet=APPLIED.units;
+  const payments = (typeof RAW_PAYMENTS!=='undefined'?RAW_PAYMENTS:[]).filter(p => {
+    if(p.deleted_at) return false;
+    if(!p.is_confirmed) return false;
+    const dt=new Date(p.date);
+    if(d1&&dt<d1) return false;
+    if(d2&&dt>d2) return false;
+    if(activeUnitsSet){const n=clinicName(p.clinic_id);if(!activeUnitsSet.has(n)) return false;}
+    return true;
+  });
   // ── 1. Classificação de cada paciente por origem ──
   // Critério atual:
   //   - Campanha: paciente cujo PRIMEIRO appointment tem campaign_token
