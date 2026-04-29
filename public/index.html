@@ -543,7 +543,7 @@
   body.light .snav-item.on{background:linear-gradient(90deg,rgba(168,85,247,.12),rgba(168,85,247,.02));}
   /* Topbar */
   nav{left:200px !important;padding:0 24px !important;justify-content:flex-end !important;gap:8px;transition:left .25s;}
-  .nfilt{justify-content:flex-end !important;align-items:center;}
+  .nfilt{justify-content:flex-start !important;align-items:center;flex-wrap:nowrap !important;}
   /* Reduz padding-top do conteúdo (era muito grande) */
   .ovg{padding-top:calc(var(--nav) + 14px) !important;}
   /* Charts contidos no card (não extrapolam pra cobrir o card seguinte) */
@@ -574,7 +574,9 @@
 </style>
 
 <nav>
-  <div class="nfilt" style="width:100%;flex-wrap:wrap;">
+  <div class="nfilt" style="width:100%;flex-wrap:nowrap;">
+    <!-- Espaçador: empurra todos os filtros para a direita -->
+    <div style="flex:1 1 auto;min-width:0;"></div>
     <!-- Filtro 3-estados: Todos / Maria Clara / Operadores -->
     <div id="mcSwitch" role="tablist" aria-label="Filtro por agente" style="display:inline-flex;align-items:center;background:var(--card);border:1px solid var(--border);border-radius:20px;padding:3px;font-size:11px;font-weight:600;flex-shrink:0;">
       <button class="mcs-opt mcs-on" data-mc="ALL" onclick="setMCMode('ALL')" style="background:var(--purple);color:#fff;border:none;padding:5px 11px;border-radius:16px;cursor:pointer;font-family:inherit;font-size:11px;font-weight:600;transition:all .2s;">Todos</button>
@@ -1926,7 +1928,8 @@ async function loadFromSupabase(){
       agent: mcApptIds.has(a.id) ? 'MC' : 'HUM',
       status: a.status,
       revenue: 0, // aggregated separately from payments
-      creator: getCreatorNameRaw(a),
+      // Sem created_by_name mas com log da MC → atribuir a Maria Clara
+      creator: getCreatorNameRaw(a) || (mcApptIds.has(a.id) ? 'Maria Clara' : ''),
       channelId: getChannelIdRaw(a)
     };
   });
@@ -2109,7 +2112,12 @@ async function loadFromSupabase(){
   appointments.forEach(a => {
     if(EXCLUDED_CHANNEL_IDS.has(getChannelIdRaw(a))){ excluidosMC++; return; }
     const nome = getCreatorNameRaw(a);
-    if(!nome){ semCriador++; return; }
+    if(!nome){
+      // Sem created_by_name: se a MC logou nesse appointment → atribuir a Maria Clara
+      if(mcApptIds.has(a.id)){ creatorCount['Maria Clara'] = (creatorCount['Maria Clara']||0)+1; comCriador++; }
+      else { semCriador++; }
+      return;
+    }
     comCriador++;
     creatorCount[nome] = (creatorCount[nome] || 0) + 1;
   });
@@ -2256,12 +2264,11 @@ async function computeThauanyMetrics(){
   try {
     const ym = new Date().toISOString().slice(0,7);
     let cacheUrl = `/api/data/campaign_contacts_cache?select=contacts_count,clinic_id&year_month=eq.${ym}`;
-    // Aplica filtro de unidade: só soma clínicas selecionadas
+    // Aplica filtro de unidade usando clinic_ids extraídos diretamente dos agendamentos filtrados
+    // (mais confiável que reverse-lookup pelo nome — evita divergências de nomenclatura)
     if(APPLIED.units && APPLIED.units.size > 0){
-      const clinicIds = Object.entries(CLINIC_MAP)
-        .filter(([,name]) => APPLIED.units.has(name))
-        .map(([id]) => id);
-      if(clinicIds.length) cacheUrl += `&clinic_id=in.(${clinicIds.join(',')})`;
+      const filteredClinicIds = [...new Set(appointments.map(a => a.clinic_id).filter(Boolean))];
+      if(filteredClinicIds.length) cacheUrl += `&clinic_id=in.(${filteredClinicIds.join(',')})`;
     }
     const r = await fetch(cacheUrl, { credentials:'same-origin' });
     if(r.ok){
