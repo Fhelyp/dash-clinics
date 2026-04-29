@@ -1,0 +1,18 @@
+{
+  "name": "dash-clinics",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Dashboard S-Pragel/Ecuro com auth + sync Cloudflare → Supabase",
+  "scripts": {
+    "dev": "wrangler pages dev public --port 8788 --compatibility-date=2025-04-01",
+    "deploy": "wrangler pages deploy public --project-name=dash-clinics",
+    "worker:sync-ecuro:dev": "wrangler dev --config workers/sync-ecuro/wrangler.toml",
+    "worker:sync-ecuro:deploy": "wrangler deploy --config workers/sync-ecuro/wrangler.toml",
+    "worker:sync-chatwoot:dev": "wrangler dev --config workers/sync-chatwoot/wrangler.toml",
+    "worker:sync-chatwoot:deploy": "wrangler deploy --config workers/sync-chatwoot/wrangler.toml",
+    "seed:admin": "node scripts/seed-admin.mjs"
+  },
+  "devDependencies": {
+    "wrangler": "^3.90.0"
+  }
+}

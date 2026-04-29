@@ -1,0 +1,19 @@
+name = "dash-clinics-sync-chatwoot"
+main = "src/index.js"
+compatibility_date = "2025-04-01"
+compatibility_flags = ["nodejs_compat"]
+
+# A cada hora cheia
+[triggers]
+crons = ["0 * * * *"]
+
+[vars]
+SUPABASE_URL = "https://reeuuxkeqosiyjntyzma.supabase.co"
+CHATWOOT_BASE_URL = "https://chatclinics.5ef4kt.easypanel.host"
+# Tags consideradas "campanha" — ajustar conforme necessário
+CAMPAIGN_TAG_PREFIX = "campanha"
+
+# Secrets:
+#   SUPABASE_SERVICE_ROLE
+#   CHATWOOT_API_TOKEN
+#   ADMIN_TOKEN

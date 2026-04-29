@@ -1,0 +1,2 @@
+SUPABASE_SERVICE_ROLE=cole_aqui_a_service_role_atual_ou_a_rotacionada
+JWT_SECRET=gere_com_openssl_rand_hex_64

@@ -1,0 +1,17 @@
+node_modules/
+.wrangler/
+.dev.vars
+.env
+.env.local
+*.log
+.DS_Store
+desktop.ini
+dist/
+build/
+.vscode/
+.idea/
+
+# Dados/CSVs locais que não devem ir pro repo
+*.csv
+latest.html
+"index (*).html"

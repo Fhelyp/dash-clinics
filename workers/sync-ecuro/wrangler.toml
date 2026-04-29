@@ -1,0 +1,23 @@
+name = "dash-clinics-sync-ecuro"
+main = "src/index.js"
+compatibility_date = "2025-04-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Cron diário às 04:00 BRT (07:00 UTC) — dentro da janela 20:00–08:00 BRT que a API exige
+[triggers]
+crons = ["0 7 * * *"]
+
+[vars]
+SUPABASE_URL = "https://reeuuxkeqosiyjntyzma.supabase.co"
+ECURO_BASE_URL = "https://clinics.api.ecuro.com.br/api/v1/ecuro-light"
+# Header name que a Ecuro espera. Ajustar se necessário (ex: "X-Ecuro-Token", "apiKey", etc).
+ECURO_AUTH_HEADER = "apiKey"
+# Estratégia de envio do token: "header" | "bearer" | "query"
+ECURO_AUTH_MODE = "header"
+# Ativar bootstrap manual via fetch (POST /backfill?startDate=...&endDate=...)
+ALLOW_MANUAL_BACKFILL = "true"
+
+# Secrets (cadastrar via wrangler secret put):
+#   SUPABASE_SERVICE_ROLE
+#   ECURO_API_KEY
+#   ADMIN_TOKEN  (proteção do endpoint manual de backfill)

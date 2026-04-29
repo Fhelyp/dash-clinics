@@ -1,0 +1,15 @@
+# Cloudflare Pages config (dash-clinics)
+# Variáveis sensíveis (SUPABASE_SERVICE_ROLE, JWT_SECRET, etc.) não vão aqui —
+# devem ser cadastradas como secrets no painel do Pages ou via:
+#   wrangler pages secret put SUPABASE_SERVICE_ROLE --project-name=dash-clinics
+
+name = "dash-clinics"
+compatibility_date = "2025-04-01"
+compatibility_flags = ["nodejs_compat"]
+pages_build_output_dir = "public"
+
+[vars]
+SUPABASE_URL = "https://reeuuxkeqosiyjntyzma.supabase.co"
+JWT_ISSUER = "dash-clinics"
+JWT_TTL_HOURS = "12"
+PATIENT_PROFILE_BASE = "https://ecuro.com.br/dashboard/patient-profile"
