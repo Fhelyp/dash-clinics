@@ -1400,7 +1400,7 @@ function filteredNoMC(){
     if(APPLIED.units&&!APPLIED.units.has(p.unit))return false;
     if(APPLIED.specs&&!APPLIED.specs.has(p.spec))return false;
     if(APPLIED.statuses&&!APPLIED.statuses.has(STM[p.status]))return false;
-    if(APPLIED.d1&&p.dateRaw<new Date(APPLIED.d1))return false;
+    if(APPLIED.d1&&p.dateRaw<new Date(APPLIED.d1+'T00:00:00'))return false;
     if(APPLIED.d2&&p.dateRaw>new Date(APPLIED.d2+'T23:59:59'))return false;
     if(!matchCreatorFilter(p))return false;
     return true;
@@ -1413,7 +1413,7 @@ function filteredALL(){
     if(APPLIED.units&&!APPLIED.units.has(p.unit))return false;
     if(APPLIED.specs&&!APPLIED.specs.has(p.spec))return false;
     if(APPLIED.statuses&&!APPLIED.statuses.has(STM[p.status]))return false;
-    if(APPLIED.d1&&p.dateRaw<new Date(APPLIED.d1))return false;
+    if(APPLIED.d1&&p.dateRaw<new Date(APPLIED.d1+'T00:00:00'))return false;
     if(APPLIED.d2&&p.dateRaw>new Date(APPLIED.d2+'T23:59:59'))return false;
     if(!matchCreatorFilter(p))return false;
     return true;
@@ -1439,7 +1439,9 @@ function updateDashboard(){
   const conv=agend>0?Math.round((conc/agend)*100):0;
 
   // ── Receita real do período (a partir de RAW_PAYMENTS, intersectando TODOS os filtros) ──
-  const d1=APPLIED.d1?new Date(APPLIED.d1):null;
+  // IMPORTANTE: parse como LOCAL (sem 'Z') pra evitar deslocamento de timezone que
+  // jogava 2026-04-01 pra 31/mar em BRT, fazendo charts mostrarem mês anterior.
+  const d1=APPLIED.d1?new Date(APPLIED.d1+'T00:00:00'):null;
   const d2=APPLIED.d2?new Date(APPLIED.d2+'T23:59:59'):null;
   const activeUnitsSet=APPLIED.units;
   // Pacientes que aparecem no recorte de appointments filtrado (respeita MC/OP, status, etc.)
@@ -2194,7 +2196,7 @@ async function computeThauanyMetrics(){
   const fdIds = new Set(fd.map(p => p.id));
   const appointments = (typeof RAW_APPOINTMENTS!=='undefined'?RAW_APPOINTMENTS:[]).filter(a => fdIds.has(a.id));
   // pagamentos filtrados pelo mesmo período + unidades aplicadas
-  const d1=APPLIED.d1?new Date(APPLIED.d1):null;
+  const d1=APPLIED.d1?new Date(APPLIED.d1+'T00:00:00'):null;
   const d2=APPLIED.d2?new Date(APPLIED.d2+'T23:59:59'):null;
   const activeUnitsSet=APPLIED.units;
   const payments = (typeof RAW_PAYMENTS!=='undefined'?RAW_PAYMENTS:[]).filter(p => {
