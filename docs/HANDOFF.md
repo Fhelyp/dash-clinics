@@ -1,5 +1,11 @@
 # Hand-off — Dashboard de Clínicas
 
+> **Última atualização:** rodada da tarde 29/abr — bug do dashboard zerado corrigido,
+> filtros rápidos adicionados, métricas Thauany respondendo ao filtro, sync das 32
+> clínicas rodando com throttle (5s/req, 60s/clínica) pra não comprometer a Maria Clara.
+
+
+
 ## ✅ O que está NO AR e funcionando
 
 - **URL:** https://dash-clinics.pages.dev
