@@ -101,9 +101,12 @@ async function pullAndUpsert(feed, clinicId, opts) {
     const j = await ecuroFetch(feed.path, params);
     const data = j?.data || {};
     const rows = data.rows || [];
+    process.stderr.write(`p${page+1}(${feed.name}=${rows.length})`);
     if (rows.length) {
-      await upsertRows(feed.table, rows);
+      try { await upsertRows(feed.table, rows); }
+      catch(e){ process.stderr.write(`UPSERT-ERR:${String(e.message).slice(0,80)}|`); throw e; }
       total += rows.length;
+      process.stderr.write(`✓`);
     }
     if (!data.hasMore || !data.nextCursor) break;
     cursorValue = data.nextCursor.cursorValue || data.nextCursor.updatedAt;
@@ -126,10 +129,10 @@ if (mode === 'incremental') {
   for (let i = 0; i < clinics.length; i++) {
     const c = clinics[i];
     if (i > 0) {
-      process.stdout.write(`  …aguardando ${SLEEP_BETWEEN_CLINICS_MS/1000}s antes da próxima clínica…\n`);
+      console.log(`  …aguardando ${SLEEP_BETWEEN_CLINICS_MS/1000}s antes da próxima clínica…`);
       await sleep(SLEEP_BETWEEN_CLINICS_MS);
     }
-    process.stdout.write(`  [${i+1}/${clinics.length}] ${c.Unidade.padEnd(28)} `);
+    process.stderr.write(`  [${i+1}/${clinics.length}] ${c.Unidade.padEnd(28)} `);
     const counts = {};
     for (let f = 0; f < FEEDS.length; f++) {
       const feed = FEEDS[f];
@@ -153,10 +156,10 @@ if (mode === 'incremental') {
   for (let i = 0; i < clinics.length; i++) {
     const c = clinics[i];
     if (i > 0) {
-      process.stdout.write(`  …aguardando ${SLEEP_BETWEEN_CLINICS_MS/1000}s antes da próxima clínica…\n`);
+      console.log(`  …aguardando ${SLEEP_BETWEEN_CLINICS_MS/1000}s antes da próxima clínica…`);
       await sleep(SLEEP_BETWEEN_CLINICS_MS);
     }
-    process.stdout.write(`  [${i+1}/${clinics.length}] ${c.Unidade.padEnd(28)} `);
+    process.stderr.write(`  [${i+1}/${clinics.length}] ${c.Unidade.padEnd(28)} `);
     const counts = {};
     for (let f = 0; f < FEEDS.length; f++) {
       const feed = FEEDS[f];

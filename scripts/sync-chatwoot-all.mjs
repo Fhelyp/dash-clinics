@@ -71,15 +71,22 @@ for (let i = 0; i < units.length; i++) {
       if (allOlder || list.length < PAGE_SIZE) break;
       page++;
     }
-    cacheRows.push({
+    const row = {
       clinic_id: u.Ecuro_clinicId,
       year_month: ym,
       campaign_tag: TAG,
       contacts_count: contacts.size,
       conversations_count: convs.size,
       refreshed_at: new Date().toISOString()
+    };
+    cacheRows.push(row);
+    // Upsert imediato (cada unidade) pra não perder se cair
+    const r = await fetch(`${SUPA}/rest/v1/campaign_contacts_cache?on_conflict=clinic_id,year_month,campaign_tag`, {
+      method: 'POST',
+      headers: { apikey: SR, Authorization: `Bearer ${SR}`, 'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates,return=minimal' },
+      body: JSON.stringify([row])
     });
-    console.log(`contatos=${contacts.size} convs=${convs.size}`);
+    console.log(`contatos=${contacts.size} convs=${convs.size} (upsert ${r.status})`);
   } catch (e) {
     console.log(`ERR(${e.message.slice(0, 60)})`);
   }
