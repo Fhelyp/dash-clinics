@@ -542,7 +542,10 @@
   body.light #sidebar{background:#ffffff;}
   body.light .snav-item.on{background:linear-gradient(90deg,rgba(168,85,247,.12),rgba(168,85,247,.02));}
   /* Topbar */
-  nav{left:200px !important;padding:0 24px !important;justify-content:flex-start !important;gap:8px;transition:left .25s;}
+  nav{left:200px !important;padding:0 24px !important;justify-content:flex-end !important;gap:8px;transition:left .25s;}
+  .nfilt{justify-content:flex-end !important;}
+  /* Reduz padding-top do conteúdo (era muito grande) */
+  .ovg{padding-top:calc(var(--nav) + 14px) !important;}
   /* ━━━ COLLAPSED MODE ━━━ */
   body.sb-collapsed{padding-left:60px !important;}
   body.sb-collapsed #sidebar{width:60px;padding:18px 8px;}
@@ -553,8 +556,10 @@
   body.sb-collapsed .snav-item{justify-content:center;padding:11px 6px;}
   body.sb-collapsed .snav-item.on::before{left:-8px;}
   body.sb-collapsed .sb-userbadge{justify-content:center;padding:6px;display:flex !important;}
-  body.sb-collapsed .sb-actions{flex-direction:column;}
-  body.sb-collapsed .sb-btn{padding:8px;justify-content:center;}
+  /* Quando collapsed: TEMA acima do SAIR, ambos com mesmo tamanho */
+  body.sb-collapsed .sb-actions{flex-direction:column-reverse;gap:6px;}
+  body.sb-collapsed .sb-btn,
+  body.sb-collapsed .sb-btn-icon{width:42px;height:42px;flex:none;padding:0;}
   body.sb-collapsed #sbToggleIcon{transform:rotate(180deg);}
   /* Mobile */
   @media (max-width: 768px){
@@ -999,7 +1004,11 @@ const ioObs=new IntersectionObserver(en=>{en.forEach(e=>{if(e.isIntersecting){do
 ['overview','marketing','financeiro','auditoria'].forEach(id=>{const el=document.getElementById(id);if(el)ioObs.observe(el);});
 
 // ── DROPDOWNS ──────────────────────────────────────────
-document.addEventListener('click',e=>{if(!e.target.closest('.fw'))document.querySelectorAll('.dd').forEach(d=>d.classList.remove('op'));});
+document.addEventListener('click',e=>{
+  // Não fecha se clicar dentro do botão/wrapper OU dentro do próprio dropdown aberto
+  if(e.target.closest('.fw') || e.target.closest('.dd')) return;
+  document.querySelectorAll('.dd').forEach(d=>d.classList.remove('op'));
+});
 function positionDD(id) {
   const dd = document.getElementById(id);
   if (!dd) return;
@@ -1630,6 +1639,9 @@ function updateDashboard(){
 
   // ── Chips de filtros aplicados ──────────────────────────────────────────
   renderActiveFilterChips();
+
+  // Charts: força resize após DOM atualizar pra textos não cortarem
+  setTimeout(() => { try { resizeAllCharts && resizeAllCharts(); } catch(_){} }, 60);
 
   // ── MC Comparativo Bar ──────────────────────────────────────────────────
   const fdAll   = filteredNoMC();
@@ -2438,6 +2450,11 @@ function toggleSidebar(){
     [CHART_FIN, CHART_ST, CHART_AGE, CHART_DONUT, CHART_CAMP, CHART_ORIGEM].forEach(c => { try { c?.resize(); c?.update('none'); } catch(_){} });
   }, 280);
 }
+// Resize charts em qualquer mudança de viewport (filtro, redimensionamento)
+function resizeAllCharts(){
+  [CHART_FIN, CHART_ST, CHART_AGE, CHART_DONUT, CHART_CAMP, CHART_ORIGEM].forEach(c => { try { c?.resize(); } catch(_){} });
+}
+window.addEventListener('resize', resizeAllCharts);
 window.toggleSidebar = toggleSidebar;
 // Aplica estado salvo no boot
 if(localStorage.getItem('dc_sb_collapsed') === '1') document.body.classList.add('sb-collapsed');
