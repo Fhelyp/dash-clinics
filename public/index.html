@@ -2187,8 +2187,9 @@ async function loadFromSupabase(){
   // Popula a lista de Operadores no dropdown de filtro
   if(typeof populateOperatorList==='function') populateOperatorList();
 
-  showBanner(`✅ ${ALL.length} agendamentos · ${logs.length} logs · ${livePayments.length} pagamentos · ${uniquePatients} pacientes únicos · reag: ${reag} (${reagSource === 'logs' ? 'logs oficial' : 'heurística 24h'})`, 'ok');
-  setTimeout(hideBanner, 5000);
+  // Banner de "load OK" removido — usuário pediu pra não aparecer
+  hideBanner();
+  console.log(`[load] ${ALL.length} agend · ${logs.length} logs · ${livePayments.length} pays · ${uniquePatients} pacs · reag=${reag} (${reagSource})`);
 }
 
 // ═══════════════════════════════════════════════════════════════════
