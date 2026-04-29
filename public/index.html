@@ -679,7 +679,7 @@
       </div>
     </div>
     <!-- Botão "Limpar tudo" — só aparece quando há filtros aplicados -->
-    <button id="clearAllBtn" onclick="clearAllFilters()" style="display:none;margin-left:auto;background:transparent;border:1px solid rgba(168,85,247,.4);color:var(--purple);padding:5px 11px;border-radius:14px;cursor:pointer;font-family:inherit;font-size:10.5px;font-weight:600;white-space:nowrap;">Limpar filtros</button>
+    <button id="clearAllBtn" onclick="clearAllFilters()" style="display:none;background:transparent;border:1px solid rgba(168,85,247,.4);color:var(--purple);padding:5px 11px;border-radius:14px;cursor:pointer;font-family:inherit;font-size:10.5px;font-weight:600;white-space:nowrap;">Limpar filtros</button>
   </div>
 </nav>
 
@@ -2255,7 +2255,15 @@ async function computeThauanyMetrics(){
   let leadsFromCampaign = campPatientIds.size; // fallback: pacientes que agendaram com campaign_token
   try {
     const ym = new Date().toISOString().slice(0,7);
-    const r = await fetch(`/api/data/campaign_contacts_cache?select=contacts_count&year_month=eq.${ym}`, { credentials:'same-origin' });
+    let cacheUrl = `/api/data/campaign_contacts_cache?select=contacts_count,clinic_id&year_month=eq.${ym}`;
+    // Aplica filtro de unidade: só soma clínicas selecionadas
+    if(APPLIED.units && APPLIED.units.size > 0){
+      const clinicIds = Object.entries(CLINIC_MAP)
+        .filter(([,name]) => APPLIED.units.has(name))
+        .map(([id]) => id);
+      if(clinicIds.length) cacheUrl += `&clinic_id=in.(${clinicIds.join(',')})`;
+    }
+    const r = await fetch(cacheUrl, { credentials:'same-origin' });
     if(r.ok){
       const rows = await r.json();
       const sum = rows.reduce((s,x) => s + (x.contacts_count || 0), 0);
