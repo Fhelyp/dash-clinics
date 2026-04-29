@@ -3,9 +3,10 @@ main = "src/index.js"
 compatibility_date = "2025-04-01"
 compatibility_flags = ["nodejs_compat"]
 
-# A cada hora cheia
-[triggers]
-crons = ["0 * * * *"]
+# Cron DESATIVADO temporariamente — endpoint /labels da v2 não existe nesse Chatwoot.
+# Usar /conversations + filter labels[] (refator em andamento). Reativar quando validado.
+# [triggers]
+# crons = ["0 * * * *"]
 
 [vars]
 SUPABASE_URL = "https://reeuuxkeqosiyjntyzma.supabase.co"
