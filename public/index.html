@@ -695,6 +695,74 @@
     <span class="stit">Performance de <span>Marketing</span></span>
   </div>
   <div class="mktpad">
+
+    <!-- ═══ NOVA LINHA: 4 KPIs de Campanha ═══ -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:var(--gap);margin-bottom:var(--gap);">
+      <div class="bn">
+        <div class="bnl">Leads de Campanha</div>
+        <div class="bnv" id="cmpLeads">0</div>
+        <div class="bns">contatos com tag campanha (Chatwoot)</div>
+      </div>
+      <div class="bn">
+        <div class="bnl">Agendamentos Campanha</div>
+        <div class="bnv" id="cmpAgend" style="color:var(--blue)">0</div>
+        <div class="bns">campaign_token preenchido</div>
+      </div>
+      <div class="bn">
+        <div class="bnl">Comparecimentos Campanha</div>
+        <div class="bnv" id="cmpComp" style="color:var(--teal)">0</div>
+        <div class="bns">status atendido/concluído</div>
+      </div>
+      <div class="bn">
+        <div class="bnl">Vendas Campanha</div>
+        <div class="bnv" id="cmpVendas" style="color:var(--green);font-size:24px">R$ 0</div>
+        <div class="bns">pagamentos confirmados</div>
+      </div>
+    </div>
+
+    <!-- ═══ NOVA LINHA: Tipos de Paciente + Vendas Diretas vs Follow-Up ═══ -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--gap);margin-bottom:var(--gap);">
+      <div class="card">
+        <div class="chd"><span class="clbl">Origem dos Pacientes</span></div>
+        <div class="cbdy" style="padding:14px 18px;">
+          <div id="origemList" style="display:flex;flex-direction:column;gap:11px;">
+            <div class="orig-row" data-orig="campanha" style="display:flex;align-items:center;justify-content:space-between;font-size:11.5px;"><span style="display:flex;align-items:center;gap:8px;"><span style="width:8px;height:8px;border-radius:50%;background:var(--purple);"></span>Campanha</span><span><strong id="origCmpQt" style="color:var(--white)">0</strong> pac · <strong id="origCmpRv" style="color:var(--green)">R$ 0</strong></span></div>
+            <div class="orig-row" data-orig="organico" style="display:flex;align-items:center;justify-content:space-between;font-size:11.5px;"><span style="display:flex;align-items:center;gap:8px;"><span style="width:8px;height:8px;border-radius:50%;background:var(--blue);"></span>Orgânico</span><span><strong id="origOrgQt" style="color:var(--white)">0</strong> pac · <strong id="origOrgRv" style="color:var(--green)">R$ 0</strong></span></div>
+            <div class="orig-row" data-orig="indicacao" style="display:flex;align-items:center;justify-content:space-between;font-size:11.5px;"><span style="display:flex;align-items:center;gap:8px;"><span style="width:8px;height:8px;border-radius:50%;background:var(--teal);"></span>Indicações</span><span><strong id="origIndQt" style="color:var(--white)">0</strong> pac · <strong id="origIndRv" style="color:var(--green)">R$ 0</strong></span></div>
+            <div class="orig-row" data-orig="resgate" style="display:flex;align-items:center;justify-content:space-between;font-size:11.5px;"><span style="display:flex;align-items:center;gap:8px;"><span style="width:8px;height:8px;border-radius:50%;background:var(--orange);"></span>Resgates</span><span><strong id="origResQt" style="color:var(--white)">0</strong> pac · <strong id="origResRv" style="color:var(--green)">R$ 0</strong></span></div>
+          </div>
+          <div style="font-size:9.5px;color:var(--gray);margin-top:14px;line-height:1.5;border-top:1px solid var(--border);padding-top:10px;">
+            <strong>Critérios:</strong> Campanha = appointment com <code>campaign_token</code>. Orgânico = primeira consulta sem <code>campaign_token</code>. Indicações/Resgates = a definir (precisam de campo dedicado ou regra de negócio).
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="chd"><span class="clbl">Vendas: 1ª Consulta vs Follow-Up</span></div>
+        <div class="cbdy" style="padding:14px 18px;">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+            <div class="rcv rcv1">
+              <div class="rl" style="color:var(--green)">1ª Consulta (Avaliação)</div>
+              <div class="rv" id="vd1Cons">R$ 0</div>
+              <div class="rs"><span id="vd1ConsQt">0</span> pagamentos</div>
+            </div>
+            <div class="rcv rcv2">
+              <div class="rl" style="color:var(--blue)">Follow-Up (demais)</div>
+              <div class="rv" id="vdFollow">R$ 0</div>
+              <div class="rs"><span id="vdFollowQt">0</span> pagamentos</div>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px;font-size:11px;">
+            <div style="display:flex;justify-content:space-between;"><span style="color:var(--gray-l);">↳ Follow-up <strong style="color:var(--purple);">Campanha</strong></span><strong id="vdFollowCmp" style="color:var(--white);">R$ 0</strong></div>
+            <div style="display:flex;justify-content:space-between;"><span style="color:var(--gray-l);">↳ Follow-up <strong style="color:var(--blue);">Orgânico</strong></span><strong id="vdFollowOrg" style="color:var(--white);">R$ 0</strong></div>
+          </div>
+          <div style="font-size:9.5px;color:var(--gray);margin-top:14px;line-height:1.5;border-top:1px solid var(--border);padding-top:10px;">
+            <strong>Regra:</strong> 1ª Consulta = pagamento da especialidade "Avaliação". Follow-up = qualquer outra. Origem (Campanha/Orgânico) herdada do <em>primeiro</em> agendamento do paciente.
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="mktgrid" style="display:grid;grid-template-columns:1fr auto 1fr;gap:var(--gap);">
 
       <!-- Agendamentos por Criador (created_by_name) -->
@@ -1793,9 +1861,102 @@ async function loadFromSupabase(){
   updateDashboard();
   renderCreatorFilterIndicator();
 
+  // ── Métricas Thauany: Campanha + Origem + Vendas Diretas/Follow-up ──
+  computeThauanyMetrics(appointments, livePayments);
+
   showBanner(`✅ ${ALL.length} agendamentos · ${logs.length} logs · ${livePayments.length} pagamentos · ${uniquePatients} pacientes únicos · reag: ${reag} (${reagSource === 'logs' ? 'logs oficial' : 'heurística 24h'})`, 'ok');
   setTimeout(hideBanner, 5000);
 }
+
+// ═══════════════════════════════════════════════════════════════════
+// Métricas Thauany (Campanha + Origem + Vendas Diretas/Follow-Up)
+// ═══════════════════════════════════════════════════════════════════
+const ATTENDED_STATUSES = new Set([6, 7, 8]); // check-in, atendido, concluído
+const SPEC_AVALIACAO_NAMES = new Set(['Avaliação', 'Avaliacao', 'AVALIAÇÃO']);
+
+async function computeThauanyMetrics(appointments, payments){
+  // ── 1. Classificação de cada paciente por origem ──
+  // Critério atual:
+  //   - Campanha: paciente cujo PRIMEIRO appointment tem campaign_token
+  //   - Orgânico: paciente cujo PRIMEIRO appointment NÃO tem campaign_token
+  //   - Indicações / Resgates: TODO — precisa de campo dedicado (etiqueta/tag)
+  const firstApptByPatient = {};
+  for(const a of appointments){
+    if(!a.patient_id) continue;
+    const cur = firstApptByPatient[a.patient_id];
+    const t = new Date(a.scheduled_start_time || a.start_time).getTime();
+    if(!cur || t < cur.t) firstApptByPatient[a.patient_id] = { t, hasCampaign: !!a.campaign_token };
+  }
+  const originOf = (pid) => {
+    const f = firstApptByPatient[pid];
+    if(!f) return 'organico';
+    return f.hasCampaign ? 'campanha' : 'organico';
+    // futuro: 'indicacao' / 'resgate' — depende de tag/regra que o usuário definir
+  };
+
+  // ── 2. KPIs de campanha ──
+  const campAppts = appointments.filter(a => !!a.campaign_token);
+  const campAttended = campAppts.filter(a => ATTENDED_STATUSES.has(a.status));
+  const campPatientIds = new Set(campAppts.map(a => a.patient_id));
+
+  // Vendas campanha = pagamentos de pacientes classificados como campanha
+  const campSales = payments
+    .filter(p => p.is_confirmed && originOf(p.patient_id) === 'campanha')
+    .reduce((s,p) => s + parseFloat(p.amount || 0), 0);
+
+  // ── 3. Tentativa de pegar contagem real de leads via cache Chatwoot (mês corrente) ──
+  let leadsFromCampaign = campPatientIds.size; // fallback: pacientes que agendaram com campaign_token
+  try {
+    const ym = new Date().toISOString().slice(0,7);
+    const r = await fetch(`/api/data/campaign_contacts_cache?select=contacts_count&year_month=eq.${ym}`, { credentials:'same-origin' });
+    if(r.ok){
+      const rows = await r.json();
+      const sum = rows.reduce((s,x) => s + (x.contacts_count || 0), 0);
+      if(sum > 0) leadsFromCampaign = sum;
+    }
+  } catch(_) {}
+
+  setTxt('cmpLeads', leadsFromCampaign.toLocaleString('pt-BR'));
+  setTxt('cmpAgend', campAppts.length.toLocaleString('pt-BR'));
+  setTxt('cmpComp',  campAttended.length.toLocaleString('pt-BR'));
+  setTxt('cmpVendas', fmtMoney(campSales));
+
+  // ── 4. Tabela "Origem dos Pacientes" ──
+  const buckets = { campanha:{q:new Set(),r:0}, organico:{q:new Set(),r:0}, indicacao:{q:new Set(),r:0}, resgate:{q:new Set(),r:0} };
+  for(const a of appointments){
+    if(!a.patient_id) continue;
+    const o = originOf(a.patient_id);
+    buckets[o].q.add(a.patient_id);
+  }
+  for(const p of payments){
+    if(!p.is_confirmed || !p.patient_id) continue;
+    const o = originOf(p.patient_id);
+    buckets[o].r += parseFloat(p.amount || 0);
+  }
+  setTxt('origCmpQt', buckets.campanha.q.size);  setTxt('origCmpRv', fmtMoney(buckets.campanha.r));
+  setTxt('origOrgQt', buckets.organico.q.size);  setTxt('origOrgRv', fmtMoney(buckets.organico.r));
+  setTxt('origIndQt', buckets.indicacao.q.size); setTxt('origIndRv', fmtMoney(buckets.indicacao.r));
+  setTxt('origResQt', buckets.resgate.q.size);   setTxt('origResRv', fmtMoney(buckets.resgate.r));
+
+  // ── 5. Vendas: 1ª Consulta vs Follow-Up ──
+  let v1 = 0, v1Q = 0, vF = 0, vFQ = 0, vFCmp = 0, vFOrg = 0;
+  for(const p of payments){
+    if(!p.is_confirmed) continue;
+    const amt = parseFloat(p.amount || 0);
+    const isAval = SPEC_AVALIACAO_NAMES.has((p.specialty_name||'').trim());
+    if(isAval){ v1 += amt; v1Q++; }
+    else {
+      vF += amt; vFQ++;
+      const o = originOf(p.patient_id);
+      if(o === 'campanha') vFCmp += amt; else vFOrg += amt;
+    }
+  }
+  setTxt('vd1Cons', fmtMoney(v1));   setTxt('vd1ConsQt', v1Q);
+  setTxt('vdFollow', fmtMoney(vF));  setTxt('vdFollowQt', vFQ);
+  setTxt('vdFollowCmp', fmtMoney(vFCmp));
+  setTxt('vdFollowOrg', fmtMoney(vFOrg));
+}
+function setTxt(id, v){ const e = document.getElementById(id); if(e) e.textContent = v; }
 
 // Kick off load after DOM ready + charts initialized
 if(document.readyState === 'complete' || document.readyState === 'interactive'){
