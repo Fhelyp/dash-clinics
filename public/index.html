@@ -543,9 +543,12 @@
   body.light .snav-item.on{background:linear-gradient(90deg,rgba(168,85,247,.12),rgba(168,85,247,.02));}
   /* Topbar */
   nav{left:200px !important;padding:0 24px !important;justify-content:flex-end !important;gap:8px;transition:left .25s;}
-  .nfilt{justify-content:flex-end !important;}
+  .nfilt{justify-content:flex-end !important;align-items:center;}
   /* Reduz padding-top do conteúdo (era muito grande) */
   .ovg{padding-top:calc(var(--nav) + 14px) !important;}
+  /* Charts contidos no card (não extrapolam pra cobrir o card seguinte) */
+  .cbdy canvas{max-height:100% !important;}
+  .ovg .card .cbdy{overflow:hidden;}
   /* ━━━ COLLAPSED MODE ━━━ */
   body.sb-collapsed{padding-left:60px !important;}
   body.sb-collapsed #sidebar{width:60px;padding:18px 8px;}
@@ -571,7 +574,7 @@
 </style>
 
 <nav>
-  <div class="nfilt" style="width:100%;justify-content:flex-start;flex-wrap:wrap;">
+  <div class="nfilt" style="width:100%;flex-wrap:wrap;">
     <!-- Filtro 3-estados: Todos / Maria Clara / Operadores -->
     <div id="mcSwitch" role="tablist" aria-label="Filtro por agente" style="display:inline-flex;align-items:center;background:var(--card);border:1px solid var(--border);border-radius:20px;padding:3px;font-size:11px;font-weight:600;flex-shrink:0;">
       <button class="mcs-opt mcs-on" data-mc="ALL" onclick="setMCMode('ALL')" style="background:var(--purple);color:#fff;border:none;padding:5px 11px;border-radius:16px;cursor:pointer;font-family:inherit;font-size:11px;font-weight:600;transition:all .2s;">Todos</button>
@@ -1896,7 +1899,9 @@ async function loadFromSupabase(){
     const raw = a.created_by_name ?? a.createdByName ?? a.Created_By_Name
               ?? a.CreatedByName ?? a['Created By Name'] ?? a['created by name']
               ?? null;
-    return raw == null ? '' : String(raw).trim();
+    if(raw == null) return '';
+    // Normaliza: trim + colapsa espaços múltiplos
+    return String(raw).replace(/\s+/g, ' ').trim();
   };
   const getChannelIdRaw = (a) => {
     const raw = a.channel_id ?? a.channelId ?? a.Channel_Id
