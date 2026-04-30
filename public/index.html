@@ -1842,16 +1842,42 @@ function rPag(k,tp){
 }
 function gp(k,p){const s=TS[k];const tp=Math.ceil(s.filt.length/s.pp)||1;s.page=Math.min(Math.max(1,p),tp);rTbl(k);}
 function cpp(k,v){TS[k].pp=+v;TS[k].page=1;rTbl(k);}
+// Gera variações do telefone pra match com/sem o "9" do celular.
+// Brasileiro celular:
+//   - antigo: DDD + 8 dígitos (10 total)
+//   - novo:   DDD + 9 + 8 dígitos (11 total)
+// Banco pode ter qualquer um. User pode digitar qualquer um. Tentamos ambas.
+function phoneSearchVariants(digits){
+  const v = new Set();
+  if(!digits) return v;
+  v.add(digits);
+  // Strip código país 55 do início se >12 dígitos
+  if(digits.length >= 12 && digits.startsWith('55')) v.add(digits.slice(2));
+  // Se tem 11 dígitos e o 3º é '9' → variação SEM o 9
+  if(digits.length === 11 && digits[2] === '9') v.add(digits.slice(0,2) + digits.slice(3));
+  // Se tem 10 dígitos (DDD + 8) → variação COM o 9 inserido após DDD
+  if(digits.length === 10) v.add(digits.slice(0,2) + '9' + digits.slice(2));
+  // Para querys parciais (3-9 dígitos), também tenta com '9' no início
+  if(digits.length >= 8 && digits.length <= 9 && digits[0] !== '9'){
+    v.add('9' + digits);
+  }
+  return v;
+}
+
 function flt(k,q){
   const ql = (q||'').toLowerCase().trim();
   if(!ql){ TS[k].filt = TS[k].data; TS[k].page = 1; rTbl(k); return; }
-  // Normaliza: remove non-digits do query e do phone para match parcial sem formatação
   const qDigits = ql.replace(/\D/g,'');
+  const variants = qDigits ? [...phoneSearchVariants(qDigits)] : [];
   TS[k].filt = TS[k].data.filter(p => {
     const name = (p.name||'').toLowerCase();
     if(name.includes(ql)) return true;
+    if(!variants.length) return false;
     const phone = (p.phone||'').replace(/\D/g,'');
-    if(qDigits && phone && phone.includes(qDigits)) return true;
+    if(!phone) return false;
+    for(const v of variants){
+      if(v && phone.includes(v)) return true;
+    }
     return false;
   });
   TS[k].page = 1; rTbl(k);
@@ -1979,8 +2005,16 @@ function showBanner(msg, type='info'){
     const card = document.createElement('div');
     card.id = 'sbBanner';
     card.dataset.bannerType = 'info';
-    card.style.cssText = 'background:var(--card,#0f1623);border:1px solid rgba(168,85,247,.4);border-radius:16px;padding:28px 36px;display:flex;align-items:center;gap:16px;box-shadow:0 24px 64px rgba(0,0,0,.5);font-size:14px;font-weight:500;color:var(--white,#f1f5f9);min-width:320px;justify-content:center;';
-    card.innerHTML = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-width="2.5" style="animation:spin 1s linear infinite;flex-shrink:0;"><path d="M21 12a9 9 0 11-6.219-8.56"/></svg><span class="sb-msg">'+msg+'</span>';
+    card.style.cssText = 'background:var(--card,#0f1623);border:1px solid rgba(168,85,247,.4);border-radius:16px;padding:24px 32px;display:flex;flex-direction:column;align-items:center;gap:14px;box-shadow:0 24px 64px rgba(0,0,0,.5);font-size:14px;font-weight:500;color:var(--white,#f1f5f9);min-width:320px;';
+    // Spinner + label simples (sem números). Barra abaixo com animação indeterminada.
+    card.innerHTML = `
+      <div style="display:flex;align-items:center;gap:12px;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-width="2.5" style="animation:spin 1s linear infinite;flex-shrink:0;"><path d="M21 12a9 9 0 11-6.219-8.56"/></svg>
+        <span class="sb-msg">${msg}</span>
+      </div>
+      <div style="width:100%;height:4px;background:rgba(168,85,247,.12);border-radius:2px;overflow:hidden;position:relative;">
+        <div style="position:absolute;height:100%;width:40%;background:linear-gradient(90deg,transparent,#a855f7,#3b82f6,transparent);border-radius:2px;animation:progressSlide 1.4s cubic-bezier(.4,0,.6,1) infinite;"></div>
+      </div>`;
     bd.appendChild(card);
     document.body.appendChild(bd);
   } else {
@@ -2002,11 +2036,14 @@ function hideBanner(){
   fade(document.getElementById('sbBanner'));
   fade(document.getElementById('sbBackdrop'));
 }
-// CSS keyframes pro spinner (injetado uma vez)
+// CSS keyframes pro spinner + barra de progresso indeterminada
 if(!document.getElementById('sbSpinKf')){
   const s = document.createElement('style');
   s.id = 'sbSpinKf';
-  s.textContent = '@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}';
+  s.textContent = `
+    @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+    @keyframes progressSlide{0%{left:-40%}50%{left:50%}100%{left:140%}}
+  `;
   document.head.appendChild(s);
 }
 
@@ -2087,21 +2124,14 @@ async function loadFromSupabase(){
   // Pagamentos: filtra deleted_at IS NULL server-side (descarta soft-deleted)
   const PAY_FILTERS = `&deleted_at=is.null`;
 
-  // Progress bar: trackeia 3 tabelas separadamente, atualiza banner com total
-  const progress = { appts: [0, 0], logs: [0, 0], pays: [0, 0] };
-  const updateProgressBanner = () => {
-    const cur = progress.appts[0] + progress.logs[0] + progress.pays[0];
-    const tot = progress.appts[1] + progress.logs[1] + progress.pays[1];
-    const pct = tot > 0 ? Math.round(cur / tot * 100) : 0;
-    showBanner(`Carregando ${cur.toLocaleString('pt-BR')} de ${tot.toLocaleString('pt-BR')} registros · ${pct}%`, 'info');
-  };
-
+  // Banner já mostra "Carregando dados…" com barra animada.
+  // Não precisamos atualizar progresso textual — barra animada já comunica.
   let appointments, logs, payments;
   try {
     [appointments, logs, payments] = await Promise.all([
-      fetchAllProxy(T_APP, { select: APPT_COLS, onProgress: (l,t) => { progress.appts = [l,t]; updateProgressBanner(); } }),
-      fetchAllProxy(T_LOG, { select: LOG_COLS, filters: LOG_FILTERS, onProgress: (l,t) => { progress.logs = [l,t]; updateProgressBanner(); } }),
-      fetchAllProxy(T_PAY, { select: PAY_COLS, filters: PAY_FILTERS, onProgress: (l,t) => { progress.pays = [l,t]; updateProgressBanner(); } }),
+      fetchAllProxy(T_APP, { select: APPT_COLS }),
+      fetchAllProxy(T_LOG, { select: LOG_COLS, filters: LOG_FILTERS }),
+      fetchAllProxy(T_PAY, { select: PAY_COLS, filters: PAY_FILTERS }),
     ]);
   } catch(e){
     if(e.message === 'unauthorized') return;
