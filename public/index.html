@@ -1960,9 +1960,14 @@ const T_PAY = 'BI Payments';
 // ── Utility ───────────────────────────────────────────────────────
 // Modal central com backdrop pra estado info (loading); toast canto pra outros
 function showBanner(msg, type='info'){
-  // Remove banner anterior se existir
-  const old = document.getElementById('sbBanner');
-  if(old) old.remove();
+  // Otimização: se já existe modal info, só atualiza o texto (evita flicker em progress)
+  const existing = document.getElementById('sbBanner');
+  if(type === 'info' && existing && existing.dataset.bannerType === 'info'){
+    const span = existing.querySelector('.sb-msg');
+    if(span) span.textContent = msg;
+    return;
+  }
+  if(existing) existing.remove();
   const oldBd = document.getElementById('sbBackdrop');
   if(oldBd) oldBd.remove();
 
@@ -1973,8 +1978,9 @@ function showBanner(msg, type='info'){
     bd.style.cssText = 'position:fixed;inset:0;background:rgba(6,8,16,.45);backdrop-filter:blur(3px);z-index:9998;display:flex;align-items:center;justify-content:center;transition:opacity .25s;';
     const card = document.createElement('div');
     card.id = 'sbBanner';
-    card.style.cssText = 'background:var(--card,#0f1623);border:1px solid rgba(168,85,247,.4);border-radius:16px;padding:28px 36px;display:flex;align-items:center;gap:16px;box-shadow:0 24px 64px rgba(0,0,0,.5);font-size:14px;font-weight:500;color:var(--white,#f1f5f9);min-width:260px;justify-content:center;';
-    card.innerHTML = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-width="2.5" style="animation:spin 1s linear infinite;flex-shrink:0;"><path d="M21 12a9 9 0 11-6.219-8.56"/></svg><span>'+msg+'</span>';
+    card.dataset.bannerType = 'info';
+    card.style.cssText = 'background:var(--card,#0f1623);border:1px solid rgba(168,85,247,.4);border-radius:16px;padding:28px 36px;display:flex;align-items:center;gap:16px;box-shadow:0 24px 64px rgba(0,0,0,.5);font-size:14px;font-weight:500;color:var(--white,#f1f5f9);min-width:320px;justify-content:center;';
+    card.innerHTML = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-width="2.5" style="animation:spin 1s linear infinite;flex-shrink:0;"><path d="M21 12a9 9 0 11-6.219-8.56"/></svg><span class="sb-msg">'+msg+'</span>';
     bd.appendChild(card);
     document.body.appendChild(bd);
   } else {
@@ -2018,19 +2024,35 @@ function ageBucketFromDOB(dob){
   return '60+';
 }
 
-// Fetch ALL rows from a table via proxy /api/data/<table>
-// Usa header Range para paginar (PostgREST devolve Content-Range)
-async function fetchAllProxy(table){
+// Fetch rows from a table via proxy /api/data/<table>
+// - select: lista de colunas (reduz payload)
+// - filters: query string adicional (filtros server-side)
+// - onProgress: callback(loaded, total) para progress bar
+// Usa Content-Range pra saber o total e atualizar progress.
+async function fetchAllProxy(table, opts = {}){
   const PAGE = 1000;
-  let all = [], from = 0;
+  const select = opts.select || '*';
+  const filters = opts.filters || '';
+  const onProgress = opts.onProgress || (() => {});
+  let all = [], from = 0, total = null;
   while(true){
-    const url = `/api/data/${encodeURIComponent(table)}?select=*`;
-    const res = await fetch(url, { headers: { 'Range-Unit': 'items', Range: `${from}-${from + PAGE - 1}` }, credentials: 'same-origin' });
+    const url = `/api/data/${encodeURIComponent(table)}?select=${encodeURIComponent(select)}${filters}`;
+    const res = await fetch(url, {
+      headers: { 'Range-Unit': 'items', Range: `${from}-${from + PAGE - 1}`, Prefer: 'count=exact' },
+      credentials: 'same-origin'
+    });
     if(res.status === 401){ window.location.href = '/login.html'; throw new Error('unauthorized'); }
-    if(!res.ok) throw new Error(`${table}: HTTP ${res.status} ${(await res.text()).slice(0,200)}`);
+    if(!res.ok && res.status !== 206) throw new Error(`${table}: HTTP ${res.status} ${(await res.text()).slice(0,200)}`);
+    // Content-Range: "0-999/49815" → total = 49815
+    if(total === null){
+      const cr = res.headers.get('Content-Range') || '';
+      const m = /\/(\d+)$/.exec(cr);
+      if(m) total = parseInt(m[1], 10);
+    }
     const data = await res.json();
     if(!Array.isArray(data) || data.length === 0) break;
     all = all.concat(data);
+    onProgress(all.length, total || all.length);
     if(data.length < PAGE) break;
     from += PAGE;
   }
@@ -2053,12 +2075,33 @@ async function loadFromSupabase(){
       if(ini){ ini.textContent = (u.name || u.email || '?').slice(0,1).toUpperCase(); }
     }).catch(() => {});
 
+  // Colunas usadas pelo dashboard (reduz payload ~50% vs select=*)
+  const APPT_COLS = 'id,patient_id,patient_name,clinic_id,doctor_name,start_time,end_time,scheduled_start_time,status,confirmed_time,attended_time,finished_time,canceled_time,speciality_id,channel_id,created_by_name,patient_date_of_birth,type,campaign_token,phone';
+  const PAY_COLS = 'id,clinic_id,date,amount,is_confirmed,deleted_at,specialty_id,specialty_name,patient_id';
+  const LOG_COLS = 'id,appointment_id,user_id,from_status,to_status,changeDate';
+
+  // Logs: filtra ULTIMOS 60 DIAS server-side (drasticamente reduz payload, era 62k+ rows full table)
+  const since60d = new Date(Date.now() - 60 * 24 * 3600 * 1000).toISOString();
+  const LOG_FILTERS = `&changeDate=gte.${encodeURIComponent(since60d)}`;
+
+  // Pagamentos: filtra deleted_at IS NULL server-side (descarta soft-deleted)
+  const PAY_FILTERS = `&deleted_at=is.null`;
+
+  // Progress bar: trackeia 3 tabelas separadamente, atualiza banner com total
+  const progress = { appts: [0, 0], logs: [0, 0], pays: [0, 0] };
+  const updateProgressBanner = () => {
+    const cur = progress.appts[0] + progress.logs[0] + progress.pays[0];
+    const tot = progress.appts[1] + progress.logs[1] + progress.pays[1];
+    const pct = tot > 0 ? Math.round(cur / tot * 100) : 0;
+    showBanner(`Carregando ${cur.toLocaleString('pt-BR')} de ${tot.toLocaleString('pt-BR')} registros · ${pct}%`, 'info');
+  };
+
   let appointments, logs, payments;
   try {
     [appointments, logs, payments] = await Promise.all([
-      fetchAllProxy(T_APP),
-      fetchAllProxy(T_LOG),
-      fetchAllProxy(T_PAY),
+      fetchAllProxy(T_APP, { select: APPT_COLS, onProgress: (l,t) => { progress.appts = [l,t]; updateProgressBanner(); } }),
+      fetchAllProxy(T_LOG, { select: LOG_COLS, filters: LOG_FILTERS, onProgress: (l,t) => { progress.logs = [l,t]; updateProgressBanner(); } }),
+      fetchAllProxy(T_PAY, { select: PAY_COLS, filters: PAY_FILTERS, onProgress: (l,t) => { progress.pays = [l,t]; updateProgressBanner(); } }),
     ]);
   } catch(e){
     if(e.message === 'unauthorized') return;
