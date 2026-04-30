@@ -1484,22 +1484,40 @@ function filteredALL(){
   });
 }
 
+// Debounce: agrupa filtros aplicados em sequência (user clica unidade + período + status).
+// Espera 600ms sem novo filtro pra disparar a query — evita N requests pra Postgres.
+// Padrão BI (Looker, Metabase, Power BI) usa esse approach pra reduzir carga no DB.
+let _updateDebounceTimer = null;
+let _updateInFlight = false;
+
 function updateDashboard(){
-  // V2: re-fetch /api/dashboard/stats com filtros atuais e re-renderiza UI.
-  // Tabelas tambem sao re-fetchadas (lazy: so a pagina visivel).
+  if(_updateDebounceTimer){ clearTimeout(_updateDebounceTimer); }
+  _updateDebounceTimer = setTimeout(() => {
+    _updateDebounceTimer = null;
+    _runUpdate();
+  }, 600);
+}
+
+function _runUpdate(){
+  if(_updateInFlight) return; // já tem uma rodando
+  _updateInFlight = true;
+  showBanner('Atualizando dados…', 'info');
+  // Re-render chips imediatamente pra UX (botões já mudam de cor)
+  renderActiveFilterChips();
   fetchStats().then(stats => {
     STATS = stats;
     applyStatsToUI(stats);
-    // Re-fetch tables paginadas
     if(typeof loadTablePage === 'function'){
       ['mn','cf','rg'].forEach(k => loadTablePage(k));
     }
-    renderActiveFilterChips();
     if(typeof computeThauanyMetrics === 'function') computeThauanyMetrics().catch(()=>{});
+    hideBanner();
   }).catch(e => {
     if(e.message === 'unauthorized') return;
     console.error('[updateDashboard]', e);
     showBanner('Erro ao atualizar: ' + e.message, 'error');
+  }).finally(() => {
+    _updateInFlight = false;
   });
 }
 
