@@ -29,16 +29,39 @@ export async function onRequestGet({ request, env, data }) {
   if (days < 0) return j(400, { error: 'invalid_range', message: 'end deve ser >= start' });
   if (days > 92) return j(400, { error: 'range_too_wide', message: 'Período máximo: 90 dias' });
 
-  // RBAC: injeta clinic_ids permitidas (admin → null = todas)
+  // RBAC: intersecta allowed_clinic_ids (JWT) com clinic_ids do client
   const allowed = data?.user?.allowed_clinic_ids;
-  const clinicIdsParam = (Array.isArray(allowed) && allowed.length > 0) ? allowed : null;
+  const clientClinicsRaw = url.searchParams.get('clinic_ids') || '';
+  let clinicIdsParam = null;
+  if (Array.isArray(allowed) && allowed.length > 0) {
+    if (clientClinicsRaw) {
+      const clientIds = clientClinicsRaw.split(',').filter(Boolean);
+      const allowedSet = new Set(allowed);
+      clinicIdsParam = clientIds.filter(c => allowedSet.has(c));
+      if (clinicIdsParam.length === 0) clinicIdsParam = ['00000000-0000-0000-0000-000000000000']; // forces empty result
+    } else {
+      clinicIdsParam = allowed;
+    }
+  } else if (clientClinicsRaw) {
+    clinicIdsParam = clientClinicsRaw.split(',').filter(Boolean);
+    if (clinicIdsParam.length === 0) clinicIdsParam = null;
+  }
+
+  const specialtyIds = url.searchParams.get('specialty_ids');
+  const statusCodes  = url.searchParams.get('status_codes');
+  const creators     = url.searchParams.get('creators');
+  const agentMode    = url.searchParams.get('agent_mode') || 'ALL';
 
   // Chama função SQL via PostgREST RPC
   const rpcUrl = `${env.SUPABASE_URL}/rest/v1/rpc/dashboard_stats`;
   const body = {
     p_start: start + 'T00:00:00+00:00',
     p_end:   end   + 'T00:00:00+00:00',
-    p_clinic_ids: clinicIdsParam
+    p_clinic_ids: clinicIdsParam,
+    p_specialty_ids: specialtyIds ? specialtyIds.split(',').filter(Boolean) : null,
+    p_status_codes: statusCodes ? statusCodes.split(',').map(c => parseInt(c,10)).filter(n => !isNaN(n)) : null,
+    p_creators: creators ? creators.split('|').filter(Boolean) : null,  // creators podem ter vírgula no nome → use |
+    p_agent_mode: agentMode || 'ALL'
   };
 
   let res, json;
