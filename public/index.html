@@ -1987,12 +1987,19 @@ function buildStatsParams(){
   d2plus.setDate(d2plus.getDate() + 1);
   params.set('end', ymdLocal(d2plus));
 
-  // Unidades: nomes → clinic_ids via CLINIC_MAP
+  // Unidades: nomes → clinic_ids. Tenta primeiro LOOKUPS.clinics (fonte de verdade
+  // do banco, sem prefixos VS/COP). Fallback CLINIC_MAP (compat).
   if(APPLIED.units && APPLIED.units.size > 0){
-    const ids = Object.entries(CLINIC_MAP)
-      .filter(([id, name]) => APPLIED.units.has(name))
-      .map(([id]) => id);
-    if(ids.length) params.set('clinic_ids', ids.join(','));
+    const ids = new Set();
+    // 1. Match em LOOKUPS.clinics (banco, sem prefixos)
+    if(LOOKUPS?.clinics){
+      LOOKUPS.clinics.forEach(c => { if(APPLIED.units.has(c.name)) ids.add(c.id); });
+    }
+    // 2. Fallback CLINIC_MAP (com prefixos)
+    Object.entries(CLINIC_MAP).forEach(([id, name]) => {
+      if(APPLIED.units.has(name)) ids.add(id);
+    });
+    if(ids.size) params.set('clinic_ids', [...ids].join(','));
   }
   // Especialidades: nomes → ids via LOOKUPS
   if(APPLIED.specs && APPLIED.specs.size > 0 && LOOKUPS?.specialties){
@@ -2223,10 +2230,28 @@ async function computeThauanyMetrics(){
   } catch(_) {}
 
   setTxt('cmpLeads', leadsFromCampaign.toLocaleString('pt-BR'));
-  // V2: cmpAgend vem do STATS.campaign_count (count distinct de appts com campaign_token)
-  setTxt('cmpAgend', (stats.campaign_count || campAppts.length || 0).toLocaleString('pt-BR'));
+  setTxt('cmpAgend', (stats.campaign_count || 0).toLocaleString('pt-BR'));
   setTxt('cmpComp',  campAttended.length.toLocaleString('pt-BR'));
   setTxt('cmpVendas', fmtMoney(campSales));
+
+  // ── V2: Origem dos pacientes + Vendas split direto do STATS ──
+  const po = stats.patient_origins || {};
+  setTxt('origCmpQt', (po.campanha?.pacientes || 0).toLocaleString('pt-BR'));
+  setTxt('origCmpRv', fmtMoney(po.campanha?.receita || 0));
+  setTxt('origOrgQt', (po.organico?.pacientes || 0).toLocaleString('pt-BR'));
+  setTxt('origOrgRv', fmtMoney(po.organico?.receita || 0));
+  setTxt('origIndQt', (po.indicacao?.pacientes || 0).toLocaleString('pt-BR'));
+  setTxt('origIndRv', fmtMoney(po.indicacao?.receita || 0));
+  setTxt('origResQt', (po.resgate?.pacientes || 0).toLocaleString('pt-BR'));
+  setTxt('origResRv', fmtMoney(po.resgate?.receita || 0));
+  const vs = stats.vendas_split || {};
+  setTxt('vd1Cons', fmtMoney(vs.avaliacao_total || 0));
+  setTxt('vd1ConsQt', (vs.avaliacao_qt || 0).toLocaleString('pt-BR'));
+  setTxt('vdFollow', fmtMoney(vs.followup_total || 0));
+  setTxt('vdFollowQt', (vs.followup_qt || 0).toLocaleString('pt-BR'));
+  setTxt('vdFollowCmp', fmtMoney(vs.followup_campanha || 0));
+  setTxt('vdFollowOrg', fmtMoney(vs.followup_organico || 0));
+  return; // skip código antigo abaixo
 
   // ── 4. Tabela "Origem dos Pacientes" ──
   const buckets = { campanha:{q:new Set(),r:0}, organico:{q:new Set(),r:0}, indicacao:{q:new Set(),r:0}, resgate:{q:new Set(),r:0} };
