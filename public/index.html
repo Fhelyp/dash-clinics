@@ -2089,15 +2089,19 @@ async function loadFromSupabase(){
       age: ageBucketFromDOB(a.patient_date_of_birth) || '—',
       dateRaw: d,
       datetime: fmtDateTime(a.start_time),
-      // MC se: channel é qualquer um dos canais MC OU logs registram MC
-      agent: (isMCChannel(getChannelIdRaw(a)) || mcApptIds.has(a.id)) ? 'MC' : 'HUM',
       status: a.status,
       revenue: 0, // aggregated separately from payments
       phone: (a.phone || '').toString(),
-      // Channel MC OU created_by vazio com log MC → atribuir a Maria Clara
+      // Creator = quem CRIOU o agendamento (não quem confirmou/reagendou depois).
+      // Channel MC → Maria Clara. Channel humano c/ created_by vazio + log MC → Maria Clara.
+      // Caso contrário: created_by_name (operador humano).
       creator: isMCChannel(getChannelIdRaw(a))
         ? 'Maria Clara'
         : (getCreatorNameRaw(a) || (mcApptIds.has(a.id) ? 'Maria Clara' : '')),
+      // agent alinha com creator: MC só se a MC criou. Confirmações/reagendamentos
+      // por MC são tratados separadamente nas cards "Ações por Agente".
+      agent: (isMCChannel(getChannelIdRaw(a))
+              || (!getCreatorNameRaw(a) && mcApptIds.has(a.id))) ? 'MC' : 'HUM',
       channelId: getChannelIdRaw(a)
     };
   });
