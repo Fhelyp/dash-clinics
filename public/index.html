@@ -1730,24 +1730,35 @@ function updateDashboard(){
 
   // ── MC Card: métricas reais (sem hardcoded) ──────────────────────────────
   // Atribuição: MC só leva receita de Avaliação Inicial CONCLUÍDA que ela agendou
-  // (regra confirmada pelo usuário). Resto vai pro operador.
-  const SPEC_AVAL_NAMES = new Set(['Avaliação','Avaliacao','AVALIAÇÃO','Avaliação Inicial']);
+  // (Regra B): MC leva todo o LTV do paciente cuja PRIMEIRA consulta foi MC
+  // criada E concluída/atendida. Sem dependência de specialty_name (que é
+  // inconsistente). Usa "primeira consulta" do paciente em todo histórico.
   const mcAppts = fd.filter(p => p.agent === 'MC');
   const mcAgendCount = mcAppts.length;
-  // MC conclusão: % das consultas MC que foram concluídas (status 8) ou atendidas (7)
   const mcConcluded = mcAppts.filter(p => p.status === 8 || p.status === 7).length;
   const mcConvPctVal = mcAgendCount > 0 ? Math.round(mcConcluded / mcAgendCount * 100) : 0;
 
-  // MC revenue: pagamentos de Avaliação atribuídos a pacientes cuja avaliação foi
-  // agendada pela MC E foi concluída/atendida.
-  // Mapa: patient_id → true se tem avaliação concluída agendada pela MC
+  // Mapa patient_id → primeira consulta histórica (start_time mais antigo).
+  // Usa ALL (todo histórico carregado) — não fd, pra detectar corretamente
+  // pacientes resgatados (1ª no passado por humano) vs novos (1ª agora por MC).
+  const firstApptByPatient = {};
+  ALL.forEach(p => {
+    if(!p.patient_id) return;
+    const cur = firstApptByPatient[p.patient_id];
+    if(!cur || p.dateRaw < cur.dateRaw) firstApptByPatient[p.patient_id] = p;
+  });
+  // MC ganha crédito do paciente se:
+  //   1. Primeira consulta histórica do paciente foi MC-criada
+  //   2. Essa primeira consulta foi concluída (status 8) ou atendida (7)
   const mcCreditPatients = new Set();
-  mcAppts
-    .filter(p => p.status === 8 || p.status === 7)
-    .filter(p => SPEC_AVAL_NAMES.has(p.spec))
-    .forEach(p => { if(p.patient_id) mcCreditPatients.add(p.patient_id); });
+  Object.values(firstApptByPatient).forEach(p => {
+    if(p.agent === 'MC' && (p.status === 8 || p.status === 7)) {
+      mcCreditPatients.add(p.patient_id);
+    }
+  });
+  // MC revenue = TODOS os pagamentos no período filtrado, dos pacientes credenciados
   const mcRevenue = filteredPays
-    .filter(p => mcCreditPatients.has(p.patient_id) && SPEC_AVAL_NAMES.has(p.specialty_name))
+    .filter(p => mcCreditPatients.has(p.patient_id))
     .reduce((s,p) => s + parseFloat(p.amount||0), 0);
 
   // vsMC: % dos agendamentos totais (filtrados) que foram MC
