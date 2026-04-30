@@ -32,6 +32,14 @@ async function chatwootSignIn(baseUrl, email, password) {
     const data = await res.json().catch(() => null);
     const u = data?.data;
     if (!u || !u.email) return { ok: false, reason: 'unexpected_response' };
+    // accounts: array de {id, name, role, status, permissions, ...}
+    // role pode ser 'administrator' | 'agent' | 'supervisor' (no nível do account)
+    // user.type='SuperAdmin' tem acesso global no Chatwoot
+    const accounts = Array.isArray(u.accounts) ? u.accounts : [];
+    const accountIds = accounts
+      .filter(a => a && a.id != null && a.status !== 'inactive')
+      .map(a => Number(a.id))
+      .filter(n => !isNaN(n));
     return {
       ok: true,
       user: {
@@ -39,7 +47,10 @@ async function chatwootSignIn(baseUrl, email, password) {
         email: String(u.email).toLowerCase(),
         name: u.name || u.available_name || u.email,
         confirmed: u.confirmed !== false,
-        role: u.role || null
+        role: u.role || null,
+        type: u.type || null,
+        is_super_admin: u.type === 'SuperAdmin' || u.role === 'administrator',
+        account_ids: accountIds
       }
     };
   } catch (e) {
@@ -107,6 +118,34 @@ async function handle({ request, env }) {
 
   if (!user.active) return j(403, { error: 'user_inactive', message: 'Usuário desativado.' });
 
+  // ── 3.5. Mapeia accounts do Chatwoot → clinic_ids permitidas (RBAC) ──
+  // Lê unitConfigs (read-only) e cria mapa account_id → clinic_id em memória.
+  // Admin local (auth_users.role='admin') OU SuperAdmin do Chatwoot vê tudo.
+  let allowedClinicIds = null; // null = sem restrição (admin)
+  const isLocalAdmin = (user.role === 'admin' || user.role === 'administrator');
+  const isCwSuperAdmin = !!cwUser.is_super_admin;
+  const cwAccountIds = Array.isArray(cwUser.account_ids) ? cwUser.account_ids : [];
+
+  if (!isLocalAdmin && !isCwSuperAdmin && cwAccountIds.length > 0) {
+    try {
+      const ucRows = await supaSelect(
+        env, 'unitConfigs',
+        `select=Ecuro_clinicId,chatwoot_account_id&chatwoot_account_id=in.(${cwAccountIds.join(',')})`
+      );
+      allowedClinicIds = ucRows
+        .map(r => r.Ecuro_clinicId)
+        .filter(Boolean);
+      // Se Chatwoot tem accounts mas nenhum bate com unitConfigs → nega acesso
+      if (allowedClinicIds.length === 0) {
+        return j(403, { error: 'no_clinic_access', message: 'Seu usuário no Chatwoot não tem clínica associada no dashboard.' });
+      }
+    } catch (e) {
+      // Se erro no lookup, falha aberta (permite acesso) só pra admin local. Operador comum bloqueado.
+      console.error('unitConfigs lookup failed:', e);
+      if (!isLocalAdmin) return j(500, { error: 'rbac_error' });
+    }
+  }
+
   // ── 4. Emite JWT ───────────────────────────────────────────────────
   const ttlHours = parseInt(env.JWT_TTL_HOURS || '12', 10);
   const ttl = ttlHours * 3600;
@@ -116,7 +155,9 @@ async function handle({ request, env }) {
     role: user.role,
     name: user.display_name || cwUser.name || user.email,
     iss: env.JWT_ISSUER || 'dash-clinics',
-    auth: authedViaCw ? 'chatwoot' : 'local'
+    auth: authedViaCw ? 'chatwoot' : 'local',
+    // null = acesso a todas as clínicas; array = restrito
+    allowed_clinic_ids: allowedClinicIds
   };
   const token = await signJWT(claims, env.JWT_SECRET, ttl);
   const tokenHash = await sha256Hex(token);
