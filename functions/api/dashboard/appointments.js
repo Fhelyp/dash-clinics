@@ -59,14 +59,17 @@ export async function onRequestGet({ request, env, data }) {
     qs.append('status', `eq.${parseInt(onlyStatus,10)}`);
   }
 
-  // Search: nome ou telefone (com tolerância ao "9" do celular feita no client por enquanto)
+  // Search: nome (com acentos) OU telefone.
+  // IMPORTANTE: NÃO usar encodeURIComponent aqui — URLSearchParams.append já encoda.
+  // Escape de chars especiais do PostgREST OR syntax: () , *
   if (search) {
     const digits = search.replace(/\D/g, '');
+    // Limpa caracteres especiais que quebrariam o OR clause do PostgREST
+    const safeSearch = search.replace(/[(),*]/g, ' ').trim();
     if (digits.length >= 4) {
-      // Busca por dígitos no phone (LIKE com %)
-      qs.append('or', `(patient_name.ilike.*${encodeURIComponent(search)}*,phone.ilike.*${digits}*)`);
-    } else {
-      qs.append('patient_name', `ilike.*${encodeURIComponent(search)}*`);
+      qs.append('or', `(patient_name.ilike.*${safeSearch}*,phone.ilike.*${digits}*)`);
+    } else if (safeSearch) {
+      qs.append('patient_name', `ilike.*${safeSearch}*`);
     }
   }
 
