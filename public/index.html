@@ -547,8 +547,10 @@
   nav{left:200px !important;padding:0 24px !important;justify-content:flex-end !important;gap:8px;transition:left .25s;}
   /* .nfilt sem width:100% — nav (flex-end) empurra .nfilt para direita; .nfilt mantém largura natural */
   .nfilt{align-items:center;flex-wrap:nowrap !important;flex-shrink:0;}
-  /* Reduz padding-top do conteúdo (era muito grande) */
-  .ovg{padding-top:calc(var(--nav) + 14px) !important;}
+  /* Padding-top do conteúdo = padding-sides (visual simétrico).
+     sec-anchor já adiciona var(--nav) acima — ovg só precisa adicionar gap visual. */
+  .ovg{padding-top:24px !important;}
+  .mktpad,.fnpad,.adpad{padding-top:24px !important;}
   /* Charts contidos no card (não extrapolam pra cobrir o card seguinte) */
   .cbdy canvas{max-height:100% !important;}
   .ovg .card .cbdy{overflow:hidden;}
@@ -1956,32 +1958,43 @@ const T_LOG = 'BI Appointment Logs';
 const T_PAY = 'BI Payments';
 
 // ── Utility ───────────────────────────────────────────────────────
-// Toast discreto canto inferior direito (sem mais barra horizontal full-width)
+// Modal central com backdrop pra estado info (loading); toast canto pra outros
 function showBanner(msg, type='info'){
-  let b = document.getElementById('sbBanner');
-  if(!b){
-    b = document.createElement('div');
-    b.id = 'sbBanner';
-    b.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:9999;padding:12px 18px;font-size:12.5px;font-weight:500;border-radius:10px;backdrop-filter:blur(12px);box-shadow:0 8px 32px rgba(0,0,0,.4);display:flex;align-items:center;gap:10px;max-width:320px;transition:opacity .25s;';
-    document.body.appendChild(b);
+  // Remove banner anterior se existir
+  const old = document.getElementById('sbBanner');
+  if(old) old.remove();
+  const oldBd = document.getElementById('sbBackdrop');
+  if(oldBd) oldBd.remove();
+
+  if(type === 'info'){
+    // Modal central com backdrop pra estado de loading
+    const bd = document.createElement('div');
+    bd.id = 'sbBackdrop';
+    bd.style.cssText = 'position:fixed;inset:0;background:rgba(6,8,16,.45);backdrop-filter:blur(3px);z-index:9998;display:flex;align-items:center;justify-content:center;transition:opacity .25s;';
+    const card = document.createElement('div');
+    card.id = 'sbBanner';
+    card.style.cssText = 'background:var(--card,#0f1623);border:1px solid rgba(168,85,247,.4);border-radius:16px;padding:28px 36px;display:flex;align-items:center;gap:16px;box-shadow:0 24px 64px rgba(0,0,0,.5);font-size:14px;font-weight:500;color:var(--white,#f1f5f9);min-width:260px;justify-content:center;';
+    card.innerHTML = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-width="2.5" style="animation:spin 1s linear infinite;flex-shrink:0;"><path d="M21 12a9 9 0 11-6.219-8.56"/></svg><span>'+msg+'</span>';
+    bd.appendChild(card);
+    document.body.appendChild(bd);
+  } else {
+    // Toast canto superior direito pra erros / warnings / ok
+    const toast = document.createElement('div');
+    toast.id = 'sbBanner';
+    const colors = {
+      warn:  'background:rgba(251,191,36,.15);border:1px solid rgba(251,191,36,.4);color:#fde68a;',
+      error: 'background:rgba(239,68,68,.18);border:1px solid rgba(239,68,68,.4);color:#fecaca;',
+      ok:    'background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.35);color:#a7f3d0;'
+    };
+    toast.style.cssText = 'position:fixed;top:78px;right:24px;z-index:9999;padding:12px 18px;font-size:13px;font-weight:500;border-radius:10px;backdrop-filter:blur(12px);box-shadow:0 8px 32px rgba(0,0,0,.4);max-width:340px;transition:opacity .25s;' + (colors[type]||colors.warn);
+    toast.textContent = msg;
+    document.body.appendChild(toast);
   }
-  const colors = {
-    info:  'background:rgba(59,130,246,.18);border:1px solid rgba(59,130,246,.35);color:#bfdbfe;',
-    warn:  'background:rgba(251,191,36,.15);border:1px solid rgba(251,191,36,.4);color:#fde68a;',
-    error: 'background:rgba(239,68,68,.18);border:1px solid rgba(239,68,68,.4);color:#fecaca;',
-    ok:    'background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.35);color:#a7f3d0;'
-  };
-  // Reset cssText para não acumular cores antigas
-  b.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:9999;padding:12px 18px;font-size:12.5px;font-weight:500;border-radius:10px;backdrop-filter:blur(12px);box-shadow:0 8px 32px rgba(0,0,0,.4);display:flex;align-items:center;gap:10px;max-width:320px;transition:opacity .25s;' + colors[type];
-  // Spinner SVG inline pra estado info
-  const spinner = type === 'info' ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation:spin 1s linear infinite;flex-shrink:0;"><path d="M21 12a9 9 0 11-6.219-8.56"/></svg>' : '';
-  b.innerHTML = spinner + '<span>'+msg+'</span>';
 }
 function hideBanner(){
-  const b = document.getElementById('sbBanner');
-  if(!b) return;
-  b.style.opacity = '0';
-  setTimeout(()=>{ try{ b.remove(); }catch(_){} }, 250);
+  const fade = (el) => { if(!el) return; el.style.opacity = '0'; setTimeout(()=>{ try{ el.remove(); }catch(_){} }, 250); };
+  fade(document.getElementById('sbBanner'));
+  fade(document.getElementById('sbBackdrop'));
 }
 // CSS keyframes pro spinner (injetado uma vez)
 if(!document.getElementById('sbSpinKf')){
