@@ -44,6 +44,8 @@
     border:1px solid var(--border);border-radius:9px;min-width:180px;z-index:9999;
     display:none;box-shadow:0 20px 50px rgba(0,0,0,.6);overflow:hidden;max-height:300px;overflow-y:auto;}
   .dd.op{display:block;}
+  /* Period dropdown precisa de mais altura pra caber shortcuts + datas + botão Aplicar */
+  .dd.ddate{max-height:480px !important;}
   .ddi{padding:9px 14px;font-size:11.5px;color:var(--gray-l);cursor:pointer;transition:all .15s;
     display:flex;align-items:center;gap:9px;}
   .ddi:hover{background:rgba(168,85,247,.08);color:var(--white);}
@@ -1377,16 +1379,9 @@ function applyDateFilter(){
 // ── FILTRO POR OPERADOR (com search) ──────────────────────
 let OPERATOR_LIST = []; // { name, count }
 function populateOperatorList(){
-  // Operadores: conta apenas em appointments que respeitam o filtro de unidade
-  // (operador só aparece se tem agendamento em alguma das unidades selecionadas)
-  const counts = {};
-  const sourceList = (APPLIED.units && APPLIED.units.size)
-    ? ALL.filter(p => APPLIED.units.has(p.unit))
-    : ALL;
-  sourceList.forEach(p => {
-    if(p.creator) counts[p.creator] = (counts[p.creator]||0) + 1;
-  });
-  OPERATOR_LIST = Object.entries(counts).sort((a,b)=>b[1]-a[1]).map(([name,count])=>({name,count}));
+  // V2: usa creators_top do STATS (ja agregado server-side)
+  const top = (STATS && STATS.creators_top) || [];
+  OPERATOR_LIST = top.map(x => ({ name: x.creator, count: x.count }));
   renderOperatorList('');
 }
 function renderOperatorList(search){
@@ -1490,399 +1485,272 @@ function filteredALL(){
 }
 
 function updateDashboard(){
-  const fd=filteredALL();
-  // Ratio para escalar charts/breakdowns que dependem de pré-cálculos (finRaw, sData, adVals…)
-  const R=ALL.length>0?fd.length/ALL.length:1;
-  const sc=v=>Math.round(v*R);
-  const scf=v=>Math.round(v*R*100)/100;
-
-  // ── Big numbers: CALCULAR de fd (não escalar INIT) ──────────
-  // Pacientes únicos no recorte
-  const total=new Set(fd.map(p=>p.patient_id).filter(Boolean)).size;
-  const agend=fd.length;
-  const conc=fd.filter(p=>p.status===8).length;
-  const conf=fd.filter(p=>p.status===4||p.status===5||p.status===6||p.status===7||p.status===8).length;
-  const reagSet=window.REAG_IDS||new Set();
-  const reag=fd.filter(p=>reagSet.has(p.id)).length;
-  // Taxa de Conclusão = concluídos / agendamentos
-  const conv=agend>0?Math.round((conc/agend)*100):0;
-
-  // ── Receita real do período (a partir de RAW_PAYMENTS, intersectando TODOS os filtros) ──
-  // IMPORTANTE: parse como LOCAL (sem 'Z') pra evitar deslocamento de timezone que
-  // jogava 2026-04-01 pra 31/mar em BRT, fazendo charts mostrarem mês anterior.
-  const d1=APPLIED.d1?new Date(APPLIED.d1+'T00:00:00'):null;
-  const d2=APPLIED.d2?new Date(APPLIED.d2+'T23:59:59'):null;
-  const activeUnitsSet=APPLIED.units;
-  // Pacientes que aparecem no recorte de appointments filtrado (respeita MC/OP, status, etc.)
-  // Pagamento só conta se o paciente estiver no recorte.
-  const fdPatients = new Set(fd.map(p=>p.patient_id).filter(Boolean));
-  const filteredPays=(typeof RAW_PAYMENTS!=='undefined'?RAW_PAYMENTS:[]).filter(p=>{
-    if(p.deleted_at)return false;
-    if(!p.is_confirmed)return false;
-    const dt=new Date(p.date);
-    if(d1&&dt<d1)return false;
-    if(d2&&dt>d2)return false;
-    if(activeUnitsSet){const n=clinicName(p.clinic_id);if(!activeUnitsSet.has(n))return false;}
-    // Quando há filtro de agente/status/spec, só conta pagamento de paciente no recorte
-    const hasNonDateFilter = MC_MODE!=='ALL' || APPLIED.statuses || APPLIED.specs || APPLIED.creators;
-    if(hasNonDateFilter && p.patient_id && !fdPatients.has(p.patient_id)) return false;
-    return true;
+  // V2: re-fetch /api/dashboard/stats com filtros atuais e re-renderiza UI.
+  // Tabelas tambem sao re-fetchadas (lazy: so a pagina visivel).
+  fetchStats().then(stats => {
+    STATS = stats;
+    applyStatsToUI(stats);
+    // Re-fetch tables paginadas
+    if(typeof loadTablePage === 'function'){
+      ['mn','cf','rg'].forEach(k => loadTablePage(k));
+    }
+    renderActiveFilterChips();
+    if(typeof computeThauanyMetrics === 'function') computeThauanyMetrics().catch(()=>{});
+  }).catch(e => {
+    if(e.message === 'unauthorized') return;
+    console.error('[updateDashboard]', e);
+    showBanner('Erro ao atualizar: ' + e.message, 'error');
   });
-  const filteredRevTotal=filteredPays.reduce((s,p)=>s+parseFloat(p.amount||0),0);
+}
 
-  // ── Overview: Big number cards ───────────────────────
-  const bns=document.querySelectorAll('.bn');
-  if(bns[0])bns[0].querySelector('.bnv').textContent=total.toLocaleString('pt-BR');
-  if(bns[1])bns[1].querySelector('.bnv').textContent=agend.toLocaleString('pt-BR');
-  if(bns[2])bns[2].querySelector('.bnv').textContent=conc.toLocaleString('pt-BR');
-  if(bns[3])bns[3].querySelector('.bnv').textContent=conf.toLocaleString('pt-BR');
-  if(bns[4])bns[4].querySelector('.bnv').textContent=reag.toLocaleString('pt-BR');
-  // Atualiza a fonte da métrica de reagendamento (sempre em PT, sem termos técnicos)
-  const reagSrcEl=document.getElementById('reagSrc');
-  if(reagSrcEl){
-    reagSrcEl.textContent = window.REAG_SOURCE === 'logs'
-      ? 'auditado pelos logs'
-      : 'estimado por horário alterado';
-  }
+// applyStatsToUI: pinta KPIs, charts, MC card, hbars baseado em STATS.
+function applyStatsToUI(stats){
+  if(!stats || !stats.kpis) return;
+  const k = stats.kpis;
 
-  // ── Overview: Conversion rings ───────────────────────
-  document.querySelectorAll('.rval').forEach(el=>el.textContent=conv+'%');
-  setRing('rv0',conv,213.6);setRing('rv1',conv,339.3);
+  // ── Big numbers ──
+  const bns = document.querySelectorAll('.bn');
+  if(bns[0]) bns[0].querySelector('.bnv').textContent = (k.pacientes_unicos||0).toLocaleString('pt-BR');
+  if(bns[1]) bns[1].querySelector('.bnv').textContent = (k.agendamentos||0).toLocaleString('pt-BR');
+  if(bns[2]) bns[2].querySelector('.bnv').textContent = (k.concluidos||0).toLocaleString('pt-BR');
+  if(bns[3]) bns[3].querySelector('.bnv').textContent = (k.confirmacoes||0).toLocaleString('pt-BR');
+  if(bns[4]) bns[4].querySelector('.bnv').textContent = (k.reagendamentos||0).toLocaleString('pt-BR');
 
-  // ── Charts: recalcular de verdade a partir dos dados filtrados ─────
-  // Lista de meses que entram no chart (do filtro de período se aplicado, senão todos do dataset)
-  const allDatesForChart = [
-    ...fd.map(p=>p.dateRaw),
-    ...filteredPays.map(p=>new Date(p.date))
-  ];
-  let chartMinDate, chartMaxDate;
-  if(d1 && d2){
-    chartMinDate = new Date(d1); chartMaxDate = new Date(d2);
-  } else if(allDatesForChart.length){
-    chartMinDate = new Date(Math.min(...allDatesForChart.map(d=>d.getTime())));
-    chartMaxDate = new Date(Math.max(...allDatesForChart.map(d=>d.getTime())));
-  } else {
-    chartMinDate = new Date(); chartMaxDate = new Date();
-  }
-  const chartMonthKeys=[], chartMonthLabels=[];
-  const cur = new Date(chartMinDate.getFullYear(), chartMinDate.getMonth(), 1);
-  const endM = new Date(chartMaxDate.getFullYear(), chartMaxDate.getMonth(), 1);
-  while(cur <= endM){
-    const k = cur.getFullYear()+'-'+String(cur.getMonth()+1).padStart(2,'0');
-    chartMonthKeys.push(k);
-    chartMonthLabels.push(MONTHS[cur.getMonth()]+'/'+String(cur.getFullYear()).slice(2));
-    cur.setMonth(cur.getMonth()+1);
-    if(chartMonthKeys.length>36) break; // sanity
-  }
-  if(chartMonthKeys.length===0){ chartMonthKeys.push('—'); chartMonthLabels.push('—'); }
+  const reagSrcEl = document.getElementById('reagSrc');
+  if(reagSrcEl) reagSrcEl.textContent = 'auditado pelos logs';
 
-  // CHART_FIN: receita por TOP-8 specs × meses (filtrado)
-  const specRevF = {};
-  filteredPays.forEach(p => { specRevF[p.specialty_name] = (specRevF[p.specialty_name]||0) + parseFloat(p.amount||0); });
-  const topSpecsF = Object.entries(specRevF).sort((a,b)=>b[1]-a[1]).slice(0,8).map(e=>e[0]);
-  const finRawF = topSpecsF.map(spec =>
-    chartMonthKeys.map(mk =>
-      filteredPays.filter(p => p.specialty_name === spec)
-                  .filter(p => { const d=new Date(p.date); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0') === mk; })
-                  .reduce((s,p) => s + parseFloat(p.amount||0), 0)
-    )
-  );
-  CHART_FIN.data.labels = chartMonthLabels;
-  CHART_FIN.data.datasets = topSpecsF.map((sp, i) => ({
-    label: sp, data: finRawF[i],
-    backgroundColor: fCols[i % fCols.length],
-    borderColor: 'transparent', borderWidth: 0,
-    borderRadius: i === topSpecsF.length - 1 ? {topLeft:3, topRight:3} : 0
-  }));
+  // ── Conversion rings ──
+  const conv = (k.agendamentos > 0) ? Math.round((k.concluidos / k.agendamentos) * 100) : 0;
+  document.querySelectorAll('.rval').forEach(el => el.textContent = conv + '%');
+  if(typeof setRing === 'function'){ setRing('rv0', conv, 213.6); setRing('rv1', conv, 339.3); }
+
+  // ── Receita Operacional Total + Best Month ──
+  const rev = parseFloat(k.receita_total) || 0;
+  const fmtMoney = v => 'R$ ' + Number(v).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+  const rcvTotal = document.getElementById('rcvTotal');
+  if(rcvTotal) rcvTotal.textContent = fmtMoney(rev);
+  const ovRevTotal = document.getElementById('ovRevTotal');
+  if(ovRevTotal) ovRevTotal.textContent = fmtMoney(rev);
+  const bm = stats.best_month || {};
+  const bestVal = parseFloat(bm.valor) || 0;
+  const bestLbl = bm.mes ? (MONTHS[parseInt(bm.mes.slice(5,7))-1] + '/' + bm.mes.slice(0,4)) : '\u2014';
+  const rcvBestVal = document.getElementById('rcvBestVal');
+  if(rcvBestVal) rcvBestVal.textContent = fmtMoney(bestVal);
+  const rcvBestMonth = document.getElementById('rcvBestMonth');
+  if(rcvBestMonth) rcvBestMonth.textContent = bestLbl;
+
+  // ── CHART_FIN: receita mes a mes (1 serie consolidada) ──
+  const finData = stats.fin_mensal || [];
+  const finLabels = finData.map(x => {
+    const m = parseInt(x.mes.slice(5,7)) - 1;
+    return MONTHS[m] + '/' + x.mes.slice(2,4);
+  });
+  const finValues = finData.map(x => parseFloat(x.valor) || 0);
+  CHART_FIN.data.labels = finLabels.length ? finLabels : ['\u2014'];
+  CHART_FIN.data.datasets = [{
+    label: 'Receita',
+    data: finValues.length ? finValues : [0],
+    backgroundColor: ['rgba(168,85,247,.85)'],
+    borderColor: 'transparent',
+    borderWidth: 0,
+    borderRadius: 4
+  }];
   CHART_FIN.update();
 
-  // CHART_ST: count por TOP-8 status × meses (filtrado)
-  const statusCountF = {};
-  fd.forEach(p => { statusCountF[p.status] = (statusCountF[p.status]||0) + 1; });
-  const topStatusesF = Object.entries(statusCountF).sort((a,b)=>b[1]-a[1]).slice(0,8).map(e=>parseInt(e[0]));
-  const sDataF = topStatusesF.map(st =>
-    chartMonthKeys.map(mk =>
-      fd.filter(p => p.status === st).filter(p => {
-        const d = p.dateRaw;
-        return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0') === mk;
-      }).length
-    )
-  );
-  CHART_ST.data.labels = chartMonthLabels;
-  CHART_ST.data.datasets = topStatusesF.map((st, i) => ({
-    label: STM[st] || ('Status '+st), data: sDataF[i],
+  // ── CHART_ST: status mensal (top status) ──
+  const stData = stats.status_mensal || [];
+  const monthsSet = [...new Set(stData.map(x => x.mes))].sort();
+  const statusSet = [...new Set(stData.map(x => x.status))];
+  const stLabels = monthsSet.map(m => MONTHS[parseInt(m.slice(5,7))-1] + '/' + m.slice(2,4));
+  const stCounts = {};
+  stData.forEach(x => {
+    if(!stCounts[x.status]) stCounts[x.status] = {};
+    stCounts[x.status][x.mes] = x.count;
+  });
+  // Pega top 8 status por total
+  const stTotals = statusSet.map(s => ({s, total: monthsSet.reduce((a,m) => a + (stCounts[s]?.[m] || 0), 0)})).sort((a,b)=>b.total-a.total).slice(0,8);
+  CHART_ST.data.labels = stLabels.length ? stLabels : ['\u2014'];
+  CHART_ST.data.datasets = stTotals.map((it, i) => ({
+    label: STM[it.s] || ('Status ' + it.s),
+    data: monthsSet.map(m => stCounts[it.s]?.[m] || 0),
     backgroundColor: sCols[i % sCols.length],
-    borderColor: 'transparent', borderWidth: 0,
-    borderRadius: i === topStatusesF.length - 1 ? {topLeft:3, topRight:3} : 0
+    borderColor: 'transparent',
+    borderWidth: 0,
+    borderRadius: i === stTotals.length - 1 ? {topLeft:3, topRight:3} : 0
   }));
   CHART_ST.update();
 
-  // CHART_AGE: faixa etária dos pacientes únicos no recorte
-  const ageDist = {'0–10':0,'11–20':0,'21–40':0,'41–60':0,'60+':0};
-  const seenP = new Set();
-  fd.forEach(p => {
-    if(seenP.has(p.patient_id)) return;
-    seenP.add(p.patient_id);
-    if(p.age && p.age in ageDist) ageDist[p.age]++;
-  });
-  CHART_AGE.data.datasets[0].data = ['0–10','11–20','21–40','41–60','60+'].map(k => ageDist[k]);
+  // ── CHART_AGE: faixa etaria ──
+  const ib = stats.idade_buckets || {};
+  CHART_AGE.data.datasets[0].data = [ib['0_10']||0, ib['11_20']||0, ib['21_40']||0, ib['41_60']||0, ib['60_plus']||0];
   CHART_AGE.update();
 
-  // ── Marketing: Conversion mini stats ────────────────
-  const mktL=document.getElementById('mktLeads');
-  const mktA=document.getElementById('mktAgend');
-  if(mktL)mktL.textContent=total.toLocaleString('pt-BR');
-  if(mktA){mktA.textContent=agend.toLocaleString('pt-BR');mktA.style.color=agend<total/2?'var(--orange)':'var(--green)';}
+  // ── CHART_DONUT/CAMP: zerados (sem dados de ads ainda) ──
+  CHART_DONUT.data.datasets[0].data = adVals.map(_=>0);
+  CHART_DONUT.update();
+  if(typeof renderDleg === 'function') renderDleg([0,0,0,0,0], 1);
+  CHART_CAMP.data.datasets[0].data = cVals.map(_=>0);
+  CHART_CAMP.update();
 
-  // ── Marketing: Donut, Campanha e Origem — agora se baseiam em fd (filtrado) ──
-  // Ao invés de escalar valores fixos, recalculamos a distribuição de criadores
-  // pelos appointments filtrados. Mantém o gráfico responsivo aos filtros.
-  const creatorCountF = {};
-  const topSet = window.TOP_CREATORS_SET || new Set();
-  let outrosF = 0, semCriadorF = 0;
-  fd.forEach(p => {
-    if(!p.creator) { semCriadorF++; return; }
-    if(topSet.size && !topSet.has(p.creator)) { outrosF++; return; }
-    creatorCountF[p.creator] = (creatorCountF[p.creator]||0)+1;
-  });
-  const newOrigemLabels = Object.keys(creatorCountF);
-  const newOrigemVals   = Object.values(creatorCountF);
-  if(outrosF>0){ newOrigemLabels.push('Outros'); newOrigemVals.push(outrosF); }
-  if(semCriadorF>0){ newOrigemLabels.push('Sem criador'); newOrigemVals.push(semCriadorF); }
-  // Atualiza GLOBAIS pra renderOleg pegar labels corretos
-  origemLabels.length = 0; (newOrigemLabels.length ? newOrigemLabels : ['—']).forEach(x=>origemLabels.push(x));
-  origemVals.length   = 0; (newOrigemVals.length   ? newOrigemVals   : [0]).forEach(x=>origemVals.push(x));
+  // ── CHART_ORIGEM (donut creators) ──
+  const ct = stats.creators_top || [];
+  const TOP_N = 7;
+  const top = ct.slice(0, TOP_N);
+  const tail = ct.slice(TOP_N);
+  const tailSum = tail.reduce((s,x) => s + x.count, 0);
+  const semCriadorIdx = top.findIndex(x => x.creator === 'Sem criador');
+  let semCriador = 0;
+  if(semCriadorIdx >= 0){ semCriador = top[semCriadorIdx].count; top.splice(semCriadorIdx, 1); }
+  const labels = top.map(x => x.creator);
+  const values = top.map(x => x.count);
+  if(tailSum > 0){ labels.push('Outros'); values.push(tailSum); }
+  if(semCriador > 0){ labels.push('Sem criador'); values.push(semCriador); }
+  origemLabels.length = 0; (labels.length ? labels : ['\u2014']).forEach(x => origemLabels.push(x));
+  origemVals.length = 0; (values.length ? values : [0]).forEach(x => origemVals.push(x));
+  window.TOP_CREATORS_SET = new Set(top.map(x => x.creator));
   CHART_ORIGEM.data.labels = origemLabels.slice();
   CHART_ORIGEM.data.datasets[0].data = origemVals.slice();
   CHART_ORIGEM.data.datasets[0].backgroundColor = origemCols.slice(0, Math.max(1, origemVals.length));
   CHART_ORIGEM.update();
-  const newOrigemTot = origemVals.reduce((a,b)=>a+b,0) || 1;
-  if(typeof renderOleg==='function') renderOleg(origemVals.slice(), newOrigemTot);
+  const tot = origemVals.reduce((a,b)=>a+b,0) || 1;
+  if(typeof renderOleg === 'function') renderOleg(origemVals.slice(), tot);
 
-  // CHART_DONUT e CHART_CAMP: gráficos de demo sem dados reais — mantém zerados
-  // (já fica oculto via CSS quando todos zeros, ver showHideEmptyCharts)
-  CHART_DONUT.data.datasets[0].data = adVals.map(_=>0);
-  CHART_DONUT.update();
-  if(typeof renderDleg==='function') renderDleg([0,0,0,0,0], 1);
-  CHART_CAMP.data.datasets[0].data = cVals.map(_=>0);
-  CHART_CAMP.update();
+  // ── Marketing mini stats ──
+  const mktL = document.getElementById('mktLeads');
+  const mktA = document.getElementById('mktAgend');
+  if(mktL) mktL.textContent = (k.pacientes_unicos||0).toLocaleString('pt-BR');
+  if(mktA){
+    mktA.textContent = (k.agendamentos||0).toLocaleString('pt-BR');
+    mktA.style.color = (k.agendamentos < k.pacientes_unicos/2) ? 'var(--orange)' : 'var(--green)';
+  }
 
-  // CHART_AGE já foi atualizado na linha ~1570 com dados filtrados reais (ageDist).
-  // Bloco antigo que reescalava ageInitData (= [0,0,0,0,0]) foi REMOVIDO — zerava o chart.
-
-  // ── Financeiro: Horizontal bars — RECALCULA real dos filteredPays ──
-  const unitRevReal = {};
-  const specRevReal = {};
-  filteredPays.forEach(p => {
-    const u = clinicName(p.clinic_id);
-    unitRevReal[u] = (unitRevReal[u]||0) + parseFloat(p.amount||0);
-    if(p.specialty_name) specRevReal[p.specialty_name] = (specRevReal[p.specialty_name]||0) + parseFloat(p.amount||0);
+  // ── hbars: Unidades + Especialidades ──
+  const ur = stats.unidades_receita || [];
+  const realUnitV = ur.filter(u => parseFloat(u.valor) > 0)
+                     .map(u => ({ n: clinicName(u.clinic_id), v: parseFloat(u.valor), l: 'R$ ' + (parseFloat(u.valor)/1000).toFixed(1) + 'k' }));
+  hbars('hbUnit', realUnitV.length ? realUnitV : [{n:'\u2014', v:0, l:'R$ 0'}]);
+  const sr = stats.specialty_receita || [];
+  const realEspV = sr.filter(s => parseFloat(s.valor) > 0)
+                    .map(s => ({ n: s.specialty, v: parseFloat(s.valor), l: 'R$ ' + (parseFloat(s.valor)/1000).toFixed(1) + 'k' }));
+  hbars('hbEsp', realEspV.length ? realEspV : [{n:'\u2014', v:0, l:'R$ 0'}]);
+  ['hbEsp','hbUnit'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.querySelectorAll('.hbf').forEach(b => {
+      b.style.width = '0%';
+      setTimeout(() => { b.style.transition = 'width 1.2s cubic-bezier(.4,0,.2,1)'; b.style.width = b.dataset.w + '%'; }, 50);
+    });
   });
-  const realUnitV = Object.entries(unitRevReal).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]).map(([n,v])=>({n,v,l:'R$ '+(v/1000).toFixed(1)+'k'}));
-  const realEspV  = Object.entries(specRevReal).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]).map(([n,v])=>({n,v,l:'R$ '+(v/1000).toFixed(1)+'k'}));
-  hbars('hbUnit', realUnitV.length ? realUnitV : [{n:'—',v:0,l:'R$ 0'}]);
-  hbars('hbEsp',  realEspV.length  ? realEspV  : [{n:'—',v:0,l:'R$ 0'}]);
-  ['hbEsp','hbUnit'].forEach(id=>{const el=document.getElementById(id);if(el)el.querySelectorAll('.hbf').forEach(b=>{b.style.width='0%';setTimeout(()=>{b.style.transition='width 1.2s cubic-bezier(.4,0,.2,1)';b.style.width=b.dataset.w+'%';},50);});});
 
-  // ── Financeiro: Receita Operacional REAL do período ───
-  const rcvTotal=document.getElementById('rcvTotal');
-  if(rcvTotal)rcvTotal.textContent='R$ '+filteredRevTotal.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
-  const ovRevTotal=document.getElementById('ovRevTotal');
-  if(ovRevTotal)ovRevTotal.textContent='R$ '+filteredRevTotal.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
-  // Melhor Mês: calcula dos pagamentos filtrados (não escalar INIT)
-  const monthRev = {};
-  filteredPays.forEach(p => {
-    const dt = new Date(p.date);
-    const k = dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0');
-    monthRev[k] = (monthRev[k]||0) + parseFloat(p.amount||0);
-  });
-  let bestMonthKey = '—', bestMonthVal = 0;
-  Object.entries(monthRev).forEach(([k,v]) => { if(v > bestMonthVal){ bestMonthVal = v; bestMonthKey = k; } });
-  const bestMonthLabel = bestMonthKey === '—' ? '—' :
-    (MONTHS[parseInt(bestMonthKey.slice(5,7))-1] + '/' + bestMonthKey.slice(0,4));
-  const rcvBestVal=document.getElementById('rcvBestVal');
-  const rcvBestMonth=document.getElementById('rcvBestMonth');
-  if(rcvBestVal)rcvBestVal.textContent='R$ '+bestMonthVal.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
-  if(rcvBestMonth)rcvBestMonth.textContent=bestMonthLabel;
-
-  // ── Métricas Thauany (recalcula a cada filtro) ──────────────────────────
-  if(typeof computeThauanyMetrics==='function') computeThauanyMetrics().catch(()=>{});
-
-  // ── Chips de filtros aplicados ──────────────────────────────────────────
-  renderActiveFilterChips();
-
-  // Charts: força resize após DOM atualizar pra textos não cortarem
-  setTimeout(() => { try { resizeAllCharts && resizeAllCharts(); } catch(_){} }, 60);
-
-  // ── MC Comparativo Bar — usa números REAIS do recorte (sem escalar INIT) ─
-  const fdAll   = filteredNoMC();
-  const fdAllMC = fdAll.filter(p=>p.agent==='MC').length;
-  const fdAllHUM= fdAll.length - fdAllMC;
-  const totalAll= fdAll.length || 1;
-  const pctMC   = Math.round(fdAllMC / totalAll * 100);
-  const pctHUM  = 100 - pctMC;
-  const elMcPct  = document.getElementById('mcBarPct');
-  const elHumPct = document.getElementById('humBarPct');
-  const elMcAbs  = document.getElementById('mcBarAbs');
-  const elHumAbs = document.getElementById('humBarAbs');
-  if(elMcPct)  elMcPct.textContent  = pctMC + '%';
-  if(elHumPct) elHumPct.textContent = pctHUM + '%';
-  if(elMcAbs)  elMcAbs.textContent  = '(' + fdAllMC.toLocaleString('pt-BR') + ' agend.)';
-  if(elHumAbs) elHumAbs.textContent = '(' + fdAllHUM.toLocaleString('pt-BR') + ' agend.)';
-
-  // ── MC Card: métricas reais (sem hardcoded) ──────────────────────────────
-  // Atribuição: MC só leva receita de Avaliação Inicial CONCLUÍDA que ela agendou
-  // (Regra B): MC leva todo o LTV do paciente cuja PRIMEIRA consulta foi MC
-  // criada E concluída/atendida. Sem dependência de specialty_name (que é
-  // inconsistente). Usa "primeira consulta" do paciente em todo histórico.
-  const mcAppts = fd.filter(p => p.agent === 'MC');
-  const mcAgendCount = mcAppts.length;
-  const mcConcluded = mcAppts.filter(p => p.status === 8 || p.status === 7).length;
-  const mcConvPctVal = mcAgendCount > 0 ? Math.round(mcConcluded / mcAgendCount * 100) : 0;
-
-  // Mapa patient_id → primeira consulta histórica (start_time mais antigo).
-  // Usa ALL (todo histórico carregado) — não fd, pra detectar corretamente
-  // pacientes resgatados (1ª no passado por humano) vs novos (1ª agora por MC).
-  const firstApptByPatient = {};
-  ALL.forEach(p => {
-    if(!p.patient_id) return;
-    const cur = firstApptByPatient[p.patient_id];
-    if(!cur || p.dateRaw < cur.dateRaw) firstApptByPatient[p.patient_id] = p;
-  });
-  // MC ganha crédito do paciente se:
-  //   1. Primeira consulta histórica do paciente foi MC-criada
-  //   2. Essa primeira consulta foi concluída (status 8) ou atendida (7)
-  const mcCreditPatients = new Set();
-  Object.values(firstApptByPatient).forEach(p => {
-    if(p.agent === 'MC' && (p.status === 8 || p.status === 7)) {
-      mcCreditPatients.add(p.patient_id);
-    }
-  });
-  // MC revenue = TODOS os pagamentos no período filtrado, dos pacientes credenciados
-  const mcRevenue = filteredPays
-    .filter(p => mcCreditPatients.has(p.patient_id))
-    .reduce((s,p) => s + parseFloat(p.amount||0), 0);
-
-  // vsMC: % dos agendamentos totais (filtrados) que foram MC
-  const vsMCpctVal = totalAll > 0 ? Math.round((fdAllMC / totalAll) * 100) : 0;
-
+  // ── MC Card ──
+  const mcAgend = k.mc_agendamentos || 0;
+  const mcConcl = k.mc_concluidos || 0;
+  const mcConvPct = mcAgend > 0 ? Math.round(mcConcl / mcAgend * 100) : 0;
+  const totalAg = k.agendamentos || 0;
+  const vsMCpct = totalAg > 0 ? Math.round(mcAgend / totalAg * 100) : 0;
   if(typeof updateMC === 'function'){
     updateMC({
-      mcAgend: mcAgendCount,
-      mcConvPct: mcConvPctVal,
-      mcRevenue: mcRevenue,
-      totalRev: filteredRevTotal,
-      vsMCpct: vsMCpctVal
+      mcAgend, mcConvPct,
+      mcRevenue: parseFloat(stats.mc_revenue) || 0,
+      totalRev: rev,
+      vsMCpct
     });
   }
 
-  // ── Ações por Agente: confirmações (to_status=4) e reagendamentos (to_status=3) ──
-  // Filtra logs pelos appointments que estão no recorte filtrado E pelo período
-  const fdAppointmentIds = new Set(fd.map(p => p.id));
-  const logs = (typeof RAW_LOGS !== 'undefined' ? RAW_LOGS : []);
-  const logsInScope = logs.filter(l => {
-    if(!fdAppointmentIds.has(l.appointment_id)) return false;
-    if(d1 || d2){
-      const ld = new Date(l.changeDate);
-      if(d1 && ld < d1) return false;
-      if(d2 && ld > d2) return false;
-    }
-    return true;
-  });
-  let confMCcount = 0, confHUMcount = 0, reagMCcount = 0, reagHUMcount = 0;
-  logsInScope.forEach(l => {
-    const isMC = l.user_id === MC_USER_ID;
-    if(l.to_status === 4){ if(isMC) confMCcount++; else confHUMcount++; }
-    if(l.to_status === 3){ if(isMC) reagMCcount++; else reagHUMcount++; }
-  });
-  const confTotal = confMCcount + confHUMcount;
-  const reagTotal = reagMCcount + reagHUMcount;
-  const setText = (id, v) => { const e = document.getElementById(id); if(e) e.textContent = v; };
-  const pct = (a, b) => b > 0 ? Math.round(a/b*100) : 0;
-  setText('confMC', confMCcount.toLocaleString('pt-BR'));
-  setText('confHUM', confHUMcount.toLocaleString('pt-BR'));
-  setText('confMCpct', pct(confMCcount, confTotal) + '% do total');
-  setText('confHUMpct', pct(confHUMcount, confTotal) + '% do total');
-  setText('reagMC', reagMCcount.toLocaleString('pt-BR'));
-  setText('reagHUM', reagHUMcount.toLocaleString('pt-BR'));
-  setText('reagMCpct', pct(reagMCcount, reagTotal) + '% do total');
-  setText('reagHUMpct', pct(reagHUMcount, reagTotal) + '% do total');
+  // ── MC Bar comparativo ──
+  const elMcPct = document.getElementById('mcBarPct');
+  const elHumPct = document.getElementById('humBarPct');
+  const elMcAbs = document.getElementById('mcBarAbs');
+  const elHumAbs = document.getElementById('humBarAbs');
+  if(elMcPct) elMcPct.textContent = vsMCpct + '%';
+  if(elHumPct) elHumPct.textContent = (100 - vsMCpct) + '%';
+  if(elMcAbs) elMcAbs.textContent = '(' + mcAgend.toLocaleString('pt-BR') + ' agend.)';
+  if(elHumAbs) elHumAbs.textContent = '(' + (k.hum_agendamentos||0).toLocaleString('pt-BR') + ' agend.)';
 
-  // ── Auditoria: Tables ────────────────────────────────
-  const CONF2=fd.filter(p=>p.status===4);
-  // Reagendados: usa o Set unificado (logs OR heurística), não status===3
-  const REAG_SET = window.REAG_IDS || new Set();
-  const REAG2=fd.filter(p=>REAG_SET.has(p.id));
-  TS.mn.data=fd;TS.mn.filt=fd;TS.mn.page=1;
-  TS.cf.data=CONF2;TS.cf.filt=CONF2;TS.cf.page=1;
-  TS.rg.data=REAG2;TS.rg.filt=REAG2;TS.rg.page=1;
-  ['mn','cf','rg'].forEach(rTbl);
+  // ── Acoes por Agente ──
+  const aa = stats.acoes_agente || {};
+  const confT = (aa.conf_mc||0) + (aa.conf_hum||0);
+  const reagT = (aa.reag_mc||0) + (aa.reag_hum||0);
+  const pct = (a,b) => b > 0 ? Math.round(a/b*100) : 0;
+  const setT = (id, v) => { const e = document.getElementById(id); if(e) e.textContent = v; };
+  setT('confMC', (aa.conf_mc||0).toLocaleString('pt-BR'));
+  setT('confHUM', (aa.conf_hum||0).toLocaleString('pt-BR'));
+  setT('confMCpct', pct(aa.conf_mc||0, confT) + '% do total');
+  setT('confHUMpct', pct(aa.conf_hum||0, confT) + '% do total');
+  setT('reagMC', (aa.reag_mc||0).toLocaleString('pt-BR'));
+  setT('reagHUM', (aa.reag_hum||0).toLocaleString('pt-BR'));
+  setT('reagMCpct', pct(aa.reag_mc||0, reagT) + '% do total');
+  setT('reagHUMpct', pct(aa.reag_hum||0, reagT) + '% do total');
 }
 
-// ── TABLES ────────────────────────────────────────────
-const CONF=ALL.filter(p=>p.status===4);
-// REAG agora usa o Set unificado de reagendamentos (inicialmente vazio até o loader popular)
-const REAG=ALL.filter(p=>(window.REAG_IDS||new Set()).has(p.id));
-const TS={mn:{data:ALL,filt:ALL,page:1,pp:10},cf:{data:CONF,filt:CONF,page:1,pp:10},rg:{data:REAG,filt:REAG,page:1,pp:10}};
+function _legacyUpdateDashboardEnd(){
+  // placeholder marker
+}
+
+
+// V2: Tabelas usam rows ja paginadas pelo servidor (TS[k].rows)
+const TS = {
+  mn: { rows: [], total: 0, totalPages: 1, page: 1, pp: 10, search: '' },
+  cf: { rows: [], total: 0, totalPages: 1, page: 1, pp: 10, search: '' },
+  rg: { rows: [], total: 0, totalPages: 1, page: 1, pp: 10, search: '' }
+};
 function rTbl(k){
-  const s=TS[k];const tp=Math.ceil(s.filt.length/s.pp)||1;
-  const sl=s.filt.slice((s.page-1)*s.pp,s.page*s.pp);
-  document.getElementById(`tb${k.charAt(0).toUpperCase()+k.slice(1)}`).innerHTML=sl.map(p=>`<tr><td>${p.name}</td><td style="font-size:10.5px">${p.unit}</td><td style="font-size:10px;font-family:'JetBrains Mono',monospace">${p.datetime}</td><td><span class="sbdg" style="${STS[p.status]}">${STM[p.status]}</span></td><td>${p.patient_id?`<a class="ebtn" href="https://ecuro.com.br/dashboard/patient-profile/${p.patient_id}?activeTab=appointments" target="_blank" rel="noopener noreferrer" title="Abrir ficha do paciente" style="text-decoration:none;"><svg width="9" height="9" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>`:''}</td></tr>`).join('');
-  rPag(k,tp);
+  const s = TS[k];
+  const rows = s.rows || [];
+  const tbody = document.getElementById('tb' + k.charAt(0).toUpperCase() + k.slice(1));
+  if(tbody) tbody.innerHTML = rows.map(p => {
+    const d = new Date(p.start_time);
+    const dt = d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+    const unit = clinicName(p.clinic_id);
+    return '<tr><td>' + (p.patient_name||'').trim() + '</td>'
+      + '<td style="font-size:10.5px">' + unit + '</td>'
+      + '<td style="font-size:10px;font-family:\'JetBrains Mono\',monospace">' + dt + '</td>'
+      + '<td><span class="sbdg" style="' + (STS[p.status]||'') + '">' + (STM[p.status]||p.status) + '</span></td>'
+      + '<td>' + (p.patient_id ? '<a class="ebtn" href="https://ecuro.com.br/dashboard/patient-profile/' + p.patient_id + '?activeTab=appointments" target="_blank" rel="noopener noreferrer" title="Abrir ficha do paciente" style="text-decoration:none;"><svg width="9" height="9" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>' : '') + '</td></tr>';
+  }).join('');
+  rPag(k, s.totalPages || 1);
 }
-function rPag(k,tp){
-  const s=TS[k];const cur=s.page;let b='';
-  const btn=(lbl,pg,on=false,dots=false)=>{if(dots){b+=`<span class="pgb dt">…</span>`;return;}b+=`<button class="pgb${on?' on':''}" onclick="gp('${k}',${pg})">${lbl}</button>`;};
-  btn('|◀',1);btn('◀',Math.max(1,cur-1));
-  if(tp<=7){for(let i=1;i<=tp;i++)btn(i,i,i===cur);}
-  else{btn(1,1,cur===1);if(cur>3)btn('',0,false,true);for(let i=Math.max(2,cur-1);i<=Math.min(tp-1,cur+1);i++)btn(i,i,i===cur);if(cur<tp-2)btn('',0,false,true);btn(tp,tp,cur===tp);}
-  btn('▶',Math.min(tp,cur+1));btn('▶|',tp);
-  const idKey=k==='mn'?'Mn':k==='cf'?'Cf':'Rg';
-  document.getElementById(`pg${idKey}`).innerHTML=`<div class="pginfo"><span>Total <strong style="color:var(--white)">${s.filt.length}</strong></span><span>Pág. <strong style="color:var(--white)">${cur}</strong>/${tp}</span><select class="pgsel" onchange="cpp('${k}',this.value)">${[10,25,50,100].map(n=>`<option value="${n}"${n===s.pp?' selected':''}>${n}/pág</option>`).join('')}</select><span class="gopg">Ir a <input type="number" min="1" max="${tp}" onkeydown="if(event.key==='Enter')gp('${k}',+this.value)"></span></div><div class="pgbtns">${b}</div>`;
-}
-function gp(k,p){const s=TS[k];const tp=Math.ceil(s.filt.length/s.pp)||1;s.page=Math.min(Math.max(1,p),tp);rTbl(k);}
-function cpp(k,v){TS[k].pp=+v;TS[k].page=1;rTbl(k);}
-// Gera variações do telefone pra match com/sem o "9" do celular.
-// Brasileiro celular:
-//   - antigo: DDD + 8 dígitos (10 total)
-//   - novo:   DDD + 9 + 8 dígitos (11 total)
-// Banco pode ter qualquer um. User pode digitar qualquer um. Tentamos ambas.
-function phoneSearchVariants(digits){
-  const v = new Set();
-  if(!digits) return v;
-  v.add(digits);
-  // Strip código país 55 do início se >12 dígitos
-  if(digits.length >= 12 && digits.startsWith('55')) v.add(digits.slice(2));
-  // Se tem 11 dígitos e o 3º é '9' → variação SEM o 9
-  if(digits.length === 11 && digits[2] === '9') v.add(digits.slice(0,2) + digits.slice(3));
-  // Se tem 10 dígitos (DDD + 8) → variação COM o 9 inserido após DDD
-  if(digits.length === 10) v.add(digits.slice(0,2) + '9' + digits.slice(2));
-  // Para querys parciais (3-9 dígitos), também tenta com '9' no início
-  if(digits.length >= 8 && digits.length <= 9 && digits[0] !== '9'){
-    v.add('9' + digits);
+function rPag(k, tp){
+  const s = TS[k]; const cur = s.page;
+  let b = '';
+  const btn = (lbl, pg, on, dots) => {
+    if(dots){ b += '<span class="pgb dt">\u2026</span>'; return; }
+    b += '<button class="pgb' + (on ? ' on' : '') + '" onclick="gp(\'' + k + '\',' + pg + ')">' + lbl + '</button>';
+  };
+  btn('|\u25C0', 1, false, false);
+  btn('\u25C0', Math.max(1, cur-1), false, false);
+  if(tp <= 7){ for(let i=1;i<=tp;i++) btn(i,i,i===cur,false); }
+  else {
+    btn(1, 1, cur===1, false);
+    if(cur > 3) btn('', 0, false, true);
+    for(let i = Math.max(2, cur-1); i <= Math.min(tp-1, cur+1); i++) btn(i, i, i===cur, false);
+    if(cur < tp-2) btn('', 0, false, true);
+    btn(tp, tp, cur===tp, false);
   }
-  return v;
+  btn('\u25B6', Math.min(tp, cur+1), false, false);
+  btn('\u25B6|', tp, false, false);
+  const idKey = k==='mn' ? 'Mn' : (k==='cf' ? 'Cf' : 'Rg');
+  const pgEl = document.getElementById('pg' + idKey);
+  if(pgEl) pgEl.innerHTML = '<div class="pginfo"><span>Total <strong style="color:var(--white)">' + s.total + '</strong></span><span>P\u00e1g. <strong style="color:var(--white)">' + cur + '</strong>/' + tp + '</span><select class="pgsel" onchange="cpp(\'' + k + '\',this.value)">' + [10,25,50,100].map(n=>'<option value="' + n + '"' + (n===s.pp?' selected':'') + '>' + n + '/p\u00e1g</option>').join('') + '</select><span class="gopg">Ir a <input type="number" min="1" max="' + tp + '" onkeydown="if(event.key===\'Enter\')gp(\'' + k + '\',+this.value)"></span></div><div class="pgbtns">' + b + '</div>';
 }
+function gp(k, p){
+  const s = TS[k];
+  const tp = s.totalPages || 1;
+  s.page = Math.min(Math.max(1, p), tp);
+  loadTablePage(k);
+}
+function cpp(k, v){
+  TS[k].pp = +v;
+  TS[k].page = 1;
+  loadTablePage(k);
+}
+function flt(k, q){
+  const ql = (q||'').trim();
+  TS[k].search = ql;
+  TS[k].page = 1;
+  loadTablePage(k);
+}
+['mn','cf','rg'].forEach(k => loadTablePage(k));
 
-function flt(k,q){
-  const ql = (q||'').toLowerCase().trim();
-  if(!ql){ TS[k].filt = TS[k].data; TS[k].page = 1; rTbl(k); return; }
-  const qDigits = ql.replace(/\D/g,'');
-  const variants = qDigits ? [...phoneSearchVariants(qDigits)] : [];
-  TS[k].filt = TS[k].data.filter(p => {
-    const name = (p.name||'').toLowerCase();
-    if(name.includes(ql)) return true;
-    if(!variants.length) return false;
-    const phone = (p.phone||'').replace(/\D/g,'');
-    if(!phone) return false;
-    for(const v of variants){
-      if(v && phone.includes(v)) return true;
-    }
-    return false;
-  });
-  TS[k].page = 1; rTbl(k);
-}
-['mn','cf','rg'].forEach(rTbl);
 
 
 
@@ -2096,397 +1964,198 @@ async function fetchAllProxy(table, opts = {}){
   return all;
 }
 
+// ═════════════════════════════════════════════════════════════════════
+// V2 — Server-side aggregations
+// ═════════════════════════════════════════════════════════════════════
+let STATS = null;     // resposta de /api/dashboard/stats
+let LOOKUPS = null;   // resposta de /api/dashboard/lookups
+
+// Constrói query params pra /api/dashboard/stats baseado em APPLIED + MC_MODE
+function buildStatsParams(){
+  const params = new URLSearchParams();
+  // Período: usa APPLIED.d1/d2 ou default Mês atual
+  const t = new Date();
+  const ymdLocal = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  let d1 = APPLIED.d1, d2 = APPLIED.d2;
+  if(!d1 || !d2){
+    d1 = ymdLocal(new Date(t.getFullYear(), t.getMonth(), 1));
+    d2 = ymdLocal(t);
+  }
+  params.set('start', d1);
+  // end é exclusivo no SQL (start_time < p_end), então passa d2+1d
+  const d2plus = new Date(d2 + 'T00:00:00');
+  d2plus.setDate(d2plus.getDate() + 1);
+  params.set('end', ymdLocal(d2plus));
+
+  // Unidades: nomes → clinic_ids via CLINIC_MAP
+  if(APPLIED.units && APPLIED.units.size > 0){
+    const ids = Object.entries(CLINIC_MAP)
+      .filter(([id, name]) => APPLIED.units.has(name))
+      .map(([id]) => id);
+    if(ids.length) params.set('clinic_ids', ids.join(','));
+  }
+  // Especialidades: nomes → ids via LOOKUPS
+  if(APPLIED.specs && APPLIED.specs.size > 0 && LOOKUPS?.specialties){
+    const ids = LOOKUPS.specialties
+      .filter(s => APPLIED.specs.has(s.name))
+      .map(s => s.id);
+    if(ids.length) params.set('specialty_ids', ids.join(','));
+  }
+  // Status: nomes → ids via STM
+  if(APPLIED.statuses && APPLIED.statuses.size > 0){
+    const codes = [];
+    for(const code in STM){
+      if(APPLIED.statuses.has(STM[code])) codes.push(code);
+    }
+    if(codes.length) params.set('status_codes', codes.join(','));
+  }
+  // Operadores (creators): excluindo tokens especiais
+  if(APPLIED.creators && APPLIED.creators.size > 0){
+    const list = [...APPLIED.creators].filter(c => c !== '__outros__' && c !== '__sem_criador__');
+    if(list.length) params.set('creators', list.join('|'));
+  }
+  // Agent mode
+  if(MC_MODE === 'MC') params.set('agent_mode', 'MC');
+  else if(MC_MODE === 'OP') params.set('agent_mode', 'HUM');
+  return params;
+}
+
+// Busca stats no servidor
+async function fetchStats(){
+  const params = buildStatsParams();
+  const r = await fetch('/api/dashboard/stats?' + params.toString(), { credentials: 'same-origin' });
+  if(r.status === 401){ window.location.href = '/login.html'; throw new Error('unauthorized'); }
+  if(!r.ok){
+    const txt = await r.text();
+    throw new Error(`stats ${r.status}: ${txt.slice(0,200)}`);
+  }
+  return r.json();
+}
+
+// Busca lookups (cacheado em LOOKUPS)
+async function fetchLookups(){
+  if(LOOKUPS) return LOOKUPS;
+  const r = await fetch('/api/dashboard/lookups', { credentials: 'same-origin' });
+  if(r.status === 401){ window.location.href = '/login.html'; throw new Error('unauthorized'); }
+  if(!r.ok) throw new Error('lookups failed');
+  LOOKUPS = await r.json();
+  return LOOKUPS;
+}
+
 // ── Main loader ───────────────────────────────────────────────────
 async function loadFromSupabase(){
-  showBanner('⏳ Carregando dados…', 'info');
+  showBanner('Carregando dados\u2026', 'info');
 
-  // Atualiza badge do usuário (não bloqueia se falhar)
+  // Atualiza badge do usuario
   fetch('/api/me', { credentials: 'same-origin' })
     .then(r => r.ok ? r.json() : null)
     .then(u => {
       if(!u) return;
       const badge = document.getElementById('userBadge');
-      const eml   = document.getElementById('userEmail');
-      const ini   = document.getElementById('userInitial');
+      const eml = document.getElementById('userEmail');
+      const ini = document.getElementById('userInitial');
       if(badge && eml){ eml.textContent = u.name || u.email; badge.style.display = 'flex'; }
       if(ini){ ini.textContent = (u.name || u.email || '?').slice(0,1).toUpperCase(); }
     }).catch(() => {});
 
-  // Colunas usadas pelo dashboard (reduz payload ~50% vs select=*)
-  const APPT_COLS = 'id,patient_id,patient_name,clinic_id,doctor_name,start_time,end_time,scheduled_start_time,status,confirmed_time,attended_time,finished_time,canceled_time,speciality_id,channel_id,created_by_name,patient_date_of_birth,type,campaign_token,phone';
-  const PAY_COLS = 'id,clinic_id,date,amount,is_confirmed,deleted_at,specialty_id,specialty_name,patient_id';
-  const LOG_COLS = 'id,appointment_id,user_id,from_status,to_status,changeDate';
-
-  // Logs: filtra ULTIMOS 60 DIAS server-side (drasticamente reduz payload, era 62k+ rows full table)
-  const since60d = new Date(Date.now() - 60 * 24 * 3600 * 1000).toISOString();
-  const LOG_FILTERS = `&changeDate=gte.${encodeURIComponent(since60d)}`;
-
-  // Pagamentos: filtra deleted_at IS NULL server-side (descarta soft-deleted)
-  const PAY_FILTERS = `&deleted_at=is.null`;
-
-  // Banner já mostra "Carregando dados…" com barra animada.
-  // Não precisamos atualizar progresso textual — barra animada já comunica.
-  let appointments, logs, payments;
-  try {
-    [appointments, logs, payments] = await Promise.all([
-      fetchAllProxy(T_APP, { select: APPT_COLS }),
-      fetchAllProxy(T_LOG, { select: LOG_COLS, filters: LOG_FILTERS }),
-      fetchAllProxy(T_PAY, { select: PAY_COLS, filters: PAY_FILTERS }),
-    ]);
-  } catch(e){
-    if(e.message === 'unauthorized') return;
-    showBanner('❌ Erro ao buscar dados: '+e.message, 'error');
-    return;
-  }
-
-  RAW_APPOINTMENTS = appointments;
-  RAW_LOGS = logs;
-  RAW_PAYMENTS = payments;
-
-  // Filter out soft-deleted payments
-  const livePayments = payments.filter(p => !p.deleted_at);
-
-  // Build map: appointment_id → was handled by MC?
-  const mcApptIds = new Set(logs.filter(l => l.user_id === MC_USER_ID).map(l => l.appointment_id));
-
-  // Build specialty_id → name. Canonical map first (from user), Payments as fallback.
-  const specNameById = Object.assign({}, SPECIALTY_MAP);
-  livePayments.forEach(p => {
-    if(p.specialty_id && p.specialty_name && !specNameById[p.specialty_id]){
-      specNameById[p.specialty_id] = p.specialty_name;
-    }
-  });
-
-  // Helpers para campos tolerantes a variações de nomenclatura
-  const getCreatorNameRaw = (a) => {
-    const raw = a.created_by_name ?? a.createdByName ?? a.Created_By_Name
-              ?? a.CreatedByName ?? a['Created By Name'] ?? a['created by name']
-              ?? null;
-    if(raw == null) return '';
-    // Normaliza: trim + colapsa espaços múltiplos
-    return String(raw).replace(/\s+/g, ' ').trim();
-  };
-  const getChannelIdRaw = (a) => {
-    const raw = a.channel_id ?? a.channelId ?? a.Channel_Id
-              ?? a.ChannelId ?? a['Channel Id'] ?? a['channel id']
-              ?? null;
-    return raw == null ? '' : String(raw).trim();
-  };
-
-  // Build ALL array in the shape the existing dashboard expects
-  ALL = appointments.map(a => {
-    const d = new Date(a.start_time);
-    return {
-      id: a.id,
-      patient_id: a.patient_id,
-      name: (a.patient_name||'').trim(),
-      unit: clinicName(a.clinic_id),
-      spec: specNameById[a.speciality_id] || '—',
-      camp: null, // no campaign data available
-      age: ageBucketFromDOB(a.patient_date_of_birth) || '—',
-      dateRaw: d,
-      datetime: fmtDateTime(a.start_time),
-      status: a.status,
-      revenue: 0, // aggregated separately from payments
-      phone: (a.phone || '').toString(),
-      // Creator = quem CRIOU o agendamento (não quem confirmou/reagendou depois).
-      // Channel MC → Maria Clara. Channel humano c/ created_by vazio + log MC → Maria Clara.
-      // Caso contrário: created_by_name (operador humano).
-      creator: isMCChannel(getChannelIdRaw(a))
-        ? 'Maria Clara'
-        : (getCreatorNameRaw(a) || (mcApptIds.has(a.id) ? 'Maria Clara' : '')),
-      // agent alinha com creator: MC só se a MC criou. Confirmações/reagendamentos
-      // por MC são tratados separadamente nas cards "Ações por Agente".
-      agent: (isMCChannel(getChannelIdRaw(a))
-              || (!getCreatorNameRaw(a) && mcApptIds.has(a.id))) ? 'MC' : 'HUM',
-      channelId: getChannelIdRaw(a)
-    };
-  });
-
-  // ── Compute INIT totals from real data ──
-  const uniquePatients = new Set(ALL.map(a => a.patient_id)).size;
-  TOTAL_UNIQUE_PATIENTS = uniquePatients;
-
-  const total = uniquePatients;                                      // "Pacientes Únicos" = pacientes distintos
-  const agend = ALL.length;                                          // Total de agendamentos
-  // Concluídos: apenas status 8 (Concluído) segundo taxonomia canônica. finished_time NÃO é confiável
-  // (appointments com status 11/12 também têm finished_time preenchido em muitos casos).
-  const conc  = appointments.filter(a => a.status === 8).length;
-  const conf  = appointments.filter(a => a.status === 4 || a.confirmed_time).length;
-  // Reagendamentos: estratégia dual conforme fórmula consolidada:
-  //   A) Preferencial: logs.to_status = 3 (REAGENDADO) — auditoria oficial.
-  //   B) Fallback: divergência > 24h entre scheduled_start_time (imutável)
-  //      e start_time (atualizado) — caso os logs não preencham to_status=3.
-  const ONE_DAY_MS = 24 * 3600 * 1000;
-  let reagendadosApptIds = new Set(
-    logs.filter(l => l.to_status === 3).map(l => l.appointment_id)
-  );
-  const reagSource = reagendadosApptIds.size > 0 ? 'logs' : 'heuristic';
-  if(reagendadosApptIds.size === 0){
-    reagendadosApptIds = new Set(
-      appointments.filter(a => {
-        if(!a.scheduled_start_time || !a.start_time) return false;
-        const diff = Math.abs(new Date(a.start_time).getTime() - new Date(a.scheduled_start_time).getTime());
-        return diff > ONE_DAY_MS;
-      }).map(a => a.id)
-    );
-  }
-  const reag = reagendadosApptIds.size;
-  // Expor globalmente para a tabela de Auditoria usar o mesmo conjunto
-  window.REAG_IDS = reagendadosApptIds;
-  window.REAG_SOURCE = reagSource;
-  const conv  = agend > 0 ? Math.round((conc/agend)*100) : 0;
-
-  const revTotal = livePayments
-    .filter(p => p.is_confirmed)
-    .reduce((s, p) => s + parseFloat(p.amount), 0);
-
-  INIT.total     = total;
-  INIT.agend     = agend;
-  INIT.conc      = conc;
-  INIT.conf      = conf;
-  INIT.reag      = reag;
-  INIT.conv      = conv;
-  INIT.revTotal  = revTotal;
-  INIT.mktLeads  = total;
-  INIT.mktAgend  = agend;
-
-  // Best revenue month
-  const revByMonth = {};
-  livePayments.filter(p => p.is_confirmed).forEach(p => {
-    const d = new Date(p.date);
-    const k = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
-    revByMonth[k] = (revByMonth[k] || 0) + parseFloat(p.amount);
-  });
-  const [bestK, bestV] = Object.entries(revByMonth).sort((a,b)=>b[1]-a[1])[0] || ['—', 0];
-  INIT.revBestVal = bestV;
-  if(bestK !== '—'){
-    const [y, m] = bestK.split('-');
-    INIT.revBestMonth = MONTHS[parseInt(m)-1]+' '+y;
-  }
-
-  // ── Build finRaw: monthly revenue by TOP 8 specialties ──
-  const specRev = {};
-  livePayments.filter(p => p.is_confirmed).forEach(p => {
-    specRev[p.specialty_name] = (specRev[p.specialty_name] || 0) + parseFloat(p.amount);
-  });
-  const topSpecs = Object.entries(specRev).sort((a,b)=>b[1]-a[1]).slice(0,8).map(e=>e[0]);
-
-  // Determine month range from actual data
-  const allDates = [...appointments.map(a=>new Date(a.start_time)), ...livePayments.map(p=>new Date(p.date))];
-  const minDate = allDates.length ? new Date(Math.min(...allDates)) : new Date();
-  const maxDate = allDates.length ? new Date(Math.max(...allDates)) : new Date();
-  const monthKeys = [];
-  const monthLabels = [];
-  let cur = new Date(minDate.getFullYear(), minDate.getMonth(), 1);
-  const end = new Date(maxDate.getFullYear(), maxDate.getMonth(), 1);
-  while(cur <= end){
-    const k = cur.getFullYear()+'-'+String(cur.getMonth()+1).padStart(2,'0');
-    monthKeys.push(k);
-    monthLabels.push(MONTHS[cur.getMonth()] + '/' + String(cur.getFullYear()).slice(2));
-    cur.setMonth(cur.getMonth()+1);
-  }
-  if(monthKeys.length === 0){ monthKeys.push('—'); monthLabels.push('—'); }
-
-  finRaw = topSpecs.map(spec =>
-    monthKeys.map(mk =>
-      livePayments
-        .filter(p => p.is_confirmed && p.specialty_name === spec)
-        .filter(p => { const d=new Date(p.date); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0') === mk; })
-        .reduce((s,p) => s + parseFloat(p.amount), 0)
-    )
-  );
-
-  // Rebuild CHART_FIN with real labels/datasets
-  CHART_FIN.data.labels = monthLabels;
-  CHART_FIN.data.datasets = topSpecs.map((sp, i) => ({
-    label: sp,
-    data: finRaw[i],
-    backgroundColor: fCols[i % fCols.length],
-    borderColor: 'transparent',
-    borderWidth: 0,
-    borderRadius: i === topSpecs.length - 1 ? {topLeft:3, topRight:3} : 0
-  }));
-  CHART_FIN.update();
-
-  // ── Build sData: monthly count by status (8 most-used statuses) ──
-  const statusCount = {};
-  appointments.forEach(a => { statusCount[a.status] = (statusCount[a.status]||0) + 1; });
-  const topStatuses = Object.entries(statusCount).sort((a,b)=>b[1]-a[1]).slice(0,8).map(e=>parseInt(e[0]));
-
-  sData = topStatuses.map(st =>
-    monthKeys.map(mk =>
-      appointments.filter(a => a.status === st).filter(a => {
-        const d = new Date(a.start_time);
-        return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0') === mk;
-      }).length
-    )
-  );
-  CHART_ST.data.labels = monthLabels;
-  CHART_ST.data.datasets = topStatuses.map((st, i) => ({
-    label: STM[st] || ('Status '+st),
-    data: sData[i],
-    backgroundColor: sCols[i % sCols.length],
-    borderColor: 'transparent',
-    borderWidth: 0,
-    borderRadius: i === topStatuses.length - 1 ? {topLeft:3, topRight:3} : 0
-  }));
-  CHART_ST.update();
-
-  // ── Age distribution (by distinct patient) ──
-  const ageDist = {'0–10':0,'11–20':0,'21–40':0,'41–60':0,'60+':0};
-  const seenPatients = new Set();
-  appointments.forEach(a => {
-    if(seenPatients.has(a.patient_id)) return;
-    seenPatients.add(a.patient_id);
-    const b = ageBucketFromDOB(a.patient_date_of_birth);
-    if(b) ageDist[b]++;
-  });
-  const ageOrdered = ['0–10','11–20','21–40','41–60','60+'].map(k => ageDist[k]);
-  CHART_AGE.data.datasets[0].data = ageOrdered;
-  CHART_AGE.update();
-  for(let i=0;i<5;i++) ageInitData[i] = ageOrdered[i];
-
-  // ── espInitV: specialty ranking by revenue ──
-  espInitV = Object.entries(specRev)
-    .sort((a,b)=>b[1]-a[1])
-    .map(([n,v]) => ({ n, v, l: 'R$ '+(v/1000).toFixed(1)+'k' }));
-  if(espInitV.length === 0) espInitV = [{n:'—',v:0,l:'R$ 0'}];
-
-  // ── unitInitV: ranking de unidades pela receita confirmada ──
-  const unitRev = {};
-  livePayments.filter(p => p.is_confirmed).forEach(p => {
-    const name = clinicName(p.clinic_id);
-    unitRev[name] = (unitRev[name] || 0) + parseFloat(p.amount);
-  });
-  // Include units that have appointments but no payments (show R$ 0)
-  new Set(appointments.map(a => clinicName(a.clinic_id))).forEach(n => {
-    if(!(n in unitRev)) unitRev[n] = 0;
-  });
-  unitInitV = Object.entries(unitRev)
-    .sort((a,b) => b[1] - a[1])
-    .map(([n, v]) => ({ n, v, l: 'R$ ' + (v/1000).toFixed(1) + 'k' }));
-  if(unitInitV.length === 0) unitInitV = [{ n: '—', v: 0, l: 'R$ 0' }];
-
-  // ── Agendamentos por Criador — agrupamento por created_by_name ─────
-  // Helpers getCreatorNameRaw / getChannelIdRaw já definidos acima.
-
-  // Usa os canais MC globais (MC_CHANNELS) — definido no topo do arquivo
-  const isMCAppointment = (a) => isMCChannel(getChannelIdRaw(a)) || mcApptIds.has(a.id);
-
-  // Top 7 criadores humanos + "Outros" (cauda) + "Maria Clara" + "Sem criador" (raros)
-  const creatorCount = {};
-  let semCriador = 0, comCriador = 0, excluidosMC = 0;
-  appointments.forEach(a => {
-    // Channel da MC OU log da MC com created_by_name vazio → Maria Clara
-    if(isMCChannel(getChannelIdRaw(a))){
-      creatorCount['Maria Clara'] = (creatorCount['Maria Clara']||0)+1; comCriador++; return;
-    }
-    const nome = getCreatorNameRaw(a);
-    if(!nome){
-      // Sem created_by_name: se a MC logou nesse appointment → atribuir a Maria Clara
-      if(mcApptIds.has(a.id)){ creatorCount['Maria Clara'] = (creatorCount['Maria Clara']||0)+1; comCriador++; }
-      else { semCriador++; }
-      return;
-    }
-    comCriador++;
-    creatorCount[nome] = (creatorCount[nome] || 0) + 1;
-  });
-  console.log('[Criadores] total:', appointments.length, '| excluídos (channel MC):', excluidosMC, '| com nome:', comCriador, '| sem nome:', semCriador, '| criadores únicos:', Object.keys(creatorCount).length);
-
-  const sortedCreators = Object.entries(creatorCount).sort((a,b)=>b[1]-a[1]);
-  const TOP_N_CREATORS = 7;
-  const topCreators  = sortedCreators.slice(0, TOP_N_CREATORS);
-  const tailCreators = sortedCreators.slice(TOP_N_CREATORS).reduce((s,[,v])=>s+v,0);
-
-  // Persistir o set dos Top N para o bucket "Outros" conseguir filtrar no clique
-  window.TOP_CREATORS_SET = new Set(topCreators.map(([n])=>n));
-
-  const newOrigemLabels = topCreators.map(([n])=>n);
-  const newOrigemVals   = topCreators.map(([,v])=>v);
-  if(tailCreators > 0){ newOrigemLabels.push('Outros'); newOrigemVals.push(tailCreators); }
-  if(semCriador > 0){ newOrigemLabels.push('Sem criador'); newOrigemVals.push(semCriador); }
-
-  // Atualiza arrays globais usados pelo updateDashboard() no scaling
-  origemLabels.length = 0; newOrigemLabels.forEach(x=>origemLabels.push(x));
-  origemVals.length   = 0; newOrigemVals.forEach(x=>origemVals.push(x));
-  CHART_ORIGEM.data.labels = newOrigemLabels;
-  CHART_ORIGEM.data.datasets[0].data = newOrigemVals;
-  CHART_ORIGEM.data.datasets[0].backgroundColor = origemCols.slice(0, newOrigemVals.length);
-  CHART_ORIGEM.update();
-  const newOrigemTot = newOrigemVals.reduce((a,b)=>a+b,0) || 1;
-  renderOleg(newOrigemVals, newOrigemTot);
-
-  // Re-render horizontal bars with real data
-  hbars('hbEsp', espInitV);
-  hbars('hbUnit', unitInitV);
-  // Trigger bar animation
-  ['hbEsp','hbUnit'].forEach(id => {
-    const el = document.getElementById(id);
-    if(el) el.querySelectorAll('.hbf').forEach(b => {
-      b.style.width = '0%';
-      setTimeout(() => { b.style.transition='width 1.2s cubic-bezier(.4,0,.2,1)'; b.style.width=b.dataset.w+'%'; }, 50);
-    });
-  });
-
-  // ── Rebuild specialty dropdown — union of specs seen in appointments + payments ──
-  const dde = document.getElementById('dde');
-  if(dde){
-    const apptSpecs = new Set(appointments.map(a => specNameById[a.speciality_id]).filter(Boolean));
-    const paySpecs  = new Set(Object.keys(specRev));
-    const realSpecs = [...new Set([...apptSpecs, ...paySpecs])].sort();
-    dde.innerHTML = '<div class="ddi sl" onclick="tdi(this)"><span class="dck"><svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></span>Todas</div>' +
-      realSpecs.map(s => `<div class="ddi" onclick="tdi(this)"><span class="dck"></span>${s}</div>`).join('');
-  }
-
-  // ── Rebuild unit dropdown — only clinics actually present in data ──
-  const ddu = document.getElementById('ddu');
-  if(ddu){
-    const presentClinics = [...new Set(appointments.map(a => clinicName(a.clinic_id)))].sort();
-    ddu.innerHTML = '<div class="ddi sl" onclick="tdi(this)"><span class="dck"><svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></span>Todas</div>' +
-      presentClinics.map(n => `<div class="ddi" onclick="tdi(this)"><span class="dck"></span>${n}</div>`).join('');
-  }
-
-  // ── Adjust period filter default to match data range ──
-  const dInputs = document.querySelectorAll('#ddp input[type=date]');
-  if(dInputs.length >= 2){
-    dInputs[0].value = minDate.toISOString().slice(0,10);
-    dInputs[1].value = maxDate.toISOString().slice(0,10);
-  }
-
-  // Re-initialize TS tables with fresh ALL
-  TS.mn.data = ALL; TS.mn.filt = ALL; TS.mn.page = 1;
-  TS.cf.data = ALL.filter(p => p.status === 4); TS.cf.filt = TS.cf.data; TS.cf.page = 1;
-  TS.rg.data = ALL.filter(p => reagendadosApptIds.has(p.id)); TS.rg.filt = TS.rg.data; TS.rg.page = 1;
-  ['mn','cf','rg'].forEach(rTbl);
-
-  // ── Define período padrão = MÊS ATUAL ──────────────────────────────────
-  // (antes não havia default → chart mostrava todo histórico de 2023+, confuso)
+  // Default period = mes atual
   if(!APPLIED.d1 && !APPLIED.d2){
     const t = new Date();
-    const ymd = d => d.toISOString().slice(0,10);
+    const ymd = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
     APPLIED.d1 = ymd(new Date(t.getFullYear(), t.getMonth(), 1));
     APPLIED.d2 = ymd(t);
-    // Atualiza também os inputs do dropdown período pra refletir o estado
     const dInputs = document.querySelectorAll('#ddp input[type=date]');
     if(dInputs[0]) dInputs[0].value = APPLIED.d1;
     if(dInputs[1]) dInputs[1].value = APPLIED.d2;
   }
 
-  // Run the main update to reflect new INIT values across all cards
-  updateDashboard();
-  renderCreatorFilterIndicator();
+  // Fetch lookups + stats em paralelo
+  let lookups, stats;
+  try {
+    [lookups, stats] = await Promise.all([fetchLookups(), fetchStats()]);
+  } catch(e){
+    if(e.message === 'unauthorized') return;
+    showBanner('Erro: ' + e.message, 'error');
+    return;
+  }
+  STATS = stats;
 
-  // ── Métricas Thauany: Campanha + Origem + Vendas Diretas/Follow-up ──
-  // Calcula uma vez no load, e também a cada filtro (chamado em updateDashboard)
-  await computeThauanyMetrics();
+  // Popula dropdowns
+  if(typeof rebuildUnitDropdown === 'function') rebuildUnitDropdown(lookups.clinics);
+  if(typeof rebuildSpecialtyDropdown === 'function') rebuildSpecialtyDropdown(lookups.specialties);
 
-  // Popula a lista de Operadores no dropdown de filtro
-  if(typeof populateOperatorList==='function') populateOperatorList();
+  // Aplica stats na UI
+  applyStatsToUI(stats);
 
-  // Banner de "load OK" removido — usuário pediu pra não aparecer
+  // Popula operadores (do creators_top do stats)
+  if(typeof populateOperatorList === 'function') populateOperatorList();
+
+  // Render activeFilterChips
+  renderActiveFilterChips();
+
+  // Lazy-load tabelas (1a pagina)
+  ['mn','cf','rg'].forEach(k => loadTablePage(k));
+
+  // Computa marketing
+  if(typeof computeThauanyMetrics === 'function') computeThauanyMetrics().catch(()=>{});
+
   hideBanner();
-  console.log(`[load] ${ALL.length} agend · ${logs.length} logs · ${livePayments.length} pays · ${uniquePatients} pacs · reag=${reag} (${reagSource})`);
+  console.log('[load v2] stats:', { kpis: stats.kpis, mc_revenue: stats.mc_revenue });
+}
+
+// ── Repopula dropdown de Unidades a partir de lookups (READ-ONLY de unitConfigs) ──
+function rebuildUnitDropdown(clinics){
+  const ddu = document.getElementById('ddu');
+  if(!ddu) return;
+  // Adiciona a busca + lista
+  ddu.innerHTML = '<div style="padding:8px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--card2);z-index:1;">'
+    + '<input type="text" id="dduSearch" placeholder="Buscar unidade\u2026" oninput="filterUnitList(this.value)" style="width:100%;background:rgba(0,0,0,.04);border:1px solid var(--border);color:var(--white);font-family:inherit;font-size:11.5px;padding:7px 10px;border-radius:6px;outline:none;"></div>'
+    + '<div id="dduList" style="max-height:240px;overflow-y:auto;">'
+    + '<div class="ddi sl" onclick="tdi(this)"><span class="dck"><svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></span>Todas</div>'
+    + clinics.map(c => '<div class="ddi" data-id="' + c.id + '" onclick="tdi(this)"><span class="dck"></span>' + c.name + '</div>').join('')
+    + '</div>';
+}
+
+function filterUnitList(q){
+  const ql = (q||'').toLowerCase().trim();
+  const list = document.getElementById('dduList');
+  if(!list) return;
+  list.querySelectorAll('.ddi').forEach((el, i) => {
+    if(i === 0){ el.style.display = ''; return; } // Todas sempre visivel
+    const txt = el.textContent.toLowerCase();
+    el.style.display = (!ql || txt.includes(ql)) ? '' : 'none';
+  });
+}
+
+function rebuildSpecialtyDropdown(specs){
+  const dde = document.getElementById('dde');
+  if(!dde) return;
+  dde.innerHTML = '<div class="ddi sl" onclick="tdi(this)"><span class="dck"><svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></span>Todas</div>'
+    + specs.map(s => '<div class="ddi" data-id="' + s.id + '" onclick="tdi(this)"><span class="dck"></span>' + s.name + '</div>').join('');
+}
+
+// ── Carrega uma pagina de tabela (k = 'mn'|'cf'|'rg') ──
+async function loadTablePage(k){
+  const tConf = TS[k];
+  if(!tConf) return;
+  const params = buildStatsParams();
+  params.set('page', String(tConf.page || 1));
+  params.set('pp', String(tConf.pp || 10));
+  if(tConf.search) params.set('search', tConf.search);
+  if(k === 'cf') params.set('only_status', '4');
+  if(k === 'rg') params.set('only_status', '3');
+  try {
+    const r = await fetch('/api/dashboard/appointments?' + params.toString(), { credentials: 'same-origin' });
+    if(r.status === 401){ window.location.href = '/login.html'; return; }
+    if(!r.ok) return;
+    const j = await r.json();
+    tConf.rows = j.data || [];
+    tConf.total = j.pagination?.total || 0;
+    tConf.totalPages = j.pagination?.total_pages || 1;
+    rTbl(k);
+  } catch(e){
+    console.error('[loadTablePage]', k, e);
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -2496,24 +2165,15 @@ const ATTENDED_STATUSES = new Set([6, 7, 8]); // check-in, atendido, concluído
 const SPEC_AVALIACAO_NAMES = new Set(['Avaliação', 'Avaliacao', 'AVALIAÇÃO']);
 
 async function computeThauanyMetrics(){
-  // Trabalha sempre sobre os dados FILTRADOS por período/unidade/etc.
-  const fd = filteredALL();
-  // appointments filtrados (objetos no formato bruto do Supabase, dentro de RAW_APPOINTMENTS)
-  const fdIds = new Set(fd.map(p => p.id));
-  const appointments = (typeof RAW_APPOINTMENTS!=='undefined'?RAW_APPOINTMENTS:[]).filter(a => fdIds.has(a.id));
-  // pagamentos filtrados pelo mesmo período + unidades aplicadas
-  const d1=APPLIED.d1?new Date(APPLIED.d1+'T00:00:00'):null;
-  const d2=APPLIED.d2?new Date(APPLIED.d2+'T23:59:59'):null;
-  const activeUnitsSet=APPLIED.units;
-  const payments = (typeof RAW_PAYMENTS!=='undefined'?RAW_PAYMENTS:[]).filter(p => {
-    if(p.deleted_at) return false;
-    if(!p.is_confirmed) return false;
-    const dt=new Date(p.date);
-    if(d1&&dt<d1) return false;
-    if(d2&&dt>d2) return false;
-    if(activeUnitsSet){const n=clinicName(p.clinic_id);if(!activeUnitsSet.has(n)) return false;}
-    return true;
-  });
+  // V2: usa STATS server-side ao invés de RAW data.
+  // Métricas de Origem (Campanha/Orgânico/Indicação/Resgate) precisam de
+  // campo dedicado pra ficarem precisas — por enquanto exibimos contadores
+  // simples baseados em campaign_token + Chatwoot cache.
+  const stats = STATS || {};
+  const k = stats.kpis || {};
+  // appointments e payments locais como arrays vazios — mantém compat com código antigo abaixo
+  const appointments = [];
+  const payments = [];
   // ── 1. Classificação de cada paciente por origem ──
   // Critério atual:
   //   - Campanha: paciente cujo PRIMEIRO appointment tem campaign_token
@@ -2563,7 +2223,8 @@ async function computeThauanyMetrics(){
   } catch(_) {}
 
   setTxt('cmpLeads', leadsFromCampaign.toLocaleString('pt-BR'));
-  setTxt('cmpAgend', campAppts.length.toLocaleString('pt-BR'));
+  // V2: cmpAgend vem do STATS.campaign_count (count distinct de appts com campaign_token)
+  setTxt('cmpAgend', (stats.campaign_count || campAppts.length || 0).toLocaleString('pt-BR'));
   setTxt('cmpComp',  campAttended.length.toLocaleString('pt-BR'));
   setTxt('cmpVendas', fmtMoney(campSales));
 
