@@ -1193,7 +1193,7 @@ function renderCreatorFilterIndicator(){
 
 // Chart 5: Age bar (original fixed data)
 const ageInitData=[0,0,0,0,0];
-const CHART_AGE=new Chart(document.getElementById('chAge'),{type:'bar',data:{labels:['0–10','11–20','21–40','41–60','60+'],datasets:[{label:'Pacientes',data:ageInitData,backgroundColor:ctx=>{const{chart}=ctx;const{chartArea}=chart;if(!chartArea)return'#a855f7cc';const g=chart.ctx.createLinearGradient(chartArea.left,0,chartArea.right,0);g.addColorStop(0,'#a855f7cc');g.addColorStop(1,'#06b6d4cc');return g;},borderRadius:5,borderSkipped:false}]},options:{responsive:true,maintainAspectRatio:false,layout:{padding:{right:18,left:4,top:8,bottom:0}},plugins:{legend:{display:false},tooltip:{...TTP,callbacks:{label:c=>` ${c.raw} pacientes`}}},scales:{x:{grid:{display:false}},y:{grid:{color:'rgba(255,255,255,.03)'},beginAtZero:true}}}});
+const CHART_AGE=new Chart(document.getElementById('chAge'),{type:'bar',data:{labels:['0–10','11–20','21–40','41–60','60+'],datasets:[{label:'Pacientes',data:ageInitData,backgroundColor:ctx=>{const{chart}=ctx;const{chartArea}=chart;if(!chartArea)return'#a855f7cc';const g=chart.ctx.createLinearGradient(chartArea.left,0,chartArea.right,0);g.addColorStop(0,'#a855f7cc');g.addColorStop(1,'#06b6d4cc');return g;},borderRadius:5,borderSkipped:false}]},options:{responsive:true,maintainAspectRatio:false,layout:{padding:{right:28,left:8,top:10,bottom:4}},plugins:{legend:{display:false},tooltip:{...TTP,callbacks:{label:c=>` ${c.raw} pacientes`}}},scales:{x:{grid:{display:false}},y:{grid:{color:'rgba(255,255,255,.03)'},beginAtZero:true}}}});
 
 // ── HORIZONTAL BARS ──────────────────────────────────
 function hbars(id,items){
@@ -2625,9 +2625,12 @@ function renderActiveFilterChips(){
 }
 function clearAllFilters(){
   MC_MODE = 'ALL'; if(typeof setMCMode==='function') setMCMode('ALL');
-  APPLIED.d1=null; APPLIED.d2=null;
-  APPLIED.units=null; APPLIED.specs=null; APPLIED.statuses=null; APPLIED.creators=null;
+  APPLIED.d1 = null; APPLIED.d2 = null;
+  APPLIED.units = null; APPLIED.specs = null; APPLIED.statuses = null; APPLIED.creators = null;
   ['ddu','dde','dds'].forEach(selectAllInDropdown);
+  const dInputs = document.querySelectorAll('#ddp input[type=date]');
+  if(dInputs[0]) dInputs[0].value = '';
+  if(dInputs[1]) dInputs[1].value = '';
   updateDashboard();
 }
 function selectAllInDropdown(ddId){

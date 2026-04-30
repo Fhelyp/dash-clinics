@@ -1,8 +1,11 @@
 name: Deploy to Cloudflare
 
+# AUTO-DEPLOY DESATIVADO até o secret CLOUDFLARE_API_TOKEN ser adicionado em
+#   https://github.com/Fhelyp/dash-clinics/settings/secrets/actions
+# Quando configurar, descomente o bloco "push" abaixo.
 on:
-  push:
-    branches: [main]
+  # push:
+  #   branches: [main]
   workflow_dispatch:
 
 jobs:
