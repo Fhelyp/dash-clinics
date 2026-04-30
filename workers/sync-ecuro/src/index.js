@@ -113,8 +113,8 @@ async function upsertRows(env, table, rows) {
   return rows.length;
 }
 
-// ── Ecuro fetch (suporta diferentes esquemas de auth) ──────────────
-async function ecuroFetch(env, path, params) {
+// ── Ecuro fetch com retry em 429/503/5xx ────────────────────────────
+async function ecuroFetch(env, path, params, _attempt = 0) {
   const url = new URL(env.ECURO_BASE_URL + path);
   const headers = { Accept: 'application/json' };
 
@@ -129,6 +129,23 @@ async function ecuroFetch(env, path, params) {
     url.searchParams.set(k, String(v));
   }
   const r = await fetch(url, { headers });
+  if (r.status === 429 || (r.status >= 500 && r.status < 600)) {
+    if (_attempt >= 4) {
+      const body = await r.text();
+      throw new Error(`Ecuro ${path} ${r.status} após ${_attempt} retries: ${body.slice(0, 200)}`);
+    }
+    // Respeita retryAfter do response (em segundos), com cap de 90s + jitter
+    let waitMs = 5000 * Math.pow(2, _attempt); // 5s, 10s, 20s, 40s
+    try {
+      const body = await r.clone().json();
+      const ra = parseInt(body?.retryAfter || 0, 10);
+      if (ra > 0) waitMs = Math.min(ra * 1000 + 1000, 90000);
+    } catch (_) {}
+    waitMs += Math.random() * 1500; // jitter
+    console.log(`[ecuro] ${path} ${r.status} — retry ${_attempt + 1}/4 em ${Math.round(waitMs)}ms`);
+    await new Promise(res => setTimeout(res, waitMs));
+    return ecuroFetch(env, path, params, _attempt + 1);
+  }
   if (!r.ok) {
     const body = await r.text();
     throw new Error(`Ecuro ${path} ${r.status}: ${body.slice(0, 300)}`);
@@ -144,11 +161,16 @@ async function runIncremental(env, { lookbackHours = 36 } = {}) {
   const safeHours = Math.min(lookbackHours, MAX_LOOKBACK_HOURS);
   const since = new Date(Date.now() - safeHours * 3600 * 1000).toISOString();
   console.log(`[incremental] ${clinics.length} clínicas, since=${since}`);
+  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
-  for (const c of clinics) {
+  for (let i = 0; i < clinics.length; i++) {
+    const c = clinics[i];
+    if (i > 0) await sleep(1800); // pausa entre clínicas
     const clinicId = c.Ecuro_clinicId;
     if (!clinicId) continue;
-    for (const feed of FEEDS) {
+    for (let fi = 0; fi < FEEDS.length; fi++) {
+      const feed = FEEDS[fi];
+      if (fi > 0) await sleep(1000);
       try {
         const state = await readSyncState(env, feed.name, clinicId);
         const updatedAfter = state?.last_updated_at || since;
@@ -179,13 +201,32 @@ async function runBootstrap(env, { startDate, endDate, feeds = [], onlyClinics =
   const targets = (onlyClinics.length ? clinics.filter(c => onlyClinics.includes(c.Ecuro_clinicId)) : clinics);
   const targetFeeds = feeds.length ? FEEDS.filter(f => feeds.includes(f.name)) : FEEDS;
   console.log(`[bootstrap] ${targets.length} clínicas × ${targetFeeds.length} feeds, ${startDate}→${endDate}`);
-  for (const c of targets) {
-    for (const feed of targetFeeds) {
+  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+  for (let i = 0; i < targets.length; i++) {
+    const c = targets[i];
+    if (i > 0) await sleep(2500); // pausa entre clínicas pra respeitar rate limit
+    for (let f = 0; f < targetFeeds.length; f++) {
+      const feed = targetFeeds[f];
+      if (f > 0) await sleep(1200); // pausa entre feeds da mesma clínica
       try {
         const total = await pullAndUpsert(env, feed, c.Ecuro_clinicId, { mode: 'bootstrap', startDate, endDate });
+        // Persistir progresso por clínica/feed pra recovery
+        await writeSyncState(env, {
+          feed: feed.name, clinic_id: c.Ecuro_clinicId,
+          last_run_at: new Date().toISOString(),
+          last_run_status: 'ok',
+          last_run_error: null,
+          rows_synced_total: total
+        }).catch(() => {});
         console.log(`[bootstrap][${c.Unidade}][${feed.name}] +${total}`);
       } catch (e) {
         console.error(`[bootstrap][${c.Unidade}][${feed.name}]`, e.message);
+        await writeSyncState(env, {
+          feed: feed.name, clinic_id: c.Ecuro_clinicId,
+          last_run_at: new Date().toISOString(),
+          last_run_status: 'error',
+          last_run_error: e.message.slice(0, 500)
+        }).catch(() => {});
       }
     }
   }

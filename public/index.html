@@ -676,8 +676,8 @@
           <button type="button" onclick="quickPeriod('ytd')" style="background:rgba(168,85,247,.08);border:1px solid var(--border);color:var(--gray-l);padding:6px 8px;border-radius:6px;font-family:inherit;font-size:10.5px;cursor:pointer;">Ano</button>
           <button type="button" onclick="quickPeriod('all')" style="background:rgba(168,85,247,.08);border:1px solid var(--border);color:var(--gray-l);padding:6px 8px;border-radius:6px;font-family:inherit;font-size:10.5px;cursor:pointer;">Tudo</button>
         </div>
-        <label>Data Inicial</label><input type="date" value="2026-04-01">
-        <label>Data Final</label><input type="date" value="2026-04-29">
+        <label>Data Inicial</label><input type="date">
+        <label>Data Final</label><input type="date">
         <button class="dapply" onclick="applyDateFilter()">Aplicar Período</button>
       </div>
     </div>
@@ -2362,6 +2362,19 @@ async function loadFromSupabase(){
   TS.cf.data = ALL.filter(p => p.status === 4); TS.cf.filt = TS.cf.data; TS.cf.page = 1;
   TS.rg.data = ALL.filter(p => reagendadosApptIds.has(p.id)); TS.rg.filt = TS.rg.data; TS.rg.page = 1;
   ['mn','cf','rg'].forEach(rTbl);
+
+  // ── Define período padrão = MÊS ATUAL ──────────────────────────────────
+  // (antes não havia default → chart mostrava todo histórico de 2023+, confuso)
+  if(!APPLIED.d1 && !APPLIED.d2){
+    const t = new Date();
+    const ymd = d => d.toISOString().slice(0,10);
+    APPLIED.d1 = ymd(new Date(t.getFullYear(), t.getMonth(), 1));
+    APPLIED.d2 = ymd(t);
+    // Atualiza também os inputs do dropdown período pra refletir o estado
+    const dInputs = document.querySelectorAll('#ddp input[type=date]');
+    if(dInputs[0]) dInputs[0].value = APPLIED.d1;
+    if(dInputs[1]) dInputs[1].value = APPLIED.d2;
+  }
 
   // Run the main update to reflect new INIT values across all cards
   updateDashboard();
