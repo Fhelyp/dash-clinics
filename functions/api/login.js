@@ -159,7 +159,15 @@ async function handle({ request, env }) {
     iss: env.JWT_ISSUER || 'dash-clinics',
     auth: authedViaCw ? 'chatwoot' : 'local',
     // null = acesso a todas as clínicas; array = restrito
-    allowed_clinic_ids: allowedClinicIds
+    allowed_clinic_ids: allowedClinicIds,
+    // Diagnóstico (apenas pra debug — pode remover depois)
+    _debug: {
+      cw_account_ids: cwAccountIds,
+      cw_is_super: !!cwUser.is_super_admin,
+      cw_role: cwUser.role || null,
+      cw_type: cwUser.type || null,
+      local_admin: isLocalAdmin
+    }
   };
   const token = await signJWT(claims, env.JWT_SECRET, ttl);
   const tokenHash = await sha256Hex(token);

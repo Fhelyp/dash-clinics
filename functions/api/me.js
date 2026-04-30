@@ -6,7 +6,7 @@ export async function onRequestGet({ data }) {
     name: u.name,
     sub: u.sub,
     auth_source: u.auth || null,
-    // RBAC: null = todas as clínicas; array = só essas
-    allowed_clinic_ids: u.allowed_clinic_ids ?? null
+    allowed_clinic_ids: u.allowed_clinic_ids ?? null,
+    _debug: u._debug || null
   }), { status: 200, headers: { 'Content-Type': 'application/json' } });
 }
