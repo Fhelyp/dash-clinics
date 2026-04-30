@@ -49,7 +49,9 @@ async function chatwootSignIn(baseUrl, email, password) {
         confirmed: u.confirmed !== false,
         role: u.role || null,
         type: u.type || null,
-        is_super_admin: u.type === 'SuperAdmin' || u.role === 'administrator',
+        // SuperAdmin = role GLOBAL no Chatwoot. role='administrator' é admin DA conta
+        // (operador que gerencia 1 unidade no Chatwoot) — não bypass RBAC.
+        is_super_admin: u.type === 'SuperAdmin',
         account_ids: accountIds
       }
     };
