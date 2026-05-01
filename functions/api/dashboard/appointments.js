@@ -16,6 +16,7 @@ export async function onRequestGet({ request, env, data }) {
   const clinicIdsRaw = url.searchParams.get('clinic_ids') || '';
   const specialtyIdsRaw = url.searchParams.get('specialty_ids') || '';
   const statusCodesRaw = url.searchParams.get('status_codes') || '';
+  const creatorsRaw = url.searchParams.get('creators') || '';
 
   if (!start || !end) {
     return j(400, { error: 'missing_params', message: 'start e end obrigatórios' });
@@ -40,7 +41,7 @@ export async function onRequestGet({ request, env, data }) {
 
   // Monta query PostgREST
   const qs = new URLSearchParams();
-  qs.set('select', 'id,patient_id,patient_name,clinic_id,doctor_name,start_time,scheduled_start_time,status,speciality_id,channel_id,created_by_name,phone');
+  qs.set('select', 'id,patient_id,patient_name,clinic_id,doctor_name,start_time,scheduled_start_time,status,speciality_id,channel_id,created_by_name,phone,type,campaign_token,source,src,lead_source');
   qs.append('start_time', `gte.${start}T00:00:00+00:00`);
   qs.append('start_time', `lt.${end}T00:00:00+00:00`);
 
@@ -59,17 +60,58 @@ export async function onRequestGet({ request, env, data }) {
     qs.append('status', `eq.${parseInt(onlyStatus,10)}`);
   }
 
-  // Search: nome (com acentos) OU telefone.
-  // IMPORTANTE: NÃO usar encodeURIComponent aqui — URLSearchParams.append já encoda.
-  // Escape de chars especiais do PostgREST OR syntax: () , *
+  // Filtro de creators (operadores). Vem separado por pipe ('|') do front.
+  // Match exato no created_by_name (após trim/normalização que o front já faz na exibição).
+  // Se múltiplos: usa filter in.()
+  if (creatorsRaw) {
+    const list = creatorsRaw.split('|').map(s => s.trim()).filter(Boolean);
+    if (list.length === 1) {
+      // ilike pra ser tolerante a espaços extras
+      qs.append('created_by_name', `ilike.${list[0]}`);
+    } else if (list.length > 1) {
+      // PostgREST in.() exige escape de chars especiais — vírgulas, parênteses
+      const safe = list.map(s => `"${s.replace(/"/g, '\\"')}"`).join(',');
+      qs.append('created_by_name', `in.(${safe})`);
+    }
+  }
+
+  // Search: usa colunas geradas (patient_name_norm, phone_norm) pra ser
+  //  - acento-insensitive (idecácio == idecacio)
+  //  - tolerante a 9º dígito do celular BR (1198765432X bate com 11987654321 e 1187654321)
+  //  - tolerante a chars especiais no telefone (apenas dígitos contam)
   if (search) {
     const digits = search.replace(/\D/g, '');
-    // Limpa caracteres especiais que quebrariam o OR clause do PostgREST
-    const safeSearch = search.replace(/[(),*]/g, ' ').trim();
+    // Normalize nome: lower + remove diacríticos (NFD → strip combining marks U+0300..U+036F)
+    const nameNorm = search.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+      .replace(/[(),*]/g, ' ').trim();
+
+    // Variantes de telefone: gera tanto a versão com 9 quanto sem 9
+    // (heurística BR mobile: DDD = 2 dig, 9 opcional, 8 dig)
+    const phoneVariants = new Set();
     if (digits.length >= 4) {
-      qs.append('or', `(patient_name.ilike.*${safeSearch}*,phone.ilike.*${digits}*)`);
-    } else if (safeSearch) {
-      qs.append('patient_name', `ilike.*${safeSearch}*`);
+      phoneVariants.add(digits);
+      // 10 dígitos: DDD (2) + 8 dig — adiciona variante com 9 (DDD + 9 + 8)
+      if (digits.length === 10) phoneVariants.add(digits.slice(0,2) + '9' + digits.slice(2));
+      // 11 dígitos com 9 no terceiro char: DDD + 9 + 8 — adiciona sem 9
+      if (digits.length === 11 && digits[2] === '9') phoneVariants.add(digits.slice(0,2) + digits.slice(3));
+      // 13 dígitos (CC + DDD + 9 + 8): adiciona sem CC e sem 9
+      if (digits.length === 13 && digits.slice(0,2) === '55' && digits[4] === '9') {
+        phoneVariants.add(digits.slice(2)); // CC stripped
+        phoneVariants.add(digits.slice(2,4) + digits.slice(5)); // CC + sem 9
+      }
+      // 12 dígitos (CC + DDD + 8): adiciona sem CC + adiciona com 9
+      if (digits.length === 12 && digits.slice(0,2) === '55') {
+        phoneVariants.add(digits.slice(2));
+        phoneVariants.add(digits.slice(2,4) + '9' + digits.slice(4));
+      }
+    }
+
+    if (phoneVariants.size > 0 || nameNorm) {
+      const orParts = [];
+      if (nameNorm) orParts.push(`patient_name_norm.ilike.*${nameNorm}*`);
+      for (const v of phoneVariants) orParts.push(`phone_norm.ilike.*${v}*`);
+      // PostgREST OR clause aceita 1+ cláusulas
+      if (orParts.length > 0) qs.append('or', `(${orParts.join(',')})`);
     }
   }
 

@@ -18,13 +18,17 @@ export default {
     //  "0 7 * * *" (04h BRT) → incremental últimas 36h
     if (event.cron === '0 1 * * *') {
       // Bootstrap profundo (catch-up): inclui mês corrente + 7 dias atrás como buffer
-      // Garante que dados perdidos pela incremental sejam reprocessados
+      // Garante que dados perdidos pela incremental sejam reprocessados.
+      // ANTES do bootstrap: roda cleanup rolling 3 meses pra liberar espaço.
       const today = new Date();
       const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
       const start = new Date(Math.min(monthStart.getTime(), today.getTime() - 30 * 24 * 3600 * 1000));
       const ymd = (d) => d.toISOString().slice(0, 10);
-      console.log(`[cron 22h BRT] Bootstrap ${ymd(start)} → ${ymd(today)}`);
-      ctx.waitUntil(runBootstrap(env, { startDate: ymd(start), endDate: ymd(today), feeds: [], onlyClinics: [] }));
+      console.log(`[cron 22h BRT] Cleanup + Bootstrap ${ymd(start)} → ${ymd(today)}`);
+      ctx.waitUntil((async () => {
+        try { await runCleanup(env); } catch (e) { console.error('[cleanup]', e.message); }
+        await runBootstrap(env, { startDate: ymd(start), endDate: ymd(today), feeds: [], onlyClinics: [] });
+      })());
     } else {
       console.log(`[cron 04h BRT] Incremental 36h lookback`);
       ctx.waitUntil(runIncremental(env, { lookbackHours: 36 }));
@@ -45,6 +49,17 @@ export default {
       if (!startDate || !endDate) return json({ error: 'missing startDate/endDate' }, 400);
       ctx.waitUntil(runBootstrap(env, { startDate, endDate, feeds, onlyClinics }));
       return json({ ok: true, message: 'backfill iniciado em background', startDate, endDate });
+    }
+
+    if (url.pathname === '/cleanup' && req.method === 'POST') {
+      const auth = req.headers.get('x-admin-token') || '';
+      if (!env.ADMIN_TOKEN || auth !== env.ADMIN_TOKEN) return json({ error: 'unauthorized' }, 401);
+      try {
+        const result = await runCleanup(env);
+        return json({ ok: true, result });
+      } catch (e) {
+        return json({ ok: false, error: e.message }, 500);
+      }
     }
 
     if (url.pathname === '/run-incremental' && req.method === 'POST') {
@@ -70,6 +85,20 @@ function supaHeaders(env, prefer = '') {
     'Content-Type': 'application/json',
     ...(prefer ? { Prefer: prefer } : {})
   };
+}
+
+// Roda cleanup_old_data() via PostgREST RPC. Mantém current month + 2 meses anteriores.
+async function runCleanup(env) {
+  const url = `${env.SUPABASE_URL}/rest/v1/rpc/cleanup_old_data`;
+  const r = await fetch(url, {
+    method: 'POST',
+    headers: supaHeaders(env),
+    body: '{}'
+  });
+  if (!r.ok) throw new Error(`cleanup_old_data: ${r.status} ${await r.text()}`);
+  const result = await r.json();
+  console.log('[cleanup]', JSON.stringify(result));
+  return result;
 }
 
 async function listClinics(env) {

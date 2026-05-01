@@ -868,6 +868,29 @@
       </div>
     </div>
 
+    <!-- ═══ Funil de Vendas (5 estágios) ═══ -->
+    <div class="card" style="margin-bottom:var(--gap);padding:18px 22px;">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--gray-l);margin-bottom:14px;">Funil de Vendas — Campanha</div>
+      <div id="fnlBars" style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;align-items:end;min-height:170px;">
+        <!-- Cada estágio: barra visual + valor + conversão pra próxima etapa -->
+        <div class="fnl-stage" data-k="leads"><div class="fnl-bar" style="background:linear-gradient(180deg,var(--purple),rgba(168,85,247,.4))"></div><div class="fnl-lbl">Leads</div><div class="fnl-val" id="fnlLeads">0</div><div class="fnl-conv" id="fnlConvLA">—</div></div>
+        <div class="fnl-stage" data-k="agend"><div class="fnl-bar" style="background:linear-gradient(180deg,var(--blue),rgba(59,130,246,.4))"></div><div class="fnl-lbl">Agend.</div><div class="fnl-val" id="fnlAgend">0</div><div class="fnl-conv" id="fnlConvAC">—</div></div>
+        <div class="fnl-stage" data-k="comp"><div class="fnl-bar" style="background:linear-gradient(180deg,var(--teal),rgba(45,212,191,.4))"></div><div class="fnl-lbl">Compar.</div><div class="fnl-val" id="fnlComp">0</div><div class="fnl-conv" id="fnlConvCV">—</div></div>
+        <div class="fnl-stage" data-k="vend"><div class="fnl-bar" style="background:linear-gradient(180deg,var(--green),rgba(34,197,94,.4))"></div><div class="fnl-lbl">Vendas</div><div class="fnl-val" id="fnlVend">0</div><div class="fnl-conv" id="fnlConvVF">—</div></div>
+        <div class="fnl-stage" data-k="foll"><div class="fnl-bar" style="background:linear-gradient(180deg,var(--orange),rgba(251,146,60,.4))"></div><div class="fnl-lbl">Follow-up</div><div class="fnl-val" id="fnlFoll">0</div><div class="fnl-conv">retenção</div></div>
+      </div>
+      <div style="font-size:9.5px;color:var(--gray);margin-top:12px;line-height:1.5;border-top:1px solid var(--border);padding-top:10px;">
+        <strong>Definições:</strong> Leads = contatos com tag campanha (Chatwoot). Agend. = appointments com <code>campaign_token</code>. Compar. = status atendido/concluído. Vendas = pagamentos confirmados de pacientes campanha. Follow-up = pagamentos não-Avaliação desses pacientes (retorno).
+      </div>
+    </div>
+    <style>
+      .fnl-stage{display:flex;flex-direction:column;align-items:center;gap:6px;position:relative}
+      .fnl-bar{width:100%;border-radius:6px 6px 0 0;min-height:20px;transition:height .35s}
+      .fnl-lbl{font-size:10px;color:var(--gray-l);text-transform:uppercase;letter-spacing:.06em}
+      .fnl-val{font-size:22px;font-weight:800;color:var(--white);font-family:'JetBrains Mono',monospace}
+      .fnl-conv{font-size:10px;color:var(--gray);font-family:'JetBrains Mono',monospace}
+    </style>
+
     <!-- ═══ NOVA LINHA: Tipos de Paciente + Vendas Diretas vs Follow-Up ═══ -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--gap);margin-bottom:var(--gap);">
       <div class="card">
@@ -1665,10 +1688,16 @@ function applyStatsToUI(stats){
   const mcConvPct = mcAgend > 0 ? Math.round(mcConcl / mcAgend * 100) : 0;
   const totalAg = k.agendamentos || 0;
   const vsMCpct = totalAg > 0 ? Math.round(mcAgend / totalAg * 100) : 0;
+  // Atribuição V2 (último comparecimento ≤30d antes do pagamento) é a regra atual.
+  // Mantém legacy (stats.mc_revenue) acessível pra debug via window.__mcRevLegacy.
+  const attrV2 = stats.attribution_v2 || {};
+  const mcRevenueV2 = parseFloat(stats.mc_revenue_v2 ?? attrV2.mc_revenue ?? stats.mc_revenue) || 0;
+  window.__mcRevLegacy = parseFloat(stats.mc_revenue) || 0;
+  window.__attrV2 = attrV2;
   if(typeof updateMC === 'function'){
     updateMC({
       mcAgend, mcConvPct,
-      mcRevenue: parseFloat(stats.mc_revenue) || 0,
+      mcRevenue: mcRevenueV2,
       totalRev: rev,
       vsMCpct
     });
@@ -1711,19 +1740,68 @@ const TS = {
   cf: { rows: [], total: 0, totalPages: 1, page: 1, pp: 10, search: '' },
   rg: { rows: [], total: 0, totalPages: 1, page: 1, pp: 10, search: '' }
 };
+// Helpers de exibição: Origem e Tipo de consulta (Thawany feedback).
+function originLabel(p){
+  // Campaign_token preenchido → Campanha
+  if (p && p.campaign_token && String(p.campaign_token).trim() !== '' && String(p.campaign_token).toLowerCase() !== 'none') return 'Campanha';
+  // Campo source/src/lead_source (a popular quando Ecuro adicionar) — pode trazer 'campanha','organico','indicacao','resgate'
+  const src = (p && (p.source || p.src || p.lead_source) || '').toLowerCase().trim();
+  if (src) {
+    if (src.startsWith('camp')) return 'Campanha';
+    if (src.startsWith('indi')) return 'Indicação';
+    if (src.startsWith('resg')) return 'Resgate';
+    if (src.startsWith('org'))  return 'Orgânico';
+    return src.charAt(0).toUpperCase() + src.slice(1);
+  }
+  return 'Orgânico';
+}
+function originColor(lbl){
+  return ({
+    'Campanha':'color:var(--purple)',
+    'Orgânico':'color:var(--blue)',
+    'Indicação':'color:var(--teal)',
+    'Resgate':'color:var(--orange)'
+  })[lbl] || 'color:var(--gray-l)';
+}
+function typeLabel(t){
+  // Ecuro: type=1 = 1ª consulta (avaliação), type=2 = retorno
+  if (t === 1) return '1ª';
+  if (t === 2) return 'Retorno';
+  return '—';
+}
+
 function rTbl(k){
   const s = TS[k];
   const rows = s.rows || [];
   const tbody = document.getElementById('tb' + k.charAt(0).toUpperCase() + k.slice(1));
+  // cf/rg vêm de /audit-events (shape diferente: action_at, is_mc, to_status, sem status atual)
+  const isAuditEvent = (k === 'cf' || k === 'rg');
   if(tbody) tbody.innerHTML = rows.map(p => {
-    const d = new Date(p.start_time);
+    const tsRaw = isAuditEvent ? (p.action_at || p.start_time) : p.start_time;
+    const d = new Date(tsRaw);
     const dt = d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
     const unit = clinicName(p.clinic_id);
+    const ori = originLabel(p);
+    const tip = typeLabel(p.type);
+    let badge;
+    if (isAuditEvent) {
+      const actorLbl = p.is_mc ? 'Maria Clara' : (p.created_by_name || 'Operador');
+      const actorClass = p.is_mc
+        ? 'background:rgba(120,180,255,.15);color:#7ab4ff;border:1px solid rgba(120,180,255,.3)'
+        : 'background:rgba(180,180,180,.12);color:#bbb;border:1px solid rgba(180,180,180,.25)';
+      badge = '<span class="sbdg" style="' + actorClass + '">' + actorLbl + '</span>';
+    } else {
+      badge = '<span class="sbdg" style="' + (STS[p.status]||'') + '">' + (STM[p.status]||p.status) + '</span>';
+    }
+    const pid = p.patient_id;
+    const link = pid ? '<a class="ebtn" href="https://ecuro.com.br/dashboard/patient-profile/' + pid + '?activeTab=appointments" target="_blank" rel="noopener noreferrer" title="Abrir ficha do paciente" style="text-decoration:none;"><svg width="9" height="9" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>' : '';
     return '<tr><td>' + (p.patient_name||'').trim() + '</td>'
       + '<td style="font-size:10.5px">' + unit + '</td>'
+      + '<td style="font-size:10.5px;' + originColor(ori) + '">' + ori + '</td>'
+      + '<td style="font-size:10.5px;color:var(--gray-l)">' + tip + '</td>'
       + '<td style="font-size:10px;font-family:\'JetBrains Mono\',monospace">' + dt + '</td>'
-      + '<td><span class="sbdg" style="' + (STS[p.status]||'') + '">' + (STM[p.status]||p.status) + '</span></td>'
-      + '<td>' + (p.patient_id ? '<a class="ebtn" href="https://ecuro.com.br/dashboard/patient-profile/' + p.patient_id + '?activeTab=appointments" target="_blank" rel="noopener noreferrer" title="Abrir ficha do paciente" style="text-decoration:none;"><svg width="9" height="9" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>' : '') + '</td></tr>';
+      + '<td>' + badge + '</td>'
+      + '<td>' + link + '</td></tr>';
   }).join('');
   rPag(k, s.totalPages || 1);
 }
@@ -2160,6 +2238,9 @@ function rebuildSpecialtyDropdown(specs){
 }
 
 // ── Carrega uma pagina de tabela (k = 'mn'|'cf'|'rg') ──
+// mn → /api/dashboard/appointments  (agendamentos CRIADOS no período)
+// cf → /api/dashboard/audit-events?type=confirmation  (eventos de confirmação)
+// rg → /api/dashboard/audit-events?type=reschedule    (eventos de reagendamento)
 async function loadTablePage(k){
   const tConf = TS[k];
   if(!tConf) return;
@@ -2167,10 +2248,25 @@ async function loadTablePage(k){
   params.set('page', String(tConf.page || 1));
   params.set('pp', String(tConf.pp || 10));
   if(tConf.search) params.set('search', tConf.search);
-  if(k === 'cf') params.set('only_status', '4');
-  if(k === 'rg') params.set('only_status', '3');
+
+  let endpoint;
+  if (k === 'cf') {
+    endpoint = '/api/dashboard/audit-events';
+    params.set('type', 'confirmation');
+    // Se filtro MC ativo, força só logs do user_id da MC; HUM idem
+    if (MC_MODE === 'MC') params.set('is_mc', 'true');
+    else if (MC_MODE === 'OP') params.set('is_mc', 'false');
+  } else if (k === 'rg') {
+    endpoint = '/api/dashboard/audit-events';
+    params.set('type', 'reschedule');
+    if (MC_MODE === 'MC') params.set('is_mc', 'true');
+    else if (MC_MODE === 'OP') params.set('is_mc', 'false');
+  } else {
+    endpoint = '/api/dashboard/appointments';
+  }
+
   try {
-    const r = await fetch('/api/dashboard/appointments?' + params.toString(), { credentials: 'same-origin' });
+    const r = await fetch(endpoint + '?' + params.toString(), { credentials: 'same-origin' });
     if(r.status === 401){ window.location.href = '/login.html'; return; }
     if(!r.ok) return;
     const j = await r.json();
@@ -2251,6 +2347,43 @@ async function computeThauanyMetrics(){
   setTxt('cmpAgend', (stats.campaign_count || 0).toLocaleString('pt-BR'));
   setTxt('cmpComp',  campAttended.length.toLocaleString('pt-BR'));
   setTxt('cmpVendas', fmtMoney(campSales));
+
+  // ── Funil de Vendas (5 estágios) ──
+  // Reusa os mesmos números do bloco de KPIs acima.
+  const fnlLeads = leadsFromCampaign;
+  const fnlAgend = stats.campaign_count || 0;
+  const fnlComp  = campAttended.length;
+  // Vendas: contagem (não valor) — usa vendas_split.followup_qt + avaliacao_qt como aproximação de pagamentos campanha.
+  // Refinado: conta pagamentos cujo paciente é "campanha" via patient_origins do server.
+  const po = stats.patient_origins?.campanha || {};
+  const fnlVend = po.pacientes || 0;
+  // Follow-up: conta pagamentos não-Avaliação com patient origin = campanha (vd_split.followup_campanha existe como valor monetário).
+  // Pra contagem usamos count de patients que repetiram → aproximação: usa followup_campanha > 0 como sinal.
+  // Como não temos contagem direta, exibimos o VALOR do follow-up campanha em R$ pra dar contexto.
+  const vs = stats.vendas_split || {};
+  const fnlFoll = parseFloat(vs.followup_campanha || 0);
+
+  setTxt('fnlLeads', fnlLeads.toLocaleString('pt-BR'));
+  setTxt('fnlAgend', fnlAgend.toLocaleString('pt-BR'));
+  setTxt('fnlComp',  fnlComp.toLocaleString('pt-BR'));
+  setTxt('fnlVend',  fnlVend.toLocaleString('pt-BR'));
+  setTxt('fnlFoll',  fnlFoll > 0 ? fmtMoney(fnlFoll) : '0');
+
+  const conv = (a, b) => b > 0 ? Math.round((a / b) * 100) + '%' : '—';
+  setTxt('fnlConvLA', '→ ' + conv(fnlAgend, fnlLeads));
+  setTxt('fnlConvAC', '→ ' + conv(fnlComp,  fnlAgend));
+  setTxt('fnlConvCV', '→ ' + conv(fnlVend,  fnlComp));
+  setTxt('fnlConvVF', '→ retorno');
+
+  // Altura proporcional das barras (max=Leads, min=10%)
+  const stages = [['fnlLeads', fnlLeads], ['fnlAgend', fnlAgend], ['fnlComp', fnlComp], ['fnlVend', fnlVend]];
+  const maxV = Math.max(...stages.map(s => s[1]), 1);
+  document.querySelectorAll('#fnlBars .fnl-bar').forEach((bar, i) => {
+    const stageVals = [fnlLeads, fnlAgend, fnlComp, fnlVend, Math.max(1, fnlFoll/100)];
+    const v = stageVals[i] || 0;
+    const pct = Math.max(10, Math.round((v / maxV) * 140));
+    bar.style.height = pct + 'px';
+  });
 
   // ── V2: Origem dos pacientes + Vendas split direto do STATS ──
   const po = stats.patient_origins || {};

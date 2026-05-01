@@ -84,8 +84,9 @@ export async function onRequestGet({ request, env, data }) {
     status: 200,
     headers: {
       'Content-Type': 'application/json',
-      // Cache curto: 30s. Dashboards rebatem queries no mesmo período frequentemente
-      'Cache-Control': 'private, max-age=30'
+      // Sem cache pra evitar contaminação cross-user (RBAC). Cliente já
+      // implementa debounce de 600ms que evita rebates desnecessários.
+      'Cache-Control': 'no-store, must-revalidate'
     }
   });
 }

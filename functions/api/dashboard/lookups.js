@@ -61,7 +61,10 @@ export async function onRequestGet({ env, data }) {
       status: 200,
       headers: {
         'Content-Type': 'application/json',
-        'Cache-Control': 'private, max-age=300'  // 5min cache
+        // NUNCA cachear: lookups dependem do JWT do usuário (RBAC). Cache de
+        // 5min causou bug onde após logout/login com usuário restrito, o
+        // browser servia a lista antiga (admin) em vez de re-fetch RBAC.
+        'Cache-Control': 'no-store, must-revalidate'
       }
     });
   } catch (e) {
