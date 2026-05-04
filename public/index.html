@@ -2355,13 +2355,13 @@ async function computeThauanyMetrics(){
   const fnlComp  = campAttended.length;
   // Vendas: contagem (não valor) — usa vendas_split.followup_qt + avaliacao_qt como aproximação de pagamentos campanha.
   // Refinado: conta pagamentos cujo paciente é "campanha" via patient_origins do server.
-  const po = stats.patient_origins?.campanha || {};
-  const fnlVend = po.pacientes || 0;
+  const poCmp = stats.patient_origins?.campanha || {};
+  const fnlVend = poCmp.pacientes || 0;
   // Follow-up: conta pagamentos não-Avaliação com patient origin = campanha (vd_split.followup_campanha existe como valor monetário).
   // Pra contagem usamos count de patients que repetiram → aproximação: usa followup_campanha > 0 como sinal.
   // Como não temos contagem direta, exibimos o VALOR do follow-up campanha em R$ pra dar contexto.
-  const vs = stats.vendas_split || {};
-  const fnlFoll = parseFloat(vs.followup_campanha || 0);
+  const vsplit = stats.vendas_split || {};
+  const fnlFoll = parseFloat(vsplit.followup_campanha || 0);
 
   setTxt('fnlLeads', fnlLeads.toLocaleString('pt-BR'));
   setTxt('fnlAgend', fnlAgend.toLocaleString('pt-BR'));
