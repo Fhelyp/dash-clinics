@@ -868,71 +868,74 @@
       </div>
     </div>
 
-    <!-- ═══ Funil de Vendas (5 estágios) ═══ -->
+    <!-- ═══ Funil de Vendas (5 estágios) — CLICÁVEL pra drill-down ═══ -->
     <div class="card" style="margin-bottom:var(--gap);padding:18px 22px;">
-      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--gray-l);margin-bottom:14px;">Funil de Vendas — Campanha</div>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px;">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--gray-l);">Funil de Vendas — Campanha</div>
+        <div style="font-size:9.5px;color:var(--gray);">💡 clica numa barra pra ver os contatos</div>
+      </div>
       <div id="fnlBars" style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;align-items:end;min-height:170px;">
-        <!-- Cada estágio: barra visual + valor + conversão pra próxima etapa -->
-        <div class="fnl-stage" data-k="leads"><div class="fnl-bar" style="background:linear-gradient(180deg,var(--purple),rgba(168,85,247,.4))"></div><div class="fnl-lbl">Leads</div><div class="fnl-val" id="fnlLeads">0</div><div class="fnl-conv" id="fnlConvLA">—</div></div>
-        <div class="fnl-stage" data-k="agend"><div class="fnl-bar" style="background:linear-gradient(180deg,var(--blue),rgba(59,130,246,.4))"></div><div class="fnl-lbl">Agend.</div><div class="fnl-val" id="fnlAgend">0</div><div class="fnl-conv" id="fnlConvAC">—</div></div>
-        <div class="fnl-stage" data-k="comp"><div class="fnl-bar" style="background:linear-gradient(180deg,var(--teal),rgba(45,212,191,.4))"></div><div class="fnl-lbl">Compar.</div><div class="fnl-val" id="fnlComp">0</div><div class="fnl-conv" id="fnlConvCV">—</div></div>
-        <div class="fnl-stage" data-k="vend"><div class="fnl-bar" style="background:linear-gradient(180deg,var(--green),rgba(34,197,94,.4))"></div><div class="fnl-lbl">Vendas</div><div class="fnl-val" id="fnlVend">0</div><div class="fnl-conv" id="fnlConvVF">—</div></div>
-        <div class="fnl-stage" data-k="foll"><div class="fnl-bar" style="background:linear-gradient(180deg,var(--orange),rgba(251,146,60,.4))"></div><div class="fnl-lbl">Follow-up</div><div class="fnl-val" id="fnlFoll">0</div><div class="fnl-conv">retenção</div></div>
+        <div class="fnl-stage" data-stage="leads" onclick="openFunnelDrill('leads')"><div class="fnl-bar" style="background:linear-gradient(180deg,var(--purple),rgba(168,85,247,.4))"></div><div class="fnl-lbl">Leads</div><div class="fnl-val" id="fnlLeads">0</div><div class="fnl-conv" id="fnlConvLA">—</div></div>
+        <div class="fnl-stage" data-stage="agendados" onclick="openFunnelDrill('agendados')"><div class="fnl-bar" style="background:linear-gradient(180deg,var(--blue),rgba(59,130,246,.4))"></div><div class="fnl-lbl">Agend.</div><div class="fnl-val" id="fnlAgend">0</div><div class="fnl-conv" id="fnlConvAC">—</div></div>
+        <div class="fnl-stage" data-stage="confirmados" onclick="openFunnelDrill('confirmados')"><div class="fnl-bar" style="background:linear-gradient(180deg,var(--teal),rgba(45,212,191,.4))"></div><div class="fnl-lbl">Confirmados</div><div class="fnl-val" id="fnlConf">0</div><div class="fnl-conv" id="fnlConvCC">—</div></div>
+        <div class="fnl-stage" data-stage="compareceram" onclick="openFunnelDrill('compareceram')"><div class="fnl-bar" style="background:linear-gradient(180deg,var(--orange),rgba(251,146,60,.4))"></div><div class="fnl-lbl">Compar.</div><div class="fnl-val" id="fnlComp">0</div><div class="fnl-conv" id="fnlConvCV">—</div></div>
+        <div class="fnl-stage" data-stage="venderam" onclick="openFunnelDrill('venderam')"><div class="fnl-bar" style="background:linear-gradient(180deg,var(--green),rgba(34,197,94,.4))"></div><div class="fnl-lbl">Venderam</div><div class="fnl-val" id="fnlVend">0</div><div class="fnl-conv" id="fnlConvVR" style="font-weight:700;color:var(--green)">R$ 0</div></div>
       </div>
       <div style="font-size:9.5px;color:var(--gray);margin-top:12px;line-height:1.5;border-top:1px solid var(--border);padding-top:10px;">
-        <strong>Definições:</strong> Leads = contatos com tag campanha (Chatwoot). Agend. = appointments com <code>campaign_token</code>. Compar. = status atendido/concluído. Vendas = pagamentos confirmados de pacientes campanha. Follow-up = pagamentos não-Avaliação desses pacientes (retorno).
+        <strong>Definições:</strong>
+        <strong>Lead</strong> = contato Chatwoot com tag <code>campanha</code> (criado a partir de 06/04 — antes desse dia houve bulk import que está excluído).
+        <strong>Agendou</strong> = telefone do lead bate com algum agendamento criado <em>após</em> a chegada do lead (testa variantes do 9º dígito).
+        <strong>Confirmou</strong> = o agendamento tem log <code>to_status=4</code> OU já está com status concluído (concluído implica que foi confirmado).
+        <strong>Compareceu</strong> = appt status <code>atendido</code> ou <code>concluído</code>.
+        <strong>Vendeu</strong> = paciente pagou <em>pelo menos uma vez</em> após chegar como lead (qualquer especialidade, qualquer valor).
       </div>
     </div>
     <style>
-      .fnl-stage{display:flex;flex-direction:column;align-items:center;gap:6px;position:relative}
+      .fnl-stage{display:flex;flex-direction:column;align-items:center;gap:6px;position:relative;cursor:pointer;transition:transform .15s, opacity .15s;padding:6px 4px;border-radius:8px}
+      .fnl-stage:hover{background:rgba(255,255,255,.03);transform:translateY(-2px)}
       .fnl-bar{width:100%;border-radius:6px 6px 0 0;min-height:20px;transition:height .35s}
       .fnl-lbl{font-size:10px;color:var(--gray-l);text-transform:uppercase;letter-spacing:.06em}
       .fnl-val{font-size:22px;font-weight:800;color:var(--white);font-family:'JetBrains Mono',monospace}
       .fnl-conv{font-size:10px;color:var(--gray);font-family:'JetBrains Mono',monospace}
+      /* Modal drill-down */
+      #drillModal{position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.65);display:none;align-items:center;justify-content:center;padding:24px}
+      #drillModal.show{display:flex}
+      .drill-card{background:var(--card2);border:1px solid var(--border);border-radius:12px;width:100%;max-width:1100px;max-height:88vh;display:flex;flex-direction:column;overflow:hidden}
+      .drill-head{padding:18px 22px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+      .drill-title{font-size:14px;font-weight:700;color:var(--white)}
+      .drill-sub{font-size:11px;color:var(--gray-l);margin-top:3px}
+      .drill-close{background:none;border:1px solid var(--border);color:var(--gray-l);width:30px;height:30px;border-radius:6px;cursor:pointer;font-size:16px}
+      .drill-close:hover{color:var(--white);border-color:var(--gray)}
+      .drill-body{flex:1;overflow-y:auto;padding:0}
+      .drill-table{width:100%;border-collapse:collapse;font-size:11.5px}
+      .drill-table th{position:sticky;top:0;background:var(--card2);text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);color:var(--gray-l);font-size:10px;text-transform:uppercase;letter-spacing:.06em;font-weight:700;z-index:1}
+      .drill-table td{padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.04);color:var(--white)}
+      .drill-table tr:hover{background:rgba(255,255,255,.02)}
+      .drill-empty{padding:40px;text-align:center;color:var(--gray)}
+      .drill-foot{padding:10px 22px;border-top:1px solid var(--border);font-size:11px;color:var(--gray);display:flex;justify-content:space-between;align-items:center}
     </style>
 
-    <!-- ═══ NOVA LINHA: Tipos de Paciente + Vendas Diretas vs Follow-Up ═══ -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--gap);margin-bottom:var(--gap);">
-      <div class="card">
-        <div class="chd"><span class="clbl">Origem dos Pacientes</span></div>
-        <div class="cbdy" style="padding:14px 18px;">
-          <div id="origemList" style="display:flex;flex-direction:column;gap:11px;">
-            <div class="orig-row" data-orig="campanha" style="display:flex;align-items:center;justify-content:space-between;font-size:11.5px;"><span style="display:flex;align-items:center;gap:8px;"><span style="width:8px;height:8px;border-radius:50%;background:var(--purple);"></span>Campanha</span><span><strong id="origCmpQt" style="color:var(--white)">0</strong> pac · <strong id="origCmpRv" style="color:var(--green)">R$ 0</strong></span></div>
-            <div class="orig-row" data-orig="organico" style="display:flex;align-items:center;justify-content:space-between;font-size:11.5px;"><span style="display:flex;align-items:center;gap:8px;"><span style="width:8px;height:8px;border-radius:50%;background:var(--blue);"></span>Orgânico</span><span><strong id="origOrgQt" style="color:var(--white)">0</strong> pac · <strong id="origOrgRv" style="color:var(--green)">R$ 0</strong></span></div>
-            <div class="orig-row" data-orig="indicacao" style="display:flex;align-items:center;justify-content:space-between;font-size:11.5px;"><span style="display:flex;align-items:center;gap:8px;"><span style="width:8px;height:8px;border-radius:50%;background:var(--teal);"></span>Indicações</span><span><strong id="origIndQt" style="color:var(--white)">0</strong> pac · <strong id="origIndRv" style="color:var(--green)">R$ 0</strong></span></div>
-            <div class="orig-row" data-orig="resgate" style="display:flex;align-items:center;justify-content:space-between;font-size:11.5px;"><span style="display:flex;align-items:center;gap:8px;"><span style="width:8px;height:8px;border-radius:50%;background:var(--orange);"></span>Resgates</span><span><strong id="origResQt" style="color:var(--white)">0</strong> pac · <strong id="origResRv" style="color:var(--green)">R$ 0</strong></span></div>
+    <!-- Modal drill-down -->
+    <div id="drillModal" onclick="if(event.target===this)closeFunnelDrill()">
+      <div class="drill-card">
+        <div class="drill-head">
+          <div>
+            <div class="drill-title" id="drillTitle">…</div>
+            <div class="drill-sub" id="drillSub">…</div>
           </div>
-          <div style="font-size:9.5px;color:var(--gray);margin-top:14px;line-height:1.5;border-top:1px solid var(--border);padding-top:10px;">
-            <strong>Critérios:</strong> Campanha = appointment com <code>campaign_token</code>. Orgânico = primeira consulta sem <code>campaign_token</code>. Indicações/Resgates = a definir (precisam de campo dedicado ou regra de negócio).
-          </div>
+          <button class="drill-close" onclick="closeFunnelDrill()" title="Fechar (Esc)">✕</button>
         </div>
-      </div>
-
-      <div class="card">
-        <div class="chd"><span class="clbl">Vendas: 1ª Consulta vs Follow-Up</span></div>
-        <div class="cbdy" style="padding:14px 18px;">
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
-            <div class="rcv rcv1">
-              <div class="rl" style="color:var(--green)">1ª Consulta (Avaliação)</div>
-              <div class="rv" id="vd1Cons">R$ 0</div>
-              <div class="rs"><span id="vd1ConsQt">0</span> pagamentos</div>
-            </div>
-            <div class="rcv rcv2">
-              <div class="rl" style="color:var(--blue)">Follow-Up (demais)</div>
-              <div class="rv" id="vdFollow">R$ 0</div>
-              <div class="rs"><span id="vdFollowQt">0</span> pagamentos</div>
-            </div>
-          </div>
-          <div style="display:flex;flex-direction:column;gap:8px;font-size:11px;">
-            <div style="display:flex;justify-content:space-between;"><span style="color:var(--gray-l);">↳ Follow-up <strong style="color:var(--purple);">Campanha</strong></span><strong id="vdFollowCmp" style="color:var(--white);">R$ 0</strong></div>
-            <div style="display:flex;justify-content:space-between;"><span style="color:var(--gray-l);">↳ Follow-up <strong style="color:var(--blue);">Orgânico</strong></span><strong id="vdFollowOrg" style="color:var(--white);">R$ 0</strong></div>
-          </div>
-          <div style="font-size:9.5px;color:var(--gray);margin-top:14px;line-height:1.5;border-top:1px solid var(--border);padding-top:10px;">
-            <strong>Regra:</strong> 1ª Consulta = pagamento da especialidade "Avaliação". Follow-up = qualquer outra. Origem (Campanha/Orgânico) herdada do <em>primeiro</em> agendamento do paciente.
-          </div>
-        </div>
+        <div class="drill-body" id="drillBody"><div class="drill-empty">Carregando…</div></div>
+        <div class="drill-foot"><span id="drillFootInfo">—</span><span style="color:var(--gray-l)">Esc para fechar</span></div>
       </div>
     </div>
+
+    <!-- Blocos antigos (Origem por campaign_token + Vendas 1ª vs Follow-up) REMOVIDOS:
+         - campaign_token vem 100% NULL no Ecuro → bloco mostrava sempre 0
+         - Split 1ª vs Follow-up dependia desse origem fake.
+         A informação correta está agora consolidada no Funil de Vendas acima
+         (cruza chatwoot_leads × BI Appointments × BI Payments via phone_norm).
+    -->
 
     <div class="mktgrid" style="display:grid;grid-template-columns:1fr auto 1fr;gap:var(--gap);">
 
@@ -2275,6 +2278,94 @@ async function loadTablePage(k){
 }
 
 // ═══════════════════════════════════════════════════════════════════
+// Drill-down do Funil (clica numa barra → modal com lista de contatos)
+// ═══════════════════════════════════════════════════════════════════
+const STAGE_LABELS = {
+  leads:        { title: 'Leads de Campanha', icon: '🟣' },
+  agendados:    { title: 'Leads que Agendaram', icon: '🔵' },
+  confirmados:  { title: 'Leads que Confirmaram (1+ consulta)', icon: '🟢' },
+  compareceram: { title: 'Leads que Compareceram', icon: '🟠' },
+  venderam:     { title: 'Leads que Geraram Venda', icon: '💰' }
+};
+
+async function openFunnelDrill(stage){
+  const modal = document.getElementById('drillModal');
+  const lbl = STAGE_LABELS[stage] || { title: stage, icon: '' };
+  document.getElementById('drillTitle').textContent = lbl.icon + ' ' + lbl.title;
+  document.getElementById('drillSub').textContent = 'Carregando…';
+  document.getElementById('drillBody').innerHTML = '<div class="drill-empty">Carregando…</div>';
+  document.getElementById('drillFootInfo').textContent = '—';
+  modal.classList.add('show');
+
+  const params = window.__lastFnlParams || buildStatsParams().toString();
+  const usp = new URLSearchParams(params);
+  usp.set('stage', stage);
+  try {
+    const r = await fetch('/api/dashboard/funnel-detail?' + usp.toString(), { credentials: 'same-origin' });
+    if (r.status === 401) { window.location.href = '/login.html'; return; }
+    if (!r.ok) {
+      document.getElementById('drillBody').innerHTML = '<div class="drill-empty">Erro: ' + r.status + '</div>';
+      return;
+    }
+    const j = await r.json();
+    renderDrillTable(stage, j);
+  } catch(e) {
+    document.getElementById('drillBody').innerHTML = '<div class="drill-empty">Erro: ' + e.message + '</div>';
+  }
+}
+
+function renderDrillTable(stage, data){
+  const rows = data.rows || [];
+  const cnt = data.count || 0;
+  document.getElementById('drillSub').textContent = cnt + ' contatos' + (cnt > rows.length ? ` (mostrando primeiros ${rows.length})` : '');
+  document.getElementById('drillFootInfo').textContent = `Período: ${(window.APPLIED?.d1 || '?')} → ${(window.APPLIED?.d2 || '?')} | Filtro min_lead_created_at: 2026-04-06`;
+  if (!rows.length) {
+    document.getElementById('drillBody').innerHTML = '<div class="drill-empty">Nenhum contato encontrado nesse estágio.</div>';
+    return;
+  }
+  const showVendas = stage === 'venderam' || rows.some(r => parseFloat(r.total_pago||0) > 0);
+  const fmtBR = (s) => { try { return new Date(s).toLocaleString('pt-BR', {dateStyle:'short', timeStyle:'short'}); } catch { return s||'—'; } };
+  const html = `<table class="drill-table"><thead><tr>
+    <th>#</th>
+    <th>Lead (Chatwoot)</th>
+    <th>Telefone</th>
+    <th>Unidade</th>
+    <th>Chegou em</th>
+    <th>Status</th>
+    ${showVendas ? '<th style="text-align:right">Pago</th><th style="text-align:right">#Pgto</th>' : ''}
+    <th>Ficha Ecuro</th>
+  </tr></thead><tbody>${rows.map((r,i) => {
+    const unit = (typeof clinicName === 'function' ? clinicName(r.lead_clinic_id) : r.lead_clinic_id) || '—';
+    const pid = (r.patient_ids && r.patient_ids[0]) || null;
+    const link = pid
+      ? `<a href="https://ecuro.com.br/dashboard/patient-profile/${pid}?activeTab=appointments" target="_blank" rel="noopener" style="color:var(--blue);text-decoration:none">abrir ↗</a>`
+      : '<span style="color:var(--gray)">—</span>';
+    let statusBadge = '<span style="color:var(--gray)">só lead</span>';
+    if (r.compareceu) statusBadge = '<span style="color:var(--orange);font-weight:700">✓ compareceu</span>';
+    else if (r.confirmou) statusBadge = '<span style="color:var(--teal)">✓ confirmou</span>';
+    else if (r.patient_ids && r.patient_ids.length) statusBadge = '<span style="color:var(--blue)">✓ agendou</span>';
+    return `<tr>
+      <td style="color:var(--gray)">${i+1}</td>
+      <td><strong>${(r.lead_name||'sem nome').trim().slice(0,40)}</strong></td>
+      <td style="font-family:'JetBrains Mono',monospace;font-size:11px">${r.phone_norm || '—'}</td>
+      <td style="font-size:10.5px">${unit}</td>
+      <td style="font-size:10.5px;color:var(--gray-l)">${fmtBR(r.lead_created_at)}</td>
+      <td>${statusBadge}</td>
+      ${showVendas ? `<td style="text-align:right;color:var(--green);font-weight:700">${fmtMoney(r.total_pago||0)}</td><td style="text-align:right;color:var(--gray-l)">${r.n_pgto||0}</td>` : ''}
+      <td>${link}</td>
+    </tr>`;
+  }).join('')}</tbody></table>`;
+  document.getElementById('drillBody').innerHTML = html;
+}
+
+function closeFunnelDrill(){
+  document.getElementById('drillModal').classList.remove('show');
+}
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && document.getElementById('drillModal')?.classList.contains('show')) closeFunnelDrill();
+});
+
+// ═══════════════════════════════════════════════════════════════════
 // Métricas Thauany (Campanha + Origem + Vendas Diretas/Follow-Up)
 // ═══════════════════════════════════════════════════════════════════
 const ATTENDED_STATUSES = new Set([6, 7, 8]); // check-in, atendido, concluído
@@ -2343,9 +2434,9 @@ async function computeThauanyMetrics(){
   setTxt('cmpComp',  campAttended.length.toLocaleString('pt-BR'));
   setTxt('cmpVendas', fmtMoney(campSales));
 
-  // ── Funil de Vendas (5 estágios) — agora consome /api/dashboard/funnel ──
-  // Backend cruza chatwoot_leads (label=campanha) × BI Appointments × BI Payments
-  // via phone_norm (com variantes do 9º dígito BR).
+  // ── Funil de Vendas (5 estágios) — consome /api/dashboard/funnel ──
+  // Backend cruza chatwoot_leads (label=campanha, created_at >= 2026-04-06) × BI Appointments × BI Payments
+  // via phone_norm com 4 variantes BR. Per-lead cutoff (appt/payment >= lead.created_at).
   try {
     const fparams = buildStatsParams();
     const fr = await fetch('/api/dashboard/funnel?' + fparams.toString(), { credentials: 'same-origin' });
@@ -2355,48 +2446,46 @@ async function computeThauanyMetrics(){
       const cv = fj.conversoes || {};
       const fnlLeads = fn.leads || 0;
       const fnlAgend = fn.agendados || 0;
+      const fnlConf  = fn.confirmados || 0;
       const fnlComp  = fn.compareceram || 0;
       const fnlVend  = fn.venderam || 0;
       const fnlReceita = parseFloat(fn.receita_total || 0);
 
+      // Sincroniza KPIs antigos de Campanha com os números reais do funnel
+      setTxt('cmpLeads',  fnlLeads.toLocaleString('pt-BR'));
+      setTxt('cmpAgend',  fnlAgend.toLocaleString('pt-BR'));
+      setTxt('cmpComp',   fnlComp.toLocaleString('pt-BR'));
+      setTxt('cmpVendas', fmtMoney(fnlReceita));
+
       setTxt('fnlLeads', fnlLeads.toLocaleString('pt-BR'));
       setTxt('fnlAgend', fnlAgend.toLocaleString('pt-BR'));
+      setTxt('fnlConf',  fnlConf.toLocaleString('pt-BR'));
       setTxt('fnlComp',  fnlComp.toLocaleString('pt-BR'));
       setTxt('fnlVend',  fnlVend.toLocaleString('pt-BR'));
-      setTxt('fnlFoll',  fnlReceita > 0 ? fmtMoney(fnlReceita) : 'R$ 0');
+      // Receita total fica como label do 5º estágio (em R$)
+      setTxt('fnlConvVR', fnlReceita > 0 ? fmtMoney(fnlReceita) : 'R$ 0');
 
+      // Conversões por etapa (% pra próxima)
       setTxt('fnlConvLA', '→ ' + (cv.lead_to_agend ?? 0) + '%');
       setTxt('fnlConvAC', '→ ' + (cv.agend_to_conf ?? 0) + '%');
-      setTxt('fnlConvCV', '→ ' + (cv.conf_to_comp ?? 0) + '%');
-      setTxt('fnlConvVF', '→ ' + (cv.comp_to_venda ?? 0) + '%');
+      setTxt('fnlConvCC', '→ ' + (cv.conf_to_comp ?? 0) + '%');
+      setTxt('fnlConvCV', '→ ' + (cv.comp_to_venda ?? 0) + '%');
 
-      const stageVals = [fnlLeads, fnlAgend, fnlComp, fnlVend, fnlVend];
+      // Altura proporcional (max = leads, ordem: leads, agend, conf, comp, vend)
+      const stageVals = [fnlLeads, fnlAgend, fnlConf, fnlComp, fnlVend];
       const maxV = Math.max(...stageVals, 1);
       document.querySelectorAll('#fnlBars .fnl-bar').forEach((bar, i) => {
         const v = stageVals[i] || 0;
         const pct = Math.max(10, Math.round((v / maxV) * 140));
         bar.style.height = pct + 'px';
       });
+      // Cache pro drill-down (período + clinic_ids dos filtros)
+      window.__lastFnlParams = fparams.toString();
     }
   } catch(e) { console.warn('[funnel]', e.message); }
 
-  // ── V2: Origem dos pacientes + Vendas split direto do STATS ──
-  const po = stats.patient_origins || {};
-  setTxt('origCmpQt', (po.campanha?.pacientes || 0).toLocaleString('pt-BR'));
-  setTxt('origCmpRv', fmtMoney(po.campanha?.receita || 0));
-  setTxt('origOrgQt', (po.organico?.pacientes || 0).toLocaleString('pt-BR'));
-  setTxt('origOrgRv', fmtMoney(po.organico?.receita || 0));
-  setTxt('origIndQt', (po.indicacao?.pacientes || 0).toLocaleString('pt-BR'));
-  setTxt('origIndRv', fmtMoney(po.indicacao?.receita || 0));
-  setTxt('origResQt', (po.resgate?.pacientes || 0).toLocaleString('pt-BR'));
-  setTxt('origResRv', fmtMoney(po.resgate?.receita || 0));
-  const vs = stats.vendas_split || {};
-  setTxt('vd1Cons', fmtMoney(vs.avaliacao_total || 0));
-  setTxt('vd1ConsQt', (vs.avaliacao_qt || 0).toLocaleString('pt-BR'));
-  setTxt('vdFollow', fmtMoney(vs.followup_total || 0));
-  setTxt('vdFollowQt', (vs.followup_qt || 0).toLocaleString('pt-BR'));
-  setTxt('vdFollowCmp', fmtMoney(vs.followup_campanha || 0));
-  setTxt('vdFollowOrg', fmtMoney(vs.followup_organico || 0));
+  // Blocos antigos (Origem por campaign_token / Vendas 1ª vs Follow-up) removidos.
+  // Os números reais de campanha são populados pelo bloco do funil acima.
   return; // skip código antigo abaixo
 
   // ── 4. Tabela "Origem dos Pacientes" ──
