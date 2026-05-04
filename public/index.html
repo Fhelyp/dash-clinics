@@ -897,9 +897,13 @@
       .fnl-lbl{font-size:10px;color:var(--gray-l);text-transform:uppercase;letter-spacing:.06em}
       .fnl-val{font-size:22px;font-weight:800;color:var(--white);font-family:'JetBrains Mono',monospace}
       .fnl-conv{font-size:10px;color:var(--gray);font-family:'JetBrains Mono',monospace}
-      /* Modal drill-down */
-      #drillModal{position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.65);display:none;align-items:center;justify-content:center;padding:24px}
+      /* Modal drill-down — z-index máximo (max signed 32-bit), evita conflito
+         com sidebar/topbar que têm position:fixed. JS move ele pra direct
+         child do <body> em runtime pra escapar de stacking contexts criados
+         por containers com transform/filter/will-change. */
+      #drillModal{position:fixed;inset:0;z-index:2147483647;background:rgba(0,0,0,.72);backdrop-filter:blur(2px);display:none;align-items:center;justify-content:center;padding:24px;box-sizing:border-box}
       #drillModal.show{display:flex}
+      body.drill-open{overflow:hidden}
       .drill-card{background:var(--card2);border:1px solid var(--border);border-radius:12px;width:100%;max-width:1100px;max-height:88vh;display:flex;flex-direction:column;overflow:hidden}
       .drill-head{padding:18px 22px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
       .drill-title{font-size:14px;font-weight:700;color:var(--white)}
@@ -2290,6 +2294,10 @@ const STAGE_LABELS = {
 
 async function openFunnelDrill(stage){
   const modal = document.getElementById('drillModal');
+  // Move pra direct child do <body> pra escapar de qualquer stacking context
+  // (sidebar/topbar fixed acima, ou parent com transform/filter quebrando position:fixed).
+  if (modal.parentNode !== document.body) document.body.appendChild(modal);
+  document.body.classList.add('drill-open'); // bloqueia scroll de fundo
   const lbl = STAGE_LABELS[stage] || { title: stage, icon: '' };
   document.getElementById('drillTitle').textContent = lbl.icon + ' ' + lbl.title;
   document.getElementById('drillSub').textContent = 'Carregando…';
@@ -2360,6 +2368,7 @@ function renderDrillTable(stage, data){
 
 function closeFunnelDrill(){
   document.getElementById('drillModal').classList.remove('show');
+  document.body.classList.remove('drill-open');
 }
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && document.getElementById('drillModal')?.classList.contains('show')) closeFunnelDrill();
