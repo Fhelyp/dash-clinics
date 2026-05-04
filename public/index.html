@@ -2343,42 +2343,42 @@ async function computeThauanyMetrics(){
   setTxt('cmpComp',  campAttended.length.toLocaleString('pt-BR'));
   setTxt('cmpVendas', fmtMoney(campSales));
 
-  // ── Funil de Vendas (5 estágios) ──
-  // Reusa os mesmos números do bloco de KPIs acima.
-  const fnlLeads = leadsFromCampaign;
-  const fnlAgend = stats.campaign_count || 0;
-  const fnlComp  = campAttended.length;
-  // Vendas: contagem (não valor) — usa vendas_split.followup_qt + avaliacao_qt como aproximação de pagamentos campanha.
-  // Refinado: conta pagamentos cujo paciente é "campanha" via patient_origins do server.
-  const poCmp = stats.patient_origins?.campanha || {};
-  const fnlVend = poCmp.pacientes || 0;
-  // Follow-up: conta pagamentos não-Avaliação com patient origin = campanha (vd_split.followup_campanha existe como valor monetário).
-  // Pra contagem usamos count de patients que repetiram → aproximação: usa followup_campanha > 0 como sinal.
-  // Como não temos contagem direta, exibimos o VALOR do follow-up campanha em R$ pra dar contexto.
-  const vsplit = stats.vendas_split || {};
-  const fnlFoll = parseFloat(vsplit.followup_campanha || 0);
+  // ── Funil de Vendas (5 estágios) — agora consome /api/dashboard/funnel ──
+  // Backend cruza chatwoot_leads (label=campanha) × BI Appointments × BI Payments
+  // via phone_norm (com variantes do 9º dígito BR).
+  try {
+    const fparams = buildStatsParams();
+    const fr = await fetch('/api/dashboard/funnel?' + fparams.toString(), { credentials: 'same-origin' });
+    if (fr.ok) {
+      const fj = await fr.json();
+      const fn = fj.funnel || {};
+      const cv = fj.conversoes || {};
+      const fnlLeads = fn.leads || 0;
+      const fnlAgend = fn.agendados || 0;
+      const fnlComp  = fn.compareceram || 0;
+      const fnlVend  = fn.venderam || 0;
+      const fnlReceita = parseFloat(fn.receita_total || 0);
 
-  setTxt('fnlLeads', fnlLeads.toLocaleString('pt-BR'));
-  setTxt('fnlAgend', fnlAgend.toLocaleString('pt-BR'));
-  setTxt('fnlComp',  fnlComp.toLocaleString('pt-BR'));
-  setTxt('fnlVend',  fnlVend.toLocaleString('pt-BR'));
-  setTxt('fnlFoll',  fnlFoll > 0 ? fmtMoney(fnlFoll) : '0');
+      setTxt('fnlLeads', fnlLeads.toLocaleString('pt-BR'));
+      setTxt('fnlAgend', fnlAgend.toLocaleString('pt-BR'));
+      setTxt('fnlComp',  fnlComp.toLocaleString('pt-BR'));
+      setTxt('fnlVend',  fnlVend.toLocaleString('pt-BR'));
+      setTxt('fnlFoll',  fnlReceita > 0 ? fmtMoney(fnlReceita) : 'R$ 0');
 
-  const conv = (a, b) => b > 0 ? Math.round((a / b) * 100) + '%' : '—';
-  setTxt('fnlConvLA', '→ ' + conv(fnlAgend, fnlLeads));
-  setTxt('fnlConvAC', '→ ' + conv(fnlComp,  fnlAgend));
-  setTxt('fnlConvCV', '→ ' + conv(fnlVend,  fnlComp));
-  setTxt('fnlConvVF', '→ retorno');
+      setTxt('fnlConvLA', '→ ' + (cv.lead_to_agend ?? 0) + '%');
+      setTxt('fnlConvAC', '→ ' + (cv.agend_to_conf ?? 0) + '%');
+      setTxt('fnlConvCV', '→ ' + (cv.conf_to_comp ?? 0) + '%');
+      setTxt('fnlConvVF', '→ ' + (cv.comp_to_venda ?? 0) + '%');
 
-  // Altura proporcional das barras (max=Leads, min=10%)
-  const stages = [['fnlLeads', fnlLeads], ['fnlAgend', fnlAgend], ['fnlComp', fnlComp], ['fnlVend', fnlVend]];
-  const maxV = Math.max(...stages.map(s => s[1]), 1);
-  document.querySelectorAll('#fnlBars .fnl-bar').forEach((bar, i) => {
-    const stageVals = [fnlLeads, fnlAgend, fnlComp, fnlVend, Math.max(1, fnlFoll/100)];
-    const v = stageVals[i] || 0;
-    const pct = Math.max(10, Math.round((v / maxV) * 140));
-    bar.style.height = pct + 'px';
-  });
+      const stageVals = [fnlLeads, fnlAgend, fnlComp, fnlVend, fnlVend];
+      const maxV = Math.max(...stageVals, 1);
+      document.querySelectorAll('#fnlBars .fnl-bar').forEach((bar, i) => {
+        const v = stageVals[i] || 0;
+        const pct = Math.max(10, Math.round((v / maxV) * 140));
+        bar.style.height = pct + 'px';
+      });
+    }
+  } catch(e) { console.warn('[funnel]', e.message); }
 
   // ── V2: Origem dos pacientes + Vendas split direto do STATS ──
   const po = stats.patient_origins || {};
