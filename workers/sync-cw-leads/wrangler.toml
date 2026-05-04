@@ -1,0 +1,20 @@
+name = "dash-clinics-sync-cw-leads"
+main = "src/index.js"
+compatibility_date = "2025-04-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Crons:
+#  "0 6 * * *"   → 03:00 BRT diário        — incremental (só novos/atualizados desde última sync)
+#  "0 7 * * 6"   → 04:00 BRT sábado         — full refresh (re-puxa tudo, captura mudanças retroativas)
+[triggers]
+crons = ["0 6 * * *", "0 7 * * 6"]
+
+[vars]
+SUPABASE_URL = "https://reeuuxkeqosiyjntyzma.supabase.co"
+CHATWOOT_BASE_URL = "https://chatclinics.5ef4kt.easypanel.host"
+CAMPAIGN_LABEL = "campanha"
+
+# Secrets (cadastrar via wrangler secret put):
+#   SUPABASE_SERVICE_ROLE
+#   CHATWOOT_API_KEY      (token do agent que pode ler todas as 32 contas — atualmente SYZ2hYzcnmswgS5yg2hPtiTi)
+#   ADMIN_TOKEN           (proteção dos endpoints manuais POST /run-incremental e /run-full-refresh)
