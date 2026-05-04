@@ -2305,7 +2305,9 @@ async function openFunnelDrill(stage){
   document.getElementById('drillFootInfo').textContent = '—';
   modal.classList.add('show');
 
-  const params = window.__lastFnlParams || buildStatsParams().toString();
+  // Sempre usa params atuais (buildStatsParams) pra pegar os filtros do momento.
+  // __lastFnlParams seria do último funnel render — pode estar stale se filtros mudaram.
+  const params = buildStatsParams().toString();
   const usp = new URLSearchParams(params);
   usp.set('stage', stage);
   try {
@@ -2326,7 +2328,10 @@ function renderDrillTable(stage, data){
   const rows = data.rows || [];
   const cnt = data.count || 0;
   document.getElementById('drillSub').textContent = cnt + ' contatos' + (cnt > rows.length ? ` (mostrando primeiros ${rows.length})` : '');
-  document.getElementById('drillFootInfo').textContent = `Período: ${(window.APPLIED?.d1 || '?')} → ${(window.APPLIED?.d2 || '?')} | Filtro min_lead_created_at: 2026-04-06`;
+  // Período vem dos APPLIED.d1/d2 (vars locais ao script, não window)
+  const _d1 = (typeof APPLIED !== 'undefined' && APPLIED.d1) || '?';
+  const _d2 = (typeof APPLIED !== 'undefined' && APPLIED.d2) || '?';
+  document.getElementById('drillFootInfo').textContent = `Período: ${_d1} → ${_d2} | Filtro min_lead_created_at: 2026-04-06 (exclui bulk import)`;
   if (!rows.length) {
     document.getElementById('drillBody').innerHTML = '<div class="drill-empty">Nenhum contato encontrado nesse estágio.</div>';
     return;
