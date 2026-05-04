@@ -15,6 +15,6 @@ CHATWOOT_BASE_URL = "https://chatclinics.5ef4kt.easypanel.host"
 CAMPAIGN_LABEL = "campanha"
 
 # Secrets (cadastrar via wrangler secret put):
-#   SUPABASE_SERVICE_ROLE
+#   SUPABASE_ANON_KEY     (anon — RLS off em chatwoot_leads/state, grants padrão liberam INSERT)
 #   CHATWOOT_API_KEY      (token do agent que pode ler todas as 32 contas — atualmente SYZ2hYzcnmswgS5yg2hPtiTi)
 #   ADMIN_TOKEN           (proteção dos endpoints manuais POST /run-incremental e /run-full-refresh)

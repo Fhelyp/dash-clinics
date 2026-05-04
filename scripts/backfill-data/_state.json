@@ -1,0 +1,117 @@
+{
+  "appointments::878b3cf8-fc89-4e4d-9185-49d96b458cd0::2026-03b": {
+    "done": true,
+    "rows": 1638,
+    "fetched_at": "2026-05-04T01:18:41.745Z"
+  },
+  "appointments::878b3cf8-fc89-4e4d-9185-49d96b458cd0::2026-05a": {
+    "done": true,
+    "rows": 654,
+    "fetched_at": "2026-05-04T01:21:48.580Z"
+  },
+  "appointment_logs::878b3cf8-fc89-4e4d-9185-49d96b458cd0::2026-03a": {
+    "done": true,
+    "rows": 5793,
+    "fetched_at": "2026-05-04T01:39:30.444Z"
+  },
+  "appointment_logs::878b3cf8-fc89-4e4d-9185-49d96b458cd0::2026-05a": {
+    "done": true,
+    "rows": 1330,
+    "fetched_at": "2026-05-04T01:48:50.385Z"
+  },
+  "payments::878b3cf8-fc89-4e4d-9185-49d96b458cd0::2026-03a": {
+    "done": true,
+    "rows": 584,
+    "fetched_at": "2026-05-04T01:50:54.499Z"
+  },
+  "payments::878b3cf8-fc89-4e4d-9185-49d96b458cd0::2026-03b": {
+    "done": true,
+    "rows": 653,
+    "fetched_at": "2026-05-04T01:52:58.710Z"
+  },
+  "payments::878b3cf8-fc89-4e4d-9185-49d96b458cd0::2026-05a": {
+    "done": true,
+    "rows": 32,
+    "fetched_at": "2026-05-04T01:56:06.804Z"
+  },
+  "appointments::h14fd517-3582-444f-851b-dd17c0331d34::2026-03a": {
+    "done": true,
+    "rows": 845,
+    "fetched_at": "2026-05-04T02:01:20.893Z"
+  },
+  "appointments::h14fd517-3582-444f-851b-dd17c0331d34::2026-03b": {
+    "done": true,
+    "rows": 1047,
+    "fetched_at": "2026-05-04T02:02:24.519Z"
+  },
+  "appointments::h14fd517-3582-444f-851b-dd17c0331d34::2026-05a": {
+    "done": true,
+    "rows": 440,
+    "fetched_at": "2026-05-04T02:02:25.679Z"
+  },
+  "appointment_logs::h14fd517-3582-444f-851b-dd17c0331d34::2026-03a": {
+    "done": true,
+    "rows": 4362,
+    "fetched_at": "2026-05-04T02:06:44.870Z"
+  },
+  "appointment_logs::h14fd517-3582-444f-851b-dd17c0331d34::2026-05a": {
+    "done": true,
+    "rows": 1060,
+    "fetched_at": "2026-05-04T02:28:36.660Z"
+  },
+  "payments::h14fd517-3582-444f-851b-dd17c0331d34::2026-03a": {
+    "done": true,
+    "rows": 370,
+    "fetched_at": "2026-05-04T02:29:41.326Z"
+  },
+  "payments::h14fd517-3582-444f-851b-dd17c0331d34::2026-03b": {
+    "done": true,
+    "rows": 471,
+    "fetched_at": "2026-05-04T02:30:44.981Z"
+  },
+  "payments::h14fd517-3582-444f-851b-dd17c0331d34::2026-05a": {
+    "done": true,
+    "rows": 9,
+    "fetched_at": "2026-05-04T02:31:47.400Z"
+  },
+  "appointments::6d7d9b6b-58a9-4d3b-a3ce-270ede54967f::2026-03a": {
+    "done": true,
+    "rows": 753,
+    "fetched_at": "2026-05-04T02:37:00.353Z"
+  },
+  "appointments::6d7d9b6b-58a9-4d3b-a3ce-270ede54967f::2026-03b": {
+    "done": true,
+    "rows": 958,
+    "fetched_at": "2026-05-04T02:38:05.144Z"
+  },
+  "appointments::6d7d9b6b-58a9-4d3b-a3ce-270ede54967f::2026-05a": {
+    "done": true,
+    "rows": 277,
+    "fetched_at": "2026-05-04T02:39:06.264Z"
+  },
+  "appointment_logs::6d7d9b6b-58a9-4d3b-a3ce-270ede54967f::2026-03b": {
+    "done": true,
+    "rows": 4178,
+    "fetched_at": "2026-05-04T02:55:46.359Z"
+  },
+  "appointment_logs::6d7d9b6b-58a9-4d3b-a3ce-270ede54967f::2026-05a": {
+    "done": true,
+    "rows": 640,
+    "fetched_at": "2026-05-04T03:01:04.749Z"
+  },
+  "payments::6d7d9b6b-58a9-4d3b-a3ce-270ede54967f::2026-03a": {
+    "done": true,
+    "rows": 427,
+    "fetched_at": "2026-05-04T03:02:03.873Z"
+  },
+  "payments::6d7d9b6b-58a9-4d3b-a3ce-270ede54967f::2026-03b": {
+    "done": true,
+    "rows": 368,
+    "fetched_at": "2026-05-04T03:04:09.805Z"
+  },
+  "payments::6d7d9b6b-58a9-4d3b-a3ce-270ede54967f::2026-05a": {
+    "done": true,
+    "rows": 21,
+    "fetched_at": "2026-05-04T03:06:13.732Z"
+  }
+}

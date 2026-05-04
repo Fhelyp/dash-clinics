@@ -1,0 +1,99 @@
+[2026-05-04T01:11:56.722Z] Iniciando sync Chatwoot leads (label=campanha)
+[2026-05-04T01:11:57.317Z] 32 unidades
+[2026-05-04T01:11:57.319Z] [1/32] Campo Limpo (account=7)
+[2026-05-04T01:11:57.836Z]   account=7 Campo Limpo: 4720 contatos com label=campanha
+[2026-05-04T01:16:41.931Z]   ✓ +4720 (total=4720)
+[2026-05-04T01:16:43.937Z] [2/32] Campos do Jordão (account=34)
+[2026-05-04T01:16:44.085Z]   account=34 Campos do Jordão: 685 contatos com label=campanha
+[2026-05-04T01:17:24.926Z]   ✓ +685 (total=5405)
+[2026-05-04T01:17:26.940Z] [3/32] Caraguatatuba (account=8)
+[2026-05-04T01:17:27.080Z]   account=8 Caraguatatuba: 115 contatos com label=campanha
+[2026-05-04T01:17:33.715Z]   ✓ +115 (total=5520)
+[2026-05-04T01:17:35.725Z] [4/32] Carapicuíba (account=9)
+[2026-05-04T01:17:35.870Z]   account=9 Carapicuíba: 2195 contatos com label=campanha
+[2026-05-04T01:19:45.461Z]   ✓ +2195 (total=7715)
+[2026-05-04T01:19:47.470Z] [5/32] Cruzeiro (account=10)
+[2026-05-04T01:19:47.633Z]   account=10 Cruzeiro: 3337 contatos com label=campanha
+[2026-05-04T01:23:05.297Z]   ✓ +3337 (total=11052)
+[2026-05-04T01:23:07.305Z] [6/32] Cubatão (account=11)
+[2026-05-04T01:23:07.466Z]   account=11 Cubatão: 1572 contatos com label=campanha
+[2026-05-04T01:24:40.518Z]   ✓ +1572 (total=12624)
+[2026-05-04T01:24:42.531Z] [7/32] Florianópolis (account=12)
+[2026-05-04T01:24:42.629Z]   account=12 Florianópolis: 11 contatos com label=campanha
+[2026-05-04T01:24:42.643Z]   ✓ +11 (total=12635)
+[2026-05-04T01:24:44.656Z] [8/32] Guaratinguetá II (account=13)
+[2026-05-04T01:24:44.788Z]   account=13 Guaratinguetá II: 2659 contatos com label=campanha
+[2026-05-04T01:27:23.501Z]   ✓ +2659 (total=15294)
+[2026-05-04T01:27:25.508Z] [9/32] Guarujá II (account=14)
+[2026-05-04T01:27:25.722Z]   account=14 Guarujá II: 3003 contatos com label=campanha
+[2026-05-04T01:30:25.340Z]   ✓ +3003 (total=18297)
+[2026-05-04T01:30:27.352Z] [10/32] Itajaí (account=15)
+[2026-05-04T01:30:27.506Z]   account=15 Itajaí: 358 contatos com label=campanha
+[2026-05-04T01:30:48.347Z]   ✓ +358 (total=18655)
+[2026-05-04T01:30:50.351Z] [11/32] Itapetininga (account=16)
+[2026-05-04T01:30:50.487Z]   account=16 Itapetininga: 278 contatos com label=campanha
+[2026-05-04T01:31:06.899Z]   ✓ +278 (total=18933)
+[2026-05-04T01:31:08.910Z] [12/32] Itaquaquecetuba (account=17)
+[2026-05-04T01:31:09.052Z]   account=17 Itaquaquecetuba: 2047 contatos com label=campanha
+[2026-05-04T01:33:12.146Z]   ✓ +2047 (total=20980)
+[2026-05-04T01:33:14.150Z] [13/32] Itatiba (account=18)
+[2026-05-04T01:33:14.283Z]   account=18 Itatiba: 173 contatos com label=campanha
+[2026-05-04T01:33:24.745Z]   ✓ +173 (total=21153)
+[2026-05-04T01:33:26.762Z] [14/32] Jacareí 2 (account=19)
+[2026-05-04T01:33:26.904Z]   account=19 Jacareí 2: 4299 contatos com label=campanha
+[2026-05-04T01:37:44.049Z]   ✓ +4299 (total=25452)
+[2026-05-04T01:37:46.053Z] [15/32] Joinville (account=36)
+[2026-05-04T01:37:46.178Z]   account=36 Joinville: 0 contatos com label=campanha
+[2026-05-04T01:37:46.180Z]   ✓ +0 (total=25452)
+[2026-05-04T01:37:48.191Z] [16/32] Juiz de Fora (account=35)
+[2026-05-04T01:37:48.284Z]   account=35 Juiz de Fora: 11 contatos com label=campanha
+[2026-05-04T01:37:48.297Z]   ✓ +11 (total=25463)
+[2026-05-04T01:37:50.303Z] [17/32] Leme (account=20)
+[2026-05-04T01:37:50.447Z]   account=20 Leme: 135 contatos com label=campanha
+[2026-05-04T01:37:57.783Z]   ✓ +135 (total=25598)
+[2026-05-04T01:37:59.796Z] [18/32] Marilia II (account=21)
+[2026-05-04T01:38:00.008Z]   account=21 Marilia II: 171 contatos com label=campanha
+[2026-05-04T01:38:10.215Z]   ✓ +171 (total=25769)
+[2026-05-04T01:38:12.229Z] [19/32] Matão (account=22)
+[2026-05-04T01:38:12.402Z]   account=22 Matão: 1174 contatos com label=campanha
+[2026-05-04T01:39:21.310Z]   ✓ +1174 (total=26943)
+[2026-05-04T01:39:23.318Z] [20/32] Mogi das Cruzes (account=23)
+[2026-05-04T01:39:23.474Z]   account=23 Mogi das Cruzes: 3341 contatos com label=campanha
+[2026-05-04T01:42:42.895Z]   ✓ +3341 (total=30284)
+[2026-05-04T01:42:44.899Z] [21/32] Mongaguá (account=24)
+[2026-05-04T01:42:45.028Z]   account=24 Mongaguá: 178 contatos com label=campanha
+[2026-05-04T01:42:54.711Z]   ✓ +178 (total=30462)
+[2026-05-04T01:42:56.722Z] [22/32] Paulínia (account=25)
+[2026-05-04T01:42:56.857Z]   account=25 Paulínia: 666 contatos com label=campanha
+[2026-05-04T01:43:35.562Z]   ✓ +666 (total=31128)
+[2026-05-04T01:43:37.572Z] [23/32] Peruíbe (account=26)
+[2026-05-04T01:43:37.709Z]   account=26 Peruíbe: 826 contatos com label=campanha
+[2026-05-04T01:44:27.663Z]   ✓ +826 (total=31954)
+[2026-05-04T01:44:29.671Z] [24/32] Piracicaba (account=27)
+[2026-05-04T01:44:29.801Z]   account=27 Piracicaba: 452 contatos com label=campanha
+[2026-05-04T01:44:57.355Z]   ✓ +452 (total=32406)
+[2026-05-04T01:44:59.357Z] [25/32] Pirassununga (account=28)
+[2026-05-04T01:44:59.576Z]   account=28 Pirassununga: 187 contatos com label=campanha
+[2026-05-04T01:45:10.790Z]   ✓ +187 (total=32593)
+[2026-05-04T01:45:12.801Z] [26/32] Porto Ferreira (account=2)
+[2026-05-04T01:45:12.924Z]   account=2 Porto Ferreira: 1687 contatos com label=campanha
+[2026-05-04T01:46:54.113Z]   ✓ +1687 (total=34280)
+[2026-05-04T01:46:56.127Z] [27/32] Santo Amaro II (account=37)
+[2026-05-04T01:46:56.241Z]   account=37 Santo Amaro II: 19 contatos com label=campanha
+[2026-05-04T01:46:57.103Z]   ✓ +19 (total=34299)
+[2026-05-04T01:46:59.118Z] [28/32] São José Dos Campos (account=1)
+[2026-05-04T01:46:59.331Z]   account=1 São José Dos Campos: 5692 contatos com label=campanha
+[2026-05-04T01:52:37.715Z]   ✓ +5692 (total=39991)
+[2026-05-04T01:52:39.723Z] [29/32] São Vicente (account=29)
+[2026-05-04T01:52:39.856Z]   account=29 São Vicente: 3620 contatos com label=campanha
+[2026-05-04T01:56:13.039Z]   ✓ +3620 (total=43611)
+[2026-05-04T01:56:15.053Z] [30/32] Sumaré (account=30)
+[2026-05-04T01:56:15.254Z]   account=30 Sumaré: 281 contatos com label=campanha
+[2026-05-04T01:56:31.324Z]   ✓ +281 (total=43892)
+[2026-05-04T01:56:33.329Z] [31/32] Taubaté (account=31)
+[2026-05-04T01:56:33.485Z]   account=31 Taubaté: 2705 contatos com label=campanha
+[2026-05-04T01:59:13.317Z]   ✓ +2705 (total=46597)
+[2026-05-04T01:59:15.323Z] [32/32] Tremembé (account=32)
+[2026-05-04T01:59:15.447Z]   account=32 Tremembé: 2395 contatos com label=campanha
+[2026-05-04T02:01:42.217Z]   ✓ +2395 (total=48992)
+[2026-05-04T02:01:42.219Z] DONE. Grand total: 48992 leads

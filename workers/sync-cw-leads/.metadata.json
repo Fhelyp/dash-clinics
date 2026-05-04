@@ -1,0 +1,10 @@
+{
+  "main_module": "index.js",
+  "compatibility_date": "2025-04-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "bindings": [
+    {"type": "plain_text", "name": "SUPABASE_URL", "text": "https://reeuuxkeqosiyjntyzma.supabase.co"},
+    {"type": "plain_text", "name": "CHATWOOT_BASE_URL", "text": "https://chatclinics.5ef4kt.easypanel.host"},
+    {"type": "plain_text", "name": "CAMPAIGN_LABEL", "text": "campanha"}
+  ]
+}

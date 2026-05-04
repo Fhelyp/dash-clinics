@@ -1,0 +1,26 @@
+INSERT INTO chatwoot_leads (id, account_id, ecuro_clinic_id, name, email, phone_raw, identifier, labels, created_at_cw, last_activity_at, inbox_ids) VALUES
+(118904,8,'6d7d9b6b-58a9-4d3b-a3ce-270ede54967f','edvaldolima12432@gmail',NULL,'+5512982801603','5512982801603@s.whatsapp.net',ARRAY['campanha'],'2026-04-21T13:55:56.000Z'::timestamptz,'2026-04-28T12:24:38.000Z'::timestamptz,ARRAY[35,35]::int[]),
+(118960,8,'6d7d9b6b-58a9-4d3b-a3ce-270ede54967f','Vera',NULL,'+5512992609887','5512992609887@s.whatsapp.net',ARRAY['campanha'],'2026-04-21T14:54:09.000Z'::timestamptz,'2026-04-21T15:03:38.000Z'::timestamptz,ARRAY[35,35]::int[]),
+(117560,8,'6d7d9b6b-58a9-4d3b-a3ce-270ede54967f','Amora',NULL,'+5511959564153','5511959564153@s.whatsapp.net',ARRAY['campanha'],'2026-04-19T16:59:07.000Z'::timestamptz,'2026-04-19T17:30:52.000Z'::timestamptz,ARRAY[35,35]::int[]),
+(117579,8,'6d7d9b6b-58a9-4d3b-a3ce-270ede54967f','Antonio',NULL,'+5511991175266','5511991175266@s.whatsapp.net',ARRAY['campanha'],'2026-04-19T17:45:02.000Z'::timestamptz,'2026-04-20T11:02:15.000Z'::timestamptz,ARRAY[35,35]::int[]),
+(118620,8,'6d7d9b6b-58a9-4d3b-a3ce-270ede54967f','SILVANA',NULL,'+5511972960480','5511972960480@s.whatsapp.net',ARRAY['campanha'],'2026-04-21T10:07:22.000Z'::timestamptz,'2026-04-21T10:38:53.000Z'::timestamptz,ARRAY[35,35]::int[]),
+(117800,8,'6d7d9b6b-58a9-4d3b-a3ce-270ede54967f','alemão',NULL,'+5511912364862','5511912364862@s.whatsapp.net',ARRAY['campanha'],'2026-04-20T09:58:01.000Z'::timestamptz,'2026-04-20T11:12:54.000Z'::timestamptz,ARRAY[35,35]::int[]),
+(117611,8,'6d7d9b6b-58a9-4d3b-a3ce-270ede54967f','FRANCISCA Santos Quinto',NULL,'+559181860678','559181860678@s.whatsapp.net',ARRAY['campanha'],'2026-04-19T19:05:08.000Z'::timestamptz,'2026-04-20T11:01:28.000Z'::timestamptz,ARRAY[35,35]::int[]),
+(117891,8,'6d7d9b6b-58a9-4d3b-a3ce-270ede54967f','Nayara',NULL,'+5512997979344','5512997979344@s.whatsapp.net',ARRAY['campanha'],'2026-04-20T11:47:47.000Z'::timestamptz,'2026-04-20T12:03:03.000Z'::timestamptz,ARRAY[35,35]::int[]),
+(114447,8,'6d7d9b6b-58a9-4d3b-a3ce-270ede54967f','Diamantina',NULL,'+5512981230216','5512981230216@s.whatsapp.net',ARRAY['campanha'],'2026-04-14T22:40:55.000Z'::timestamptz,'2026-04-21T13:45:30.000Z'::timestamptz,ARRAY[35,35]::int[]),
+(117916,8,'6d7d9b6b-58a9-4d3b-a3ce-270ede54967f','Claudete',NULL,'+5512981076574','5512981076574@s.whatsapp.net',ARRAY['campanha'],'2026-04-20T12:14:36.000Z'::timestamptz,'2026-04-20T12:46:23.000Z'::timestamptz,ARRAY[35,35]::int[]),
+(115074,8,'6d7d9b6b-58a9-4d3b-a3ce-270ede54967f','Maria Helena Lana Sirio',NULL,'+553399583291','553399583291@s.whatsapp.net',ARRAY['campanha'],'2026-04-15T18:23:10.000Z'::timestamptz,'2026-04-20T15:22:03.000Z'::timestamptz,ARRAY[35,35]::int[]),
+(119320,8,'6d7d9b6b-58a9-4d3b-a3ce-270ede54967f','Elizabeth Pires',NULL,'+5512996799452','5512996799452@s.whatsapp.net',ARRAY['campanha'],'2026-04-21T21:06:33.000Z'::timestamptz,'2026-04-21T22:10:54.000Z'::timestamptz,ARRAY[35,35]::int[]),
+(119564,8,'6d7d9b6b-58a9-4d3b-a3ce-270ede54967f','Percy',NULL,'+5511949831398','5511949831398@s.whatsapp.net',ARRAY['campanha'],'2026-04-22T11:56:05.000Z'::timestamptz,'2026-04-22T12:35:11.000Z'::timestamptz,ARRAY[35,35]::int[]),
+(117288,8,'6d7d9b6b-58a9-4d3b-a3ce-270ede54967f','Carina',NULL,'+5512981059162','5512981059162@s.whatsapp.net',ARRAY['campanha'],'2026-04-18T18:00:51.000Z'::timestamptz,'2026-04-28T19:34:26.000Z'::timestamptz,ARRAY[35,35]::int[]),
+(118609,8,'6d7d9b6b-58a9-4d3b-a3ce-270ede54967f','Mônica Berti Franzolin',NULL,'+5511951341303','5511951341303@s.whatsapp.net',ARRAY['campanha'],'2026-04-21T09:17:49.000Z'::timestamptz,'2026-05-01T15:27:57.000Z'::timestamptz,ARRAY[35,35]::int[])
+ON CONFLICT (id, account_id) DO UPDATE SET
+  ecuro_clinic_id = EXCLUDED.ecuro_clinic_id,
+  name = EXCLUDED.name,
+  email = EXCLUDED.email,
+  phone_raw = EXCLUDED.phone_raw,
+  identifier = EXCLUDED.identifier,
+  labels = EXCLUDED.labels,
+  last_activity_at = EXCLUDED.last_activity_at,
+  inbox_ids = EXCLUDED.inbox_ids,
+  synced_at = now();

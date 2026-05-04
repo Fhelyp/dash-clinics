@@ -32,10 +32,12 @@ const FEEDS = [
   { name: 'payments',         path: '/bi/payments' },
 ];
 
-// Períodos: só Mar e Mai (Abr já está completo)
+// Períodos: Mar e Mai. Quebrados em chunks de 15 dias porque Ecuro
+// rejeita janelas > 31 dias com "Bootstrap window cannot exceed 31 days".
 const PERIODS = [
-  { key: '2026-03', start: '2026-03-01', end: '2026-03-31' },
-  { key: '2026-05', start: '2026-05-01', end: '2026-05-31' },
+  { key: '2026-03a', start: '2026-03-01', end: '2026-03-15' },
+  { key: '2026-03b', start: '2026-03-16', end: '2026-03-31' },
+  { key: '2026-05a', start: '2026-05-01', end: '2026-05-15' },
 ];
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
@@ -135,11 +137,11 @@ async function main() {
   let totalRows = 0;
   for (let i = 0; i < clinics.length; i++) {
     const c = clinics[i];
-    if (i > 0) await sleep(2500);
+    if (i > 0) await sleep(6000); // 6s entre clínicas (era 2.5s) — alivia rate-limit compartilhado com prod
     log(`[${i+1}/${clinics.length}] ${c.Unidade} (${c.Ecuro_clinicId})`);
     for (let f = 0; f < FEEDS.length; f++) {
       const feed = FEEDS[f];
-      if (f > 0) await sleep(1800);
+      if (f > 0) await sleep(2500); // 2.5s entre feeds (era 1.8s)
       for (const period of PERIODS) {
         try {
           const n = await pullFeedClinic(feed, c.Ecuro_clinicId, period);

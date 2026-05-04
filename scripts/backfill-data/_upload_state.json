@@ -1,0 +1,102 @@
+{
+  "appointments::878b3cf8-fc89-4e4d-9185-49d96b458cd0_2026-03b.jsonl": {
+    "uploaded": 1638,
+    "table": "BI Appointments",
+    "at": "2026-05-04T01:52:12.324Z"
+  },
+  "appointments::878b3cf8-fc89-4e4d-9185-49d96b458cd0_2026-05a.jsonl": {
+    "uploaded": 654,
+    "table": "BI Appointments",
+    "at": "2026-05-04T01:52:13.842Z"
+  },
+  "appointment_logs::878b3cf8-fc89-4e4d-9185-49d96b458cd0_2026-03a.jsonl": {
+    "uploaded": 5793,
+    "table": "BI Appointment Logs",
+    "at": "2026-05-04T01:52:23.952Z"
+  },
+  "appointment_logs::878b3cf8-fc89-4e4d-9185-49d96b458cd0_2026-05a.jsonl": {
+    "uploaded": 1330,
+    "table": "BI Appointment Logs",
+    "at": "2026-05-04T01:52:26.190Z"
+  },
+  "payments::878b3cf8-fc89-4e4d-9185-49d96b458cd0_2026-03a.jsonl": {
+    "uploaded": 584,
+    "table": "BI Payments",
+    "at": "2026-05-04T01:52:27.321Z"
+  },
+  "appointments::h14fd517-3582-444f-851b-dd17c0331d34_2026-03a.jsonl": {
+    "uploaded": 845,
+    "table": "BI Appointments",
+    "at": "2026-05-04T02:06:28.656Z"
+  },
+  "appointments::h14fd517-3582-444f-851b-dd17c0331d34_2026-03b.jsonl": {
+    "uploaded": 1047,
+    "table": "BI Appointments",
+    "at": "2026-05-04T02:06:31.391Z"
+  },
+  "appointments::h14fd517-3582-444f-851b-dd17c0331d34_2026-05a.jsonl": {
+    "uploaded": 440,
+    "table": "BI Appointments",
+    "at": "2026-05-04T02:06:32.123Z"
+  },
+  "appointment_logs::h14fd517-3582-444f-851b-dd17c0331d34_2026-03a.jsonl": {
+    "uploaded": 4362,
+    "table": "BI Appointment Logs",
+    "at": "2026-05-04T02:45:42.769Z"
+  },
+  "payments::878b3cf8-fc89-4e4d-9185-49d96b458cd0_2026-03b.jsonl": {
+    "uploaded": 653,
+    "table": "BI Payments",
+    "at": "2026-05-04T02:06:39.434Z"
+  },
+  "payments::878b3cf8-fc89-4e4d-9185-49d96b458cd0_2026-05a.jsonl": {
+    "uploaded": 32,
+    "table": "BI Payments",
+    "at": "2026-05-04T02:06:40.010Z"
+  },
+  "appointments::6d7d9b6b-58a9-4d3b-a3ce-270ede54967f_2026-03a.jsonl": {
+    "uploaded": 753,
+    "table": "BI Appointments",
+    "at": "2026-05-04T02:45:30.402Z"
+  },
+  "appointments::6d7d9b6b-58a9-4d3b-a3ce-270ede54967f_2026-03b.jsonl": {
+    "uploaded": 958,
+    "table": "BI Appointments",
+    "at": "2026-05-04T02:45:32.698Z"
+  },
+  "appointments::6d7d9b6b-58a9-4d3b-a3ce-270ede54967f_2026-05a.jsonl": {
+    "uploaded": 277,
+    "table": "BI Appointments",
+    "at": "2026-05-04T02:45:33.323Z"
+  },
+  "appointment_logs::6d7d9b6b-58a9-4d3b-a3ce-270ede54967f_2026-03a.jsonl": {
+    "uploaded": 1000,
+    "table": "BI Appointment Logs",
+    "at": "2026-05-04T02:45:36.089Z"
+  },
+  "appointment_logs::h14fd517-3582-444f-851b-dd17c0331d34_2026-03b.jsonl": {
+    "uploaded": 5000,
+    "table": "BI Appointment Logs",
+    "at": "2026-05-04T02:45:48.461Z"
+  },
+  "appointment_logs::h14fd517-3582-444f-851b-dd17c0331d34_2026-05a.jsonl": {
+    "uploaded": 1060,
+    "table": "BI Appointment Logs",
+    "at": "2026-05-04T02:45:50.399Z"
+  },
+  "payments::h14fd517-3582-444f-851b-dd17c0331d34_2026-03a.jsonl": {
+    "uploaded": 370,
+    "table": "BI Payments",
+    "at": "2026-05-04T02:45:51.496Z"
+  },
+  "payments::h14fd517-3582-444f-851b-dd17c0331d34_2026-03b.jsonl": {
+    "uploaded": 471,
+    "table": "BI Payments",
+    "at": "2026-05-04T02:45:52.214Z"
+  },
+  "payments::h14fd517-3582-444f-851b-dd17c0331d34_2026-05a.jsonl": {
+    "uploaded": 9,
+    "table": "BI Payments",
+    "at": "2026-05-04T02:45:52.551Z"
+  }
+}

@@ -59,13 +59,16 @@ export async function onRequestGet({ request, env, data }) {
     qs.append('appointment.clinic_id', `in.(${finalClinicIds.join(',')})`);
   }
 
+  // Filtro creators normalizado (igual appointments.js): resolve acentos+espaços+case
   if (creatorsRaw) {
-    const list = creatorsRaw.split('|').map(s => s.trim()).filter(Boolean);
+    const norm = (s) => String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'')
+      .toLowerCase().replace(/\s+/g,' ').trim();
+    const list = creatorsRaw.split('|').map(s => norm(s)).filter(Boolean);
     if (list.length === 1) {
-      qs.append('appointment.created_by_name', `ilike.${list[0]}`);
+      qs.append('appointment.created_by_name_norm', `eq.${list[0]}`);
     } else if (list.length > 1) {
       const safe = list.map(s => `"${s.replace(/"/g, '\\"')}"`).join(',');
-      qs.append('appointment.created_by_name', `in.(${safe})`);
+      qs.append('appointment.created_by_name_norm', `in.(${safe})`);
     }
   }
 

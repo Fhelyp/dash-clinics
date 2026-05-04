@@ -79,8 +79,8 @@ function j(b, s = 200) { return new Response(JSON.stringify(b), { status: s, hea
 
 function supaHeaders(env, prefer = '') {
   return {
-    apikey: env.SUPABASE_SERVICE_ROLE,
-    Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE}`,
+    apikey: env.SUPABASE_ANON_KEY,
+    Authorization: `Bearer ${env.SUPABASE_ANON_KEY}`,
     'Content-Type': 'application/json',
     ...(prefer ? { Prefer: prefer } : {})
   };

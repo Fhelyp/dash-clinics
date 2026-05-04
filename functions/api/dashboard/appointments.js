@@ -60,18 +60,18 @@ export async function onRequestGet({ request, env, data }) {
     qs.append('status', `eq.${parseInt(onlyStatus,10)}`);
   }
 
-  // Filtro de creators (operadores). Vem separado por pipe ('|') do front.
-  // Match exato no created_by_name (após trim/normalização que o front já faz na exibição).
-  // Se múltiplos: usa filter in.()
+  // Filtro de creators usando coluna geradora `created_by_name_norm`
+  // (lower + trim + colapsa espaços + remove acentos). Resolve casos:
+  //   "Pedro Leão" == "Pedro Leao", "Gleyce  Marques" == "Gleyce Marques", " Giovana" trim, etc.
   if (creatorsRaw) {
-    const list = creatorsRaw.split('|').map(s => s.trim()).filter(Boolean);
+    const norm = (s) => String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'')
+      .toLowerCase().replace(/\s+/g,' ').trim();
+    const list = creatorsRaw.split('|').map(s => norm(s)).filter(Boolean);
     if (list.length === 1) {
-      // ilike pra ser tolerante a espaços extras
-      qs.append('created_by_name', `ilike.${list[0]}`);
+      qs.append('created_by_name_norm', `eq.${list[0]}`);
     } else if (list.length > 1) {
-      // PostgREST in.() exige escape de chars especiais — vírgulas, parênteses
       const safe = list.map(s => `"${s.replace(/"/g, '\\"')}"`).join(',');
-      qs.append('created_by_name', `in.(${safe})`);
+      qs.append('created_by_name_norm', `in.(${safe})`);
     }
   }
 
