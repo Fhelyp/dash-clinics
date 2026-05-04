@@ -2074,7 +2074,9 @@ function buildStatsParams(){
   const ymdLocal = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
   let d1 = APPLIED.d1, d2 = APPLIED.d2;
   if(!d1 || !d2){
-    d1 = ymdLocal(new Date(t.getFullYear(), t.getMonth(), 1));
+    // Default: últimos 15 dias (pega final do mês anterior + começo do atual)
+    const back = new Date(t); back.setDate(back.getDate() - 14);
+    d1 = ymdLocal(back);
     d2 = ymdLocal(t);
   }
   params.set('start', d1);
