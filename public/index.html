@@ -1742,17 +1742,10 @@ const TS = {
 };
 // Helpers de exibição: Origem e Tipo de consulta (Thawany feedback).
 function originLabel(p){
-  // Campaign_token preenchido → Campanha
+  // Campaign_token preenchido → Campanha (campo do Ecuro, vem null em ~100% das rows hoje)
   if (p && p.campaign_token && String(p.campaign_token).trim() !== '' && String(p.campaign_token).toLowerCase() !== 'none') return 'Campanha';
-  // Campo source/src/lead_source (a popular quando Ecuro adicionar) — pode trazer 'campanha','organico','indicacao','resgate'
-  const src = (p && (p.source || p.src || p.lead_source) || '').toLowerCase().trim();
-  if (src) {
-    if (src.startsWith('camp')) return 'Campanha';
-    if (src.startsWith('indi')) return 'Indicação';
-    if (src.startsWith('resg')) return 'Resgate';
-    if (src.startsWith('org'))  return 'Orgânico';
-    return src.charAt(0).toUpperCase() + src.slice(1);
-  }
+  // Sinal alternativo: paciente tem match em chatwoot_leads (sync futuro) — placeholder.
+  // TODO: cruzar com tabela chatwoot_leads.phone_norm pra marcar 'Campanha' / 'Indicação' / 'Resgate'.
   return 'Orgânico';
 }
 function originColor(lbl){

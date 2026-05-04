@@ -50,7 +50,7 @@ export async function onRequestGet({ request, env, data }) {
   const qs = new URLSearchParams();
   // Embed: pega appointment relacionado pra mostrar paciente/clínica.
   // Sintaxe PostgREST: select=...,appointment:BI Appointments(...)
-  qs.set('select', 'id,appointment_id,user_id,from_status,to_status,changeDate,appointment:BI Appointments!inner(id,patient_id,patient_name,clinic_id,start_time,scheduled_start_time,doctor_name,speciality_id,phone,created_by_name,status,type,campaign_token,source,src,lead_source)');
+  qs.set('select', 'id,appointment_id,user_id,from_status,to_status,changeDate,appointment:BI Appointments!inner(id,patient_id,patient_name,clinic_id,start_time,scheduled_start_time,doctor_name,speciality_id,phone,created_by_name,status,type,campaign_token)');
   qs.append('to_status', `eq.${toStatus}`);
   qs.append('changeDate', `gte.${start}T00:00:00+00:00`);
   qs.append('changeDate', `lt.${end}T00:00:00+00:00`);
@@ -118,8 +118,7 @@ export async function onRequestGet({ request, env, data }) {
         phone: a.phone,
         created_by_name: a.created_by_name,
         type: a.type,
-        campaign_token: a.campaign_token,
-        source: a.source || a.src || a.lead_source || null
+        campaign_token: a.campaign_token
       };
     });
 

@@ -41,7 +41,7 @@ export async function onRequestGet({ request, env, data }) {
 
   // Monta query PostgREST
   const qs = new URLSearchParams();
-  qs.set('select', 'id,patient_id,patient_name,clinic_id,doctor_name,start_time,scheduled_start_time,status,speciality_id,channel_id,created_by_name,phone,type,campaign_token,source,src,lead_source');
+  qs.set('select', 'id,patient_id,patient_name,clinic_id,doctor_name,start_time,scheduled_start_time,status,speciality_id,channel_id,created_by_name,phone,type,campaign_token');
   qs.append('start_time', `gte.${start}T00:00:00+00:00`);
   qs.append('start_time', `lt.${end}T00:00:00+00:00`);
 
