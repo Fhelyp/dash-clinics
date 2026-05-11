@@ -1697,8 +1697,13 @@ function applyStatsToUI(stats){
   const vsMCpct = totalAg > 0 ? Math.round(mcAgend / totalAg * 100) : 0;
   // Atribuição V2 (último comparecimento ≤30d antes do pagamento) é a regra atual.
   // Mantém legacy (stats.mc_revenue) acessível pra debug via window.__mcRevLegacy.
+  // V3: "MC tocou na jornada do paciente em qq momento" — captura confirmações,
+  // reagendamentos, lembretes feitos pela MC mesmo em appts criados por humanos.
+  // (V2 antiga era "último comparec MC ≤30d" e subatribuía 0.6% — V3 dá ~9% real)
+  const attrV3 = stats.attribution_v3 || {};
   const attrV2 = stats.attribution_v2 || {};
-  const mcRevenueV2 = parseFloat(stats.mc_revenue_v2 ?? attrV2.mc_revenue ?? stats.mc_revenue) || 0;
+  const mcRevenueV2 = parseFloat(stats.mc_revenue_v3 ?? attrV3.mc_revenue ?? stats.mc_revenue_v2 ?? attrV2.mc_revenue ?? stats.mc_revenue) || 0;
+  window.__mcAttribDebug = { v3: attrV3, v2: attrV2, legacy_mc_revenue: stats.mc_revenue };
   window.__mcRevLegacy = parseFloat(stats.mc_revenue) || 0;
   window.__attrV2 = attrV2;
   if(typeof updateMC === 'function'){
