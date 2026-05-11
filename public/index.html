@@ -1536,18 +1536,17 @@ function _runUpdate(){
   renderActiveFilterChips();
   fetchStats().then(stats => {
     STATS = stats;
-    applyStatsToUI(stats);
-    if(typeof loadTablePage === 'function'){
-      ['mn','cf','rg'].forEach(k => loadTablePage(k));
-    }
-    if(typeof computeThauanyMetrics === 'function') computeThauanyMetrics().catch(()=>{});
-    hideBanner();
+    try { applyStatsToUI(stats); } catch(e){ console.error('[applyStatsToUI]', e); }
+    try { if(typeof loadTablePage === 'function') ['mn','cf','rg'].forEach(k => loadTablePage(k)); } catch(e){ console.warn('[tables]', e); }
+    try { if(typeof computeThauanyMetrics === 'function') computeThauanyMetrics().catch(err => console.warn('[thauany]', err)); } catch(e){ console.warn('[thauany sync]', e); }
   }).catch(e => {
     if(e.message === 'unauthorized') return;
     console.error('[updateDashboard]', e);
     showBanner('Erro ao atualizar: ' + e.message, 'error');
+    setTimeout(hideBanner, 3000);
   }).finally(() => {
     _updateInFlight = false;
+    hideBanner(); // GARANTIA: sempre esconde
   });
 }
 
@@ -2183,33 +2182,25 @@ async function loadFromSupabase(){
   try {
     [lookups, stats] = await Promise.all([fetchLookups(), fetchStats()]);
   } catch(e){
-    if(e.message === 'unauthorized') return;
+    if(e.message === 'unauthorized') { hideBanner(); return; }
     showBanner('Erro: ' + e.message, 'error');
+    setTimeout(hideBanner, 3000); // fecha o erro após 3s
     return;
   }
   STATS = stats;
 
-  // Popula dropdowns
-  if(typeof rebuildUnitDropdown === 'function') rebuildUnitDropdown(lookups.clinics);
-  if(typeof rebuildSpecialtyDropdown === 'function') rebuildSpecialtyDropdown(lookups.specialties);
+  // Bloco render: cada step protegido pra não bloquear hideBanner final
+  try { if(typeof rebuildUnitDropdown === 'function') rebuildUnitDropdown(lookups.clinics); } catch(e){ console.warn('[unitDropdown]', e); }
+  try { if(typeof rebuildSpecialtyDropdown === 'function') rebuildSpecialtyDropdown(lookups.specialties); } catch(e){ console.warn('[specDropdown]', e); }
+  try { applyStatsToUI(stats); } catch(e){ console.error('[applyStatsToUI]', e); }
+  try { if(typeof populateOperatorList === 'function') populateOperatorList(); } catch(e){ console.warn('[populateOperatorList]', e); }
+  try { renderActiveFilterChips(); } catch(e){ console.warn('[chips]', e); }
+  try { ['mn','cf','rg'].forEach(k => loadTablePage(k)); } catch(e){ console.warn('[tables]', e); }
+  try { if(typeof computeThauanyMetrics === 'function') computeThauanyMetrics().catch(err => console.warn('[thauany]', err)); } catch(e){ console.warn('[thauany sync]', e); }
 
-  // Aplica stats na UI
-  applyStatsToUI(stats);
-
-  // Popula operadores (do creators_top do stats)
-  if(typeof populateOperatorList === 'function') populateOperatorList();
-
-  // Render activeFilterChips
-  renderActiveFilterChips();
-
-  // Lazy-load tabelas (1a pagina)
-  ['mn','cf','rg'].forEach(k => loadTablePage(k));
-
-  // Computa marketing
-  if(typeof computeThauanyMetrics === 'function') computeThauanyMetrics().catch(()=>{});
-
+  // SEMPRE esconder banner — mesmo que algum sub-step quebre.
   hideBanner();
-  console.log('[load v2] stats:', { kpis: stats.kpis, mc_revenue: stats.mc_revenue });
+  console.log('[load v3] stats:', { kpis: stats.kpis, mc_revenue: stats.mc_revenue, mc_revenue_v4: stats.mc_revenue_v4 });
 }
 
 // ── Repopula dropdown de Unidades a partir de lookups (READ-ONLY de unitConfigs) ──
