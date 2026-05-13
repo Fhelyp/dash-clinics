@@ -15,3 +15,5 @@ build/
 *.csv
 latest.html
 "index (*).html"
+
+docs/_session_state/

@@ -917,6 +917,20 @@
       .drill-table tr:hover{background:rgba(255,255,255,.02)}
       .drill-empty{padding:40px;text-align:center;color:var(--gray)}
       .drill-foot{padding:10px 22px;border-top:1px solid var(--border);font-size:11px;color:var(--gray);display:flex;justify-content:space-between;align-items:center}
+      .drill-toolbar{padding:10px 22px;background:rgba(255,255,255,.02);border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:8px;font-size:11px}
+      .drill-toolbar input[type=text]{background:rgba(0,0,0,.04);border:1px solid var(--border);color:var(--white);font-family:inherit;font-size:12px;padding:7px 10px;border-radius:6px;outline:none;width:100%}
+      .drill-toolbar input[type=text]:focus{border-color:var(--purple)}
+      .drill-origem-row{display:flex;flex-wrap:wrap;gap:5px;align-items:center}
+      .drill-origem-lbl{color:var(--gray-l);text-transform:uppercase;font-size:9.5px;letter-spacing:.06em;font-weight:700;margin-right:4px}
+      .drill-chip{padding:3px 9px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid var(--border);cursor:pointer;color:var(--gray-l);font-size:10.5px;user-select:none;transition:all .12s}
+      .drill-chip:hover{color:var(--white);border-color:var(--gray)}
+      .drill-chip.sl{background:rgba(168,85,247,.18);border-color:var(--purple);color:var(--white)}
+      .drill-chip-clear{padding:3px 9px;border-radius:12px;background:none;border:1px dashed var(--orange);cursor:pointer;color:var(--orange);font-size:10px}
+      .drill-paging{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:10.5px;color:var(--gray-l)}
+      .drill-paging select{background:rgba(0,0,0,.04);border:1px solid var(--border);color:var(--white);font-family:inherit;font-size:11px;padding:3px 6px;border-radius:4px;outline:none}
+      .drill-paging button{background:rgba(255,255,255,.04);border:1px solid var(--border);color:var(--gray-l);padding:3px 9px;border-radius:4px;cursor:pointer;font-size:10.5px}
+      .drill-paging button:hover:not([disabled]){color:var(--white);border-color:var(--gray)}
+      .drill-paging button[disabled]{opacity:.35;cursor:not-allowed}
     </style>
 
     <!-- Modal drill-down -->
@@ -2286,24 +2300,30 @@ const STAGE_LABELS = {
   venderam:     { title: 'Leads que Geraram Venda', icon: '💰' }
 };
 
+// Estado do drill atual (pra paginação, busca, filtros)
+const DRILL_STATE = { stage:null, page:1, pp:25, search:'', origem:new Set() };
+
 async function openFunnelDrill(stage){
   const modal = document.getElementById('drillModal');
-  // Move pra direct child do <body> pra escapar de qualquer stacking context
-  // (sidebar/topbar fixed acima, ou parent com transform/filter quebrando position:fixed).
   if (modal.parentNode !== document.body) document.body.appendChild(modal);
-  document.body.classList.add('drill-open'); // bloqueia scroll de fundo
+  document.body.classList.add('drill-open');
   const lbl = STAGE_LABELS[stage] || { title: stage, icon: '' };
+  DRILL_STATE.stage = stage; DRILL_STATE.page = 1; DRILL_STATE.search = ''; DRILL_STATE.origem = new Set();
   document.getElementById('drillTitle').textContent = lbl.icon + ' ' + lbl.title;
   document.getElementById('drillSub').textContent = 'Carregando…';
   document.getElementById('drillBody').innerHTML = '<div class="drill-empty">Carregando…</div>';
   document.getElementById('drillFootInfo').textContent = '—';
   modal.classList.add('show');
+  await loadDrillPage();
+}
 
-  // Sempre usa params atuais (buildStatsParams) pra pegar os filtros do momento.
-  // __lastFnlParams seria do último funnel render — pode estar stale se filtros mudaram.
-  const params = buildStatsParams().toString();
-  const usp = new URLSearchParams(params);
-  usp.set('stage', stage);
+async function loadDrillPage(){
+  const usp = new URLSearchParams(buildStatsParams().toString());
+  usp.set('stage', DRILL_STATE.stage);
+  usp.set('limit', DRILL_STATE.pp);
+  usp.set('offset', (DRILL_STATE.page - 1) * DRILL_STATE.pp);
+  if (DRILL_STATE.search) usp.set('search', DRILL_STATE.search);
+  if (DRILL_STATE.origem.size > 0) usp.set('origem', [...DRILL_STATE.origem].join(','));
   try {
     const r = await fetch('/api/dashboard/funnel-detail?' + usp.toString(), { credentials: 'same-origin' });
     if (r.status === 401) { window.location.href = '/login.html'; return; }
@@ -2312,58 +2332,111 @@ async function openFunnelDrill(stage){
       return;
     }
     const j = await r.json();
-    renderDrillTable(stage, j);
+    renderDrillTable(DRILL_STATE.stage, j);
   } catch(e) {
     document.getElementById('drillBody').innerHTML = '<div class="drill-empty">Erro: ' + e.message + '</div>';
   }
 }
 
+// Origens disponíveis (patient_channel_name) — preenchido on-demand do server
+const ORIGEM_PRESETS = ['Fachada','Propagandista','CRC','Indicaçao','Maria Clara IA','Carro de Som','Cloudia','Facebook','Folheto','Internet','Online','Buzzlead','Instagram','Google'];
+const CHATWOOT_BASE = 'https://chatclinics.5ef4kt.easypanel.host';
+
 function renderDrillTable(stage, data){
   const rows = data.rows || [];
   const cnt = data.count || 0;
-  document.getElementById('drillSub').textContent = cnt + ' contatos' + (cnt > rows.length ? ` (mostrando primeiros ${rows.length})` : '');
-  // Período vem dos APPLIED.d1/d2 (vars locais ao script, não window)
+  const pp = data.limit || DRILL_STATE.pp;
+  const totalPages = Math.max(1, Math.ceil(cnt / pp));
+  const pageStart = (DRILL_STATE.page - 1) * pp + 1;
+  const pageEnd = Math.min(cnt, DRILL_STATE.page * pp);
+  document.getElementById('drillSub').textContent = `${cnt.toLocaleString('pt-BR')} contatos · pg ${DRILL_STATE.page}/${totalPages} (${pageStart}–${pageEnd})`;
   const _d1 = (typeof APPLIED !== 'undefined' && APPLIED.d1) || '?';
   const _d2 = (typeof APPLIED !== 'undefined' && APPLIED.d2) || '?';
-  document.getElementById('drillFootInfo').textContent = `Período: ${_d1} → ${_d2} | Filtro min_lead_created_at: 2026-04-06 (exclui bulk import)`;
+  document.getElementById('drillFootInfo').textContent = `Período: ${_d1} → ${_d2} | Filtro min_lead_created_at: 2026-04-06`;
+
+  // Toolbar (busca + filtros origem + pp + paginação)
+  const origemChips = ORIGEM_PRESETS.map(o => {
+    const sel = DRILL_STATE.origem.has(o);
+    return `<span class="drill-chip${sel?' sl':''}" onclick="drillToggleOrigem('${o.replace(/'/g,"&#39;")}')">${o}</span>`;
+  }).join('');
+  const ppOpts = [10,25,50,100,200].map(n => `<option value="${n}"${n===pp?' selected':''}>${n}</option>`).join('');
+  const toolbar = `<div class="drill-toolbar">
+    <input type="text" id="drillSearch" placeholder="Buscar nome ou telefone…" value="${(DRILL_STATE.search||'').replace(/"/g,'&quot;')}" oninput="drillSearchChange(this.value)" />
+    <div class="drill-origem-row"><span class="drill-origem-lbl">Origem:</span>${origemChips}${DRILL_STATE.origem.size?'<span class="drill-chip-clear" onclick="drillClearOrigem()">limpar</span>':''}</div>
+    <div class="drill-paging">
+      <select onchange="drillChangePP(this.value)">${ppOpts}</select> por página
+      <button onclick="drillGoPage(1)" ${DRILL_STATE.page===1?'disabled':''}>« 1</button>
+      <button onclick="drillGoPage(${DRILL_STATE.page-1})" ${DRILL_STATE.page===1?'disabled':''}>‹</button>
+      <span>${DRILL_STATE.page}/${totalPages}</span>
+      <button onclick="drillGoPage(${DRILL_STATE.page+1})" ${DRILL_STATE.page>=totalPages?'disabled':''}>›</button>
+      <button onclick="drillGoPage(${totalPages})" ${DRILL_STATE.page>=totalPages?'disabled':''}>${totalPages} »</button>
+    </div>
+  </div>`;
+
   if (!rows.length) {
-    document.getElementById('drillBody').innerHTML = '<div class="drill-empty">Nenhum contato encontrado nesse estágio.</div>';
+    document.getElementById('drillBody').innerHTML = toolbar + '<div class="drill-empty">Nenhum contato encontrado nesse filtro.</div>';
+    setTimeout(() => { const i = document.getElementById('drillSearch'); if (i) i.focus(); }, 50);
     return;
   }
   const showVendas = stage === 'venderam' || rows.some(r => parseFloat(r.total_pago||0) > 0);
   const fmtBR = (s) => { try { return new Date(s).toLocaleString('pt-BR', {dateStyle:'short', timeStyle:'short'}); } catch { return s||'—'; } };
-  const html = `<table class="drill-table"><thead><tr>
+  const tbl = `<table class="drill-table"><thead><tr>
     <th>#</th>
     <th>Lead (Chatwoot)</th>
     <th>Telefone</th>
     <th>Unidade</th>
+    <th>Origem</th>
     <th>Chegou em</th>
     <th>Status</th>
     ${showVendas ? '<th style="text-align:right">Pago</th><th style="text-align:right">#Pgto</th>' : ''}
-    <th>Ficha Ecuro</th>
+    <th>Ecuro</th>
   </tr></thead><tbody>${rows.map((r,i) => {
+    const idx = pageStart + i;
     const unit = (typeof clinicName === 'function' ? clinicName(r.lead_clinic_id) : r.lead_clinic_id) || '—';
     const pid = (r.patient_ids && r.patient_ids[0]) || null;
-    const link = pid
-      ? `<a href="https://ecuro.com.br/dashboard/patient-profile/${pid}?activeTab=appointments" target="_blank" rel="noopener" style="color:var(--blue);text-decoration:none">abrir ↗</a>`
+    const ecuroLink = pid
+      ? `<a href="https://ecuro.com.br/dashboard/patient-profile/${pid}?activeTab=appointments" target="_blank" rel="noopener" title="Ficha paciente Ecuro" style="color:var(--blue);text-decoration:none">↗ ficha</a>`
       : '<span style="color:var(--gray)">—</span>';
+    // Link Chatwoot no nome do contato
+    const cwUrl = (r.account_id && r.cw_contact_id) ? `${CHATWOOT_BASE}/app/accounts/${r.account_id}/contacts/${r.cw_contact_id}` : null;
+    const nameCell = cwUrl
+      ? `<a href="${cwUrl}" target="_blank" rel="noopener" title="Abrir contato no Chatwoot" style="color:var(--white);text-decoration:none;border-bottom:1px dotted var(--gray)">${(r.lead_name||'sem nome').trim().slice(0,40)}</a>`
+      : `<strong>${(r.lead_name||'sem nome').trim().slice(0,40)}</strong>`;
     let statusBadge = '<span style="color:var(--gray)">só lead</span>';
     if (r.compareceu) statusBadge = '<span style="color:var(--orange);font-weight:700">✓ compareceu</span>';
     else if (r.confirmou) statusBadge = '<span style="color:var(--teal)">✓ confirmou</span>';
     else if (r.patient_ids && r.patient_ids.length) statusBadge = '<span style="color:var(--blue)">✓ agendou</span>';
+    const origens = (r.patient_channel_names||[]).filter(Boolean).slice(0,2).join(', ') || '—';
     return `<tr>
-      <td style="color:var(--gray)">${i+1}</td>
-      <td><strong>${(r.lead_name||'sem nome').trim().slice(0,40)}</strong></td>
+      <td style="color:var(--gray)">${idx}</td>
+      <td>${nameCell}</td>
       <td style="font-family:'JetBrains Mono',monospace;font-size:11px">${r.phone_norm || '—'}</td>
       <td style="font-size:10.5px">${unit}</td>
+      <td style="font-size:10.5px;color:var(--gray-l)">${origens}</td>
       <td style="font-size:10.5px;color:var(--gray-l)">${fmtBR(r.lead_created_at)}</td>
       <td>${statusBadge}</td>
       ${showVendas ? `<td style="text-align:right;color:var(--green);font-weight:700">${fmtMoney(r.total_pago||0)}</td><td style="text-align:right;color:var(--gray-l)">${r.n_pgto||0}</td>` : ''}
-      <td>${link}</td>
+      <td>${ecuroLink}</td>
     </tr>`;
   }).join('')}</tbody></table>`;
-  document.getElementById('drillBody').innerHTML = html;
+  document.getElementById('drillBody').innerHTML = toolbar + tbl;
 }
+
+// Debounce do search (500ms)
+let _drillSearchTimer = null;
+function drillSearchChange(v){
+  DRILL_STATE.search = v||'';
+  clearTimeout(_drillSearchTimer);
+  _drillSearchTimer = setTimeout(() => { DRILL_STATE.page = 1; loadDrillPage(); const inp = document.getElementById('drillSearch'); if(inp) inp.focus(); }, 500);
+}
+function drillToggleOrigem(o){
+  if (DRILL_STATE.origem.has(o)) DRILL_STATE.origem.delete(o); else DRILL_STATE.origem.add(o);
+  DRILL_STATE.page = 1;
+  loadDrillPage();
+}
+function drillClearOrigem(){ DRILL_STATE.origem.clear(); DRILL_STATE.page = 1; loadDrillPage(); }
+function drillGoPage(p){ DRILL_STATE.page = Math.max(1, p); loadDrillPage(); }
+function drillChangePP(v){ DRILL_STATE.pp = parseInt(v,10); DRILL_STATE.page = 1; loadDrillPage(); }
 
 function closeFunnelDrill(){
   document.getElementById('drillModal').classList.remove('show');
