@@ -26,6 +26,8 @@ export async function onRequestGet({ request, env, data }) {
   const creatorsRaw  = url.searchParams.get('creators') || '';
   const userIdsRaw   = url.searchParams.get('user_ids') || '';
   const isMcParam    = url.searchParams.get('is_mc');
+  const origemRaw    = url.searchParams.get('origem') || '';
+  const suborigemRaw = url.searchParams.get('suborigem') || '';
 
   if (!start || !end) return j(400, { error: 'missing_params' });
 
@@ -50,7 +52,7 @@ export async function onRequestGet({ request, env, data }) {
   const qs = new URLSearchParams();
   // Embed: pega appointment relacionado pra mostrar paciente/clínica.
   // Sintaxe PostgREST: select=...,appointment:BI Appointments(...)
-  qs.set('select', 'id,appointment_id,user_id,from_status,to_status,changeDate,appointment:BI Appointments!inner(id,patient_id,patient_name,clinic_id,start_time,scheduled_start_time,doctor_name,speciality_id,phone,created_by_name,status,type,campaign_token)');
+  qs.set('select', 'id,appointment_id,user_id,from_status,to_status,changeDate,appointment:BI Appointments!inner(id,patient_id,patient_name,clinic_id,start_time,scheduled_start_time,doctor_name,speciality_id,phone,created_by_name,status,type,campaign_token,channel_name,patient_channel_name,patient_subchannel_name)');
   qs.append('to_status', `eq.${toStatus}`);
   qs.append('changeDate', `gte.${start}T00:00:00+00:00`);
   qs.append('changeDate', `lt.${end}T00:00:00+00:00`);
@@ -80,6 +82,22 @@ export async function onRequestGet({ request, env, data }) {
     qs.append('user_id', `eq.${MC_USER_ID}`);
   } else if (isMcParam === 'false') {
     qs.append('user_id', `neq.${MC_USER_ID}`);
+  }
+
+  // Filtros Origem (em appointment embed)
+  if (origemRaw) {
+    const list = origemRaw.split(',').map(s => s.trim()).filter(Boolean);
+    if (list.length > 0) {
+      const safe = list.map(s => `"${s.replace(/"/g, '\\"')}"`).join(',');
+      qs.append('appointment.patient_channel_name', `in.(${safe})`);
+    }
+  }
+  if (suborigemRaw) {
+    const list = suborigemRaw.split(',').map(s => s.trim()).filter(Boolean);
+    if (list.length > 0) {
+      const safe = list.map(s => `"${s.replace(/"/g, '\\"')}"`).join(',');
+      qs.append('appointment.patient_subchannel_name', `in.(${safe})`);
+    }
   }
 
   qs.set('order', `changeDate.${sortOrd}`);
@@ -121,7 +139,10 @@ export async function onRequestGet({ request, env, data }) {
         phone: a.phone,
         created_by_name: a.created_by_name,
         type: a.type,
-        campaign_token: a.campaign_token
+        campaign_token: a.campaign_token,
+        channel_name: a.channel_name,
+        patient_channel_name: a.patient_channel_name,
+        patient_subchannel_name: a.patient_subchannel_name
       };
     });
 

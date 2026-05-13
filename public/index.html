@@ -644,6 +644,29 @@
       </div>
     </div>
     <div class="fw">
+      <button class="fbtn" onclick="tdd('ddorigem')">
+        <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v6M12 17v6M4.22 4.22l4.24 4.24M15.54 15.54l4.24 4.24M1 12h6M17 12h6M4.22 19.78l4.24-4.24M15.54 8.46l4.24-4.24"/></svg>
+        <span class="fbtn-label">Origem</span> <svg width="9" height="9" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="dd" id="ddorigem" style="min-width:220px;max-height:340px;overflow-y:auto;">
+        <div class="ddi sl" onclick="tdiOrigem(this, null)"><span class="dck"><svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></span>Todas</div>
+        <div class="ddi" onclick="tdiOrigem(this, 'Fachada')"><span class="dck"></span>Fachada</div>
+        <div class="ddi" onclick="tdiOrigem(this, 'Propagandista')"><span class="dck"></span>Propagandista</div>
+        <div class="ddi" onclick="tdiOrigem(this, 'CRC')"><span class="dck"></span>CRC</div>
+        <div class="ddi" onclick="tdiOrigem(this, 'Indicaçao')"><span class="dck"></span>Indicação</div>
+        <div class="ddi" onclick="tdiOrigem(this, 'Maria Clara IA')"><span class="dck"></span>Maria Clara IA</div>
+        <div class="ddi" onclick="tdiOrigem(this, 'Carro de Som')"><span class="dck"></span>Carro de Som</div>
+        <div class="ddi" onclick="tdiOrigem(this, 'Cloudia')"><span class="dck"></span>Cloudia</div>
+        <div class="ddi" onclick="tdiOrigem(this, 'Facebook')"><span class="dck"></span>Facebook</div>
+        <div class="ddi" onclick="tdiOrigem(this, 'Folheto')"><span class="dck"></span>Folheto</div>
+        <div class="ddi" onclick="tdiOrigem(this, 'Internet')"><span class="dck"></span>Internet</div>
+        <div class="ddi" onclick="tdiOrigem(this, 'Online')"><span class="dck"></span>Online</div>
+        <div class="ddi" onclick="tdiOrigem(this, 'Buzzlead')"><span class="dck"></span>Buzzlead</div>
+        <div class="ddi" onclick="tdiOrigem(this, 'Instagram')"><span class="dck"></span>Instagram</div>
+        <div class="ddi" onclick="tdiOrigem(this, 'Google')"><span class="dck"></span>Google</div>
+      </div>
+    </div>
+    <div class="fw">
       <button class="fbtn" onclick="tdd('dds')">
         <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         <span class="fbtn-label">Status</span> <svg width="9" height="9" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
@@ -1375,7 +1398,7 @@ function setMCMode(mode) {
 // ── APPLIED FILTER STATE ─────────────────────────────
 // creators: null (todos) | Set<string> contendo nomes E/OU tokens especiais
 //           '__outros__' (bucket cauda) e '__sem_criador__' (nomes vazios)
-const APPLIED={units:null,specs:null,statuses:null,d1:null,d2:null,creators:null};
+const APPLIED={units:null,specs:null,statuses:null,d1:null,d2:null,creators:null,origens:null};
 
 // Verifica se um item passa no filtro de criador (operador)
 function matchCreatorFilter(p){
@@ -1464,6 +1487,36 @@ function tdiOperator(el, name){
       ck.innerHTML = '';
       if(APPLIED.creators){ APPLIED.creators.delete(name); if(APPLIED.creators.size===0) APPLIED.creators = null; }
       if(!APPLIED.creators) {
+        items[0].classList.add('sl');
+        items[0].querySelector('.dck').innerHTML = '<svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>';
+      }
+    }
+  }
+  updateDashboard();
+}
+
+// ── FILTRO POR ORIGEM (patient_channel_name) ──
+function tdiOrigem(el, name){
+  const items = [...document.querySelectorAll('#ddorigem .ddi')];
+  if(name === null){
+    items.forEach(i => i.classList.remove('sl'));
+    items[0].classList.add('sl');
+    items[0].querySelector('.dck').innerHTML = '<svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>';
+    for(let i=1; i<items.length; i++) items[i].querySelector('.dck').innerHTML = '';
+    APPLIED.origens = null;
+  } else {
+    items[0].classList.remove('sl');
+    items[0].querySelector('.dck').innerHTML = '';
+    el.classList.toggle('sl');
+    const ck = el.querySelector('.dck');
+    if(el.classList.contains('sl')){
+      ck.innerHTML = '<svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>';
+      APPLIED.origens = APPLIED.origens || new Set();
+      APPLIED.origens.add(name);
+    } else {
+      ck.innerHTML = '';
+      if(APPLIED.origens){ APPLIED.origens.delete(name); if(APPLIED.origens.size===0) APPLIED.origens = null; }
+      if(!APPLIED.origens){
         items[0].classList.add('sl');
         items[0].querySelector('.dck').innerHTML = '<svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>';
       }
@@ -1764,20 +1817,38 @@ const TS = {
   rg: { rows: [], total: 0, totalPages: 1, page: 1, pp: 10, search: '' }
 };
 // Helpers de exibição: Origem e Tipo de consulta (Thawany feedback).
+// V2 (12/05): usa coluna real do Ecuro `patient_channel_name` (96% cobertura).
 function originLabel(p){
-  // Campaign_token preenchido → Campanha (campo do Ecuro, vem null em ~100% das rows hoje)
-  if (p && p.campaign_token && String(p.campaign_token).trim() !== '' && String(p.campaign_token).toLowerCase() !== 'none') return 'Campanha';
-  // Sinal alternativo: paciente tem match em chatwoot_leads (sync futuro) — placeholder.
-  // TODO: cruzar com tabela chatwoot_leads.phone_norm pra marcar 'Campanha' / 'Indicação' / 'Resgate'.
-  return 'Orgânico';
+  if (!p) return '—';
+  // Prefere patient_channel_name (origem do paciente). Fallback campaign_token.
+  if (p.patient_channel_name) return p.patient_channel_name;
+  if (p.channel_name) return p.channel_name;
+  if (p.campaign_token && String(p.campaign_token).trim() !== '' && String(p.campaign_token).toLowerCase() !== 'none') return 'Campanha';
+  return '—';
+}
+function suborigemLabel(p){
+  if (!p) return '';
+  return p.patient_subchannel_name || '';
 }
 function originColor(lbl){
-  return ({
+  // Cor por origem — paleta visual consistente
+  const map = {
+    'Maria Clara IA':'color:var(--purple);font-weight:700',
     'Campanha':'color:var(--purple)',
+    'Fachada':'color:var(--teal)',
+    'Propagandista':'color:var(--blue)',
+    'CRC':'color:var(--orange)',
+    'Indicaçao':'color:var(--green)',
+    'Indicação':'color:var(--green)',
     'Orgânico':'color:var(--blue)',
-    'Indicação':'color:var(--teal)',
-    'Resgate':'color:var(--orange)'
-  })[lbl] || 'color:var(--gray-l)';
+    'Resgate':'color:var(--orange)',
+    'Carro de Som':'color:var(--gray-l)',
+    'Cloudia':'color:var(--purple)',
+    'Facebook':'color:#4267B2',
+    'Instagram':'color:#E1306C',
+    'Google':'color:#4285F4'
+  };
+  return map[lbl] || 'color:var(--gray-l)';
 }
 function typeLabel(t){
   // Ecuro: type=1 = 1ª consulta (avaliação), type=2 = retorno
@@ -2134,6 +2205,10 @@ function buildStatsParams(){
   if(APPLIED.creators && APPLIED.creators.size > 0){
     const list = [...APPLIED.creators].filter(c => c !== '__outros__' && c !== '__sem_criador__');
     if(list.length) params.set('creators', list.join('|'));
+  }
+  // Origem (patient_channel_name)
+  if(APPLIED.origens && APPLIED.origens.size > 0){
+    params.set('origem', [...APPLIED.origens].join(','));
   }
   // Agent mode
   if(MC_MODE === 'MC') params.set('agent_mode', 'MC');

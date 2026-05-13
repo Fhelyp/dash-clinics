@@ -17,6 +17,8 @@ export async function onRequestGet({ request, env, data }) {
   const specialtyIdsRaw = url.searchParams.get('specialty_ids') || '';
   const statusCodesRaw = url.searchParams.get('status_codes') || '';
   const creatorsRaw = url.searchParams.get('creators') || '';
+  const origemRaw = url.searchParams.get('origem') || ''; // patient_channel_name CSV
+  const suborigemRaw = url.searchParams.get('suborigem') || ''; // patient_subchannel_name CSV
 
   if (!start || !end) {
     return j(400, { error: 'missing_params', message: 'start e end obrigatórios' });
@@ -41,7 +43,7 @@ export async function onRequestGet({ request, env, data }) {
 
   // Monta query PostgREST
   const qs = new URLSearchParams();
-  qs.set('select', 'id,patient_id,patient_name,clinic_id,doctor_name,start_time,scheduled_start_time,status,speciality_id,channel_id,created_by_name,phone,type,campaign_token');
+  qs.set('select', 'id,patient_id,patient_name,clinic_id,doctor_name,start_time,scheduled_start_time,status,speciality_id,channel_id,created_by_name,phone,type,campaign_token,channel_name,patient_channel_name,patient_subchannel_name');
   qs.append('start_time', `gte.${start}T00:00:00+00:00`);
   qs.append('start_time', `lt.${end}T00:00:00+00:00`);
 
@@ -58,6 +60,22 @@ export async function onRequestGet({ request, env, data }) {
   }
   if (onlyStatus) {
     qs.append('status', `eq.${parseInt(onlyStatus,10)}`);
+  }
+
+  // Filtro Origem (patient_channel_name) — CSV de valores exatos
+  if (origemRaw) {
+    const list = origemRaw.split(',').map(s => s.trim()).filter(Boolean);
+    if (list.length > 0) {
+      const safe = list.map(s => `"${s.replace(/"/g, '\\"')}"`).join(',');
+      qs.append('patient_channel_name', `in.(${safe})`);
+    }
+  }
+  if (suborigemRaw) {
+    const list = suborigemRaw.split(',').map(s => s.trim()).filter(Boolean);
+    if (list.length > 0) {
+      const safe = list.map(s => `"${s.replace(/"/g, '\\"')}"`).join(',');
+      qs.append('patient_subchannel_name', `in.(${safe})`);
+    }
   }
 
   // Filtro de creators usando coluna geradora `created_by_name_norm`
