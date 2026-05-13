@@ -840,21 +840,25 @@
         </div>
       </div>
     </div>
-    <div class="card" style="padding:18px 22px;">
-      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--gray-l);margin-bottom:12px;">Reagendamentos por Agente</div>
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:16px;">
+    <div class="card" style="padding:18px 22px;position:relative;">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--gray-l);margin-bottom:12px;display:flex;align-items:center;gap:6px;">
+        Reagendamentos por Agente
+        <span title="A API de BI da Ecuro ainda não expõe quem reagendou (mudança de data/hora não gera log com user_id). Aguardando ajuste do time Ecuro para liberar a métrica." style="display:inline-flex;align-items:center;justify-content:center;width:13px;height:13px;border-radius:50%;border:1px solid var(--gray);color:var(--gray);font-size:9px;cursor:help;font-weight:700;">i</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:16px;opacity:.5;">
         <div style="flex:1;">
           <div style="font-size:11px;color:rgba(168,85,247,.85);margin-bottom:3px;">Maria Clara</div>
-          <div style="font-size:26px;font-weight:800;color:var(--white);" id="reagMC">0</div>
-          <div style="font-size:10.5px;color:var(--gray);" id="reagMCpct">0% do total</div>
+          <div style="font-size:26px;font-weight:800;color:var(--white);" id="reagMC">—</div>
+          <div style="font-size:10.5px;color:var(--gray);" id="reagMCpct">indisponível</div>
         </div>
         <div style="width:1px;height:50px;background:var(--border);"></div>
         <div style="flex:1;">
           <div style="font-size:11px;color:var(--gray-l);margin-bottom:3px;">Humanos</div>
-          <div style="font-size:26px;font-weight:800;color:var(--white);" id="reagHUM">0</div>
-          <div style="font-size:10.5px;color:var(--gray);" id="reagHUMpct">0% do total</div>
+          <div style="font-size:26px;font-weight:800;color:var(--white);" id="reagHUM">—</div>
+          <div style="font-size:10.5px;color:var(--gray);" id="reagHUMpct">indisponível</div>
         </div>
       </div>
+      <div style="margin-top:10px;font-size:10px;color:var(--gray);font-style:italic;line-height:1.4;">Métrica temporariamente desativada — Ecuro não expõe usuário do reagendamento na API de BI.</div>
     </div>
   </div>
 </div>
@@ -1069,11 +1073,12 @@
         <div style="overflow-x:auto"><table class="atbl"><tbody id="tbCf"></tbody></table></div>
         <div class="pgbar" id="pgCf"></div>
       </div>
-      <div class="tc">
-        <div class="thd"><span class="ttl" style="color:var(--orange)">Reagendamentos</span></div>
-        <div class="sb"><svg width="12" height="12" fill="none" stroke="var(--gray)" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg><input placeholder="Pesquisar por nome ou telefone…" oninput="flt('rg',this.value)"></div>
-        <div style="overflow-x:auto"><table class="atbl"><tbody id="tbRg"></tbody></table></div>
-        <div class="pgbar" id="pgRg"></div>
+      <div class="tc" style="opacity:.65;">
+        <div class="thd"><span class="ttl" style="color:var(--orange)">Reagendamentos</span><span style="margin-left:8px;font-size:9px;padding:2px 6px;border:1px solid var(--border);border-radius:10px;color:var(--gray);text-transform:uppercase;letter-spacing:.08em;">Indisponível</span></div>
+        <div style="padding:24px 18px;font-size:11.5px;color:var(--gray);line-height:1.55;border:1px dashed var(--border);border-radius:8px;background:rgba(255,255,255,.015);">
+          A Ecuro ainda não expõe os logs de reagendamento (mudança de data/hora) com o usuário responsável na API de BI.<br>
+          Aguardando ajuste no endpoint <code style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--gray-l);">/bi/appointment-logs</code> para liberar esta tabela.
+        </div>
       </div>
     </div>
   </div>
@@ -1612,7 +1617,7 @@ function _runUpdate(){
   fetchStats().then(stats => {
     STATS = stats;
     try { applyStatsToUI(stats); } catch(e){ console.error('[applyStatsToUI]', e); }
-    try { if(typeof loadTablePage === 'function') ['mn','cf','rg'].forEach(k => loadTablePage(k)); } catch(e){ console.warn('[tables]', e); }
+    try { if(typeof loadTablePage === 'function') ['mn','cf'].forEach(k => loadTablePage(k)); } catch(e){ console.warn('[tables]', e); }
     try { if(typeof computeThauanyMetrics === 'function') computeThauanyMetrics().catch(err => console.warn('[thauany]', err)); } catch(e){ console.warn('[thauany sync]', e); }
   }).catch(e => {
     if(e.message === 'unauthorized') return;
@@ -1807,10 +1812,8 @@ function applyStatsToUI(stats){
   setT('confHUM', (aa.conf_hum||0).toLocaleString('pt-BR'));
   setT('confMCpct', pct(aa.conf_mc||0, confT) + '% do total');
   setT('confHUMpct', pct(aa.conf_hum||0, confT) + '% do total');
-  setT('reagMC', (aa.reag_mc||0).toLocaleString('pt-BR'));
-  setT('reagHUM', (aa.reag_hum||0).toLocaleString('pt-BR'));
-  setT('reagMCpct', pct(aa.reag_mc||0, reagT) + '% do total');
-  setT('reagHUMpct', pct(aa.reag_hum||0, reagT) + '% do total');
+  // Reagendamentos desativados — Ecuro não expõe user_id de reschedule na API de BI.
+  // Mantém os elementos com "—" / "indisponível" definidos no HTML.
 }
 
 function _legacyUpdateDashboardEnd(){
@@ -1940,7 +1943,7 @@ function flt(k, q){
   TS[k].page = 1;
   loadTablePage(k);
 }
-['mn','cf','rg'].forEach(k => loadTablePage(k));
+['mn','cf'].forEach(k => loadTablePage(k));
 
 
 
@@ -2291,7 +2294,7 @@ async function loadFromSupabase(){
   try { applyStatsToUI(stats); } catch(e){ console.error('[applyStatsToUI]', e); }
   try { if(typeof populateOperatorList === 'function') populateOperatorList(); } catch(e){ console.warn('[populateOperatorList]', e); }
   try { renderActiveFilterChips(); } catch(e){ console.warn('[chips]', e); }
-  try { ['mn','cf','rg'].forEach(k => loadTablePage(k)); } catch(e){ console.warn('[tables]', e); }
+  try { ['mn','cf'].forEach(k => loadTablePage(k)); } catch(e){ console.warn('[tables]', e); }
   try { if(typeof computeThauanyMetrics === 'function') computeThauanyMetrics().catch(err => console.warn('[thauany]', err)); } catch(e){ console.warn('[thauany sync]', e); }
 
   // SEMPRE esconder banner — mesmo que algum sub-step quebre.
