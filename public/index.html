@@ -1703,7 +1703,6 @@ function applyStatsToUI(stats){
   const mcRevenueV2 = parseFloat(stats.mc_revenue_v4 ?? attrV4.mc_revenue ?? stats.mc_revenue) || 0;
   window.__mcAttribDebug = { v4: attrV4, legacy_mc_revenue: stats.mc_revenue };
   window.__mcRevLegacy = parseFloat(stats.mc_revenue) || 0;
-  window.__attrV2 = attrV2;
   if(typeof updateMC === 'function'){
     updateMC({
       mcAgend, mcConvPct,
