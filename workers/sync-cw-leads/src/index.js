@@ -168,6 +168,45 @@ function mapContact(c, accountId, ecuroClinicId) {
   };
 }
 
+// Reconcile: deleta leads no Supabase que NÃO foram vistos no CW nesta run.
+// Usado SÓ no full refresh (force=true). No incremental seria incorreto pq pagina
+// até bater no cutoff e os "não vistos" são apenas mais antigos, não removidos.
+async function reconcileAccount(env, accountId, seenIds) {
+  if (!seenIds || seenIds.size === 0) {
+    // Defesa: se algo deu errado e nada foi visto, não deletar tudo.
+    console.log(`[${accountId}] reconcile SKIP (zero seen ids)`);
+    return 0;
+  }
+  // Pega TODOS os IDs atuais no Supabase pra essa account com label=campanha
+  const supaIds = new Set();
+  let from = 0; const step = 1000;
+  while (true) {
+    const r = await fetch(`${env.SUPABASE_URL}/rest/v1/chatwoot_leads?account_id=eq.${accountId}&labels=cs.{campanha}&select=id`, {
+      headers: { ...supaHeaders(env), 'Range-Unit': 'items', Range: `${from}-${from+step-1}` }
+    });
+    if (!r.ok) throw new Error(`reconcile select ${r.status}`);
+    const rows = await r.json();
+    if (!rows.length) break;
+    for (const row of rows) supaIds.add(row.id);
+    if (rows.length < step) break;
+    from += step;
+  }
+  const stale = [...supaIds].filter(id => !seenIds.has(id));
+  if (!stale.length) { console.log(`[${accountId}] reconcile clean (no stale)`); return 0; }
+  // DELETE em batches
+  let deleted = 0;
+  const CHUNK = 200;
+  for (let i = 0; i < stale.length; i += CHUNK) {
+    const batch = stale.slice(i, i + CHUNK);
+    const url = `${env.SUPABASE_URL}/rest/v1/chatwoot_leads?account_id=eq.${accountId}&id=in.(${batch.join(',')})`;
+    const r = await fetch(url, { method: 'DELETE', headers: { ...supaHeaders(env, 'return=minimal') }});
+    if (!r.ok) throw new Error(`reconcile delete ${r.status}`);
+    deleted += batch.length;
+  }
+  console.log(`[${accountId}] reconcile DELETED ${deleted} stale leads`);
+  return deleted;
+}
+
 // ── Runners ──────────────────────────────────────────────────────────
 async function runOneAccount(env, accountId, { force = false } = {}) {
   const units = await listUnits(env);
@@ -186,6 +225,8 @@ async function runOneAccount(env, accountId, { force = false } = {}) {
 
   let page = 1, total = 0, maxSeen = cutoffISO ? new Date(cutoffISO) : null, stop = false;
   let firstError = null;
+  // Em full refresh, rastreamos todos os IDs vistos pra fazer reconcile (DELETE stale) no final
+  const seenIds = force ? new Set() : null;
 
   while (page <= HARD_PAGE_LIMIT && !stop) {
     let resp;
@@ -206,6 +247,7 @@ async function runOneAccount(env, accountId, { force = false } = {}) {
       const lastAct = c.last_activity_at ? c.last_activity_at * 1000 : 0;
       if (cutoffTs && lastAct <= cutoffTs) { stop = true; break; }
       batch.push(mapContact(c, accountId, ecuroClinicId));
+      if (seenIds) seenIds.add(c.id);
       if (lastAct && (!maxSeen || lastAct > maxSeen.getTime())) maxSeen = new Date(lastAct);
     }
     if (batch.length) {
@@ -222,6 +264,14 @@ async function runOneAccount(env, accountId, { force = false } = {}) {
     await sleep(SLEEP_PAGE_MS);
   }
 
+  // Full refresh: reconcile (DELETE leads que não vieram nessa sync — perderam a tag no CW).
+  // Só faz se NÃO houve erro no fetch — senão pode deletar erroneamente.
+  let reconciled = 0;
+  if (force && !firstError && seenIds) {
+    try { reconciled = await reconcileAccount(env, accountId, seenIds); }
+    catch (e) { console.error(`[${accountId}] reconcile error: ${e.message}`); }
+  }
+
   await writeState(env, {
     account_id: accountId,
     ecuro_clinic_id: ecuroClinicId,
@@ -233,7 +283,7 @@ async function runOneAccount(env, accountId, { force = false } = {}) {
     full_refresh_at: force ? new Date().toISOString() : (state?.full_refresh_at || null)
   });
 
-  console.log(`[${accountId}] done +${total} leads (${firstError ? 'with error' : 'clean'})`);
+  console.log(`[${accountId}] done +${total} leads, -${reconciled} stale (${firstError ? 'with error' : 'clean'})`);
   return total;
 }
 
