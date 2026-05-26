@@ -29,15 +29,19 @@ const FULL_REFRESH_BACKDATE = '1970-01-01T00:00:00Z'; // forces full
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
+// URL pública do próprio worker — usada pra fan-out em scheduled().
+// Pega da env (configurável) ou usa o default produção.
+const SELF_URL = 'https://dash-clinics-sync-cw-leads.foruxdigital.workers.dev';
+
 export default {
   async scheduled(event, env, ctx) {
-    if (event.cron === '0 7 * * 6') {
-      console.log('[cron sat 04h BRT] Full refresh');
-      ctx.waitUntil(runFullRefresh(env));
-    } else {
-      console.log('[cron daily 03h BRT] Incremental');
-      ctx.waitUntil(runIncremental(env));
-    }
+    // FAN-OUT: o cron sequencial estourava o CPU limit do Cloudflare (~30s) processando
+    // só 8 das 32 contas. Agora o handler scheduled apenas dispara fetches assíncronos
+    // pra /run-account de cada uma — cada fetch vira uma INVOCAÇÃO SEPARADA do worker
+    // com seu próprio orçamento de CPU. Throttle 800ms entre disparos.
+    const force = event.cron === '0 7 * * 6';
+    console.log(`[cron] mode=${force ? 'full-refresh' : 'incremental'} — fan-out`);
+    ctx.waitUntil(fanOutAccounts(env, force));
   },
 
   async fetch(req, env, ctx) {
@@ -298,6 +302,33 @@ async function runIncremental(env) {
     catch (e) { console.error(`[incremental][${accId}]`, e.message); }
   }
   console.log(`[incremental] DONE +${grand} leads`);
+}
+
+// Fan-out: dispara /run-account pra cada conta como invocação separada do worker.
+// Cada uma ganha seu próprio orçamento de CPU (~30s) — assim 32 contas processam
+// em paralelo sem estourar o limit do scheduler.
+async function fanOutAccounts(env, force) {
+  let units;
+  try { units = await listUnits(env); }
+  catch (e) { console.error('[fan-out] listUnits failed:', e.message); return; }
+  const DELAY_BETWEEN_INVOCATIONS_MS = 800; // throttle CW: ~1.25 req/s no fan-out
+  let dispatched = 0, errors = 0;
+  for (let i = 0; i < units.length; i++) {
+    const accId = Number(units[i].chatwoot_account_id);
+    if (!accId) continue;
+    if (i > 0) await sleep(DELAY_BETWEEN_INVOCATIONS_MS);
+    try {
+      const url = `${SELF_URL}/run-account?accountId=${accId}&force=${force}`;
+      // Não aguardar resposta — o handler /run-account usa ctx.waitUntil pra processar async
+      const r = await fetch(url, { method: 'POST', headers: { 'x-admin-token': env.ADMIN_TOKEN || '' }});
+      if (!r.ok) { errors++; console.error(`[fan-out] ${accId} status=${r.status}`); }
+      else { dispatched++; }
+    } catch (e) {
+      errors++;
+      console.error(`[fan-out] ${accId} ${e.message}`);
+    }
+  }
+  console.log(`[fan-out] dispatched=${dispatched} errors=${errors} (force=${force})`);
 }
 
 async function runFullRefresh(env) {
