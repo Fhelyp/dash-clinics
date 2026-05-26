@@ -259,8 +259,10 @@ async function runOneAccount(env, accountId, { force = false } = {}) {
       catch (e) { firstError = e.message; console.error(`[${accountId}] upsert error: ${firstError}`); break; }
     }
 
-    const cnt = resp.meta?.count ?? 0;
-    if (cnt > 0 && page * PAGE_SIZE >= cnt) break;
+    // BUG fix 26/05: CW retorna 15 itens/página apesar do PAGE_SIZE=25 (bug documentado).
+    // O break por `page * PAGE_SIZE >= cnt` quebrava cedo, deixando 30-40% dos contatos
+    // não vistos — e o reconcile no full refresh DELETAVA esses como "stale".
+    // Solução: SÓ confiar em items.length para detectar fim das páginas.
     if (items.length === 0) break;
     if (stop) break;
 
