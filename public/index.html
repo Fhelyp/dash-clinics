@@ -2014,7 +2014,16 @@ const CLINIC_MAP = {
   'a62898ca-4f2c-48f2-bdc3-e1a03e2f9be6': 'VS Sumaré',
   'cbbcac00-0427-41d0-a952-67fa4f0c49eb': 'VS Tremembé'
 };
-const clinicName = id => CLINIC_MAP[id] || ('Clínica ' + (id||'—').slice(0,8));
+// Resolve nome da unidade: 1) CLINIC_MAP (compat, com prefixos VS/COP), 2) LOOKUPS.clinics (banco, fonte de verdade), 3) fallback truncado
+const clinicName = id => {
+  if (!id) return '—';
+  if (CLINIC_MAP[id]) return CLINIC_MAP[id];
+  if (LOOKUPS?.clinics) {
+    const found = LOOKUPS.clinics.find(c => c.id === id);
+    if (found) return found.name;
+  }
+  return 'Clínica ' + String(id).slice(0,8);
+};
 
 // Mapa canônico de speciality_id → nome da especialidade.
 // Fonte: lista oficial passada pelo usuário. Se um ID não estiver aqui,
