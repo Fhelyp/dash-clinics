@@ -512,6 +512,7 @@
     <div id="userBadge" class="sb-userbadge" style="display:none;">
       <div class="sb-avatar" id="userInitial">·</div>
       <span id="userEmail" class="sb-label" style="font-size:11px;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;"></span>
+      <span id="userRegional" class="sb-label" style="display:none;font-size:9px;font-weight:700;padding:2px 6px;border-radius:8px;background:rgba(168,85,247,.18);color:rgba(168,85,247,.95);border:1px solid rgba(168,85,247,.3);letter-spacing:.05em;text-transform:uppercase;"></span>
     </div>
     <div class="sb-actions">
       <button id="logoutBtn" onclick="doLogout()" title="Sair" class="sb-btn">
@@ -2270,6 +2271,8 @@ async function loadFromSupabase(){
       const ini = document.getElementById('userInitial');
       if(badge && eml){ eml.textContent = u.name || u.email; badge.style.display = 'flex'; }
       if(ini){ ini.textContent = (u.name || u.email || '?').slice(0,1).toUpperCase(); }
+      const reg = document.getElementById('userRegional');
+      if(reg && u.regional){ reg.textContent = u.regional; reg.style.display = 'inline-flex'; }
     }).catch(() => {});
 
   // Default period = mes atual
