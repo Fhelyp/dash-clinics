@@ -22,8 +22,8 @@ const STATUS_LIST = [
 export async function onRequestGet({ env, data }) {
   const allowed = data?.user?.allowed_clinic_ids;
 
-  // 1. Clínicas: lê unitConfigs (read-only) — só Ecuro_clinicId + Unidade
-  let clinicsUrl = `${env.SUPABASE_URL}/rest/v1/unitConfigs?select=Ecuro_clinicId,Unidade&Ecuro_clinicId=not.is.null&order=Unidade.asc`;
+  // 1. Clínicas: lê unitConfigs (read-only) — Ecuro_clinicId + Unidade + regional (pra agrupar)
+  let clinicsUrl = `${env.SUPABASE_URL}/rest/v1/unitConfigs?select=Ecuro_clinicId,Unidade,regional&Ecuro_clinicId=not.is.null&order=regional.asc,Unidade.asc`;
   if (Array.isArray(allowed) && allowed.length > 0) {
     clinicsUrl += `&Ecuro_clinicId=in.(${allowed.join(',')})`;
   }
@@ -42,7 +42,7 @@ export async function onRequestGet({ env, data }) {
     const clinicsRaw = clinicsRes.ok ? await clinicsRes.json() : [];
     const specsRaw   = specsRes.ok   ? await specsRes.json()   : [];
 
-    const clinics = clinicsRaw.map(c => ({ id: c.Ecuro_clinicId, name: c.Unidade }));
+    const clinics = clinicsRaw.map(c => ({ id: c.Ecuro_clinicId, name: c.Unidade, regional: c.regional || 'SP' }));
 
     // Dedup specialties por id
     const specMap = new Map();
