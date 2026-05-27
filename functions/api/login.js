@@ -112,7 +112,7 @@ async function handle({ request, env }) {
   // ── 3. Lookup / auto-provision em auth_users (controle de acesso ao dashboard) ─
   let users = await supaSelect(
     env, 'auth_users',
-    `select=id,email,role,active,must_change_password,display_name,regional&email=eq.${encodeURIComponent(email)}`
+    `select=id,email,role,active,must_change_password,display_name,regional,unrestricted&email=eq.${encodeURIComponent(email)}`
   );
   let user = users[0];
 
@@ -139,16 +139,16 @@ async function handle({ request, env }) {
   if (!user.active) return j(403, { error: 'user_inactive', message: 'Usuário desativado.' });
 
   // ── 3.5. Mapeia accounts do Chatwoot → clinic_ids permitidas (RBAC) ──
-  // Lê unitConfigs (read-only) e cria mapa account_id → clinic_id em memória.
-  // Admin local (auth_users.role='admin') OU SuperAdmin do Chatwoot vê tudo.
+  // POLITICA (26/05): apenas auth_users.unrestricted=true tem acesso irrestrito.
+  // Hoje somente admin@arvore.ia. Removido bypass por role='admin' e por
+  // SuperAdmin do Chatwoot — eles devem passar pelo RBAC normal (CW admin accounts).
   // Override por regional: se user.regional='GO', acesso a todas unidades GO independente do CW.
-  let allowedClinicIds = null; // null = sem restrição (admin)
-  const isLocalAdmin = (user.role === 'admin' || user.role === 'administrator');
-  const isCwSuperAdmin = !!cwUser.is_super_admin;
+  let allowedClinicIds = null; // null = sem restrição (UNICO caso: unrestricted=true)
+  const isUnrestricted = user.unrestricted === true;
   const cwAccountIds = Array.isArray(cwUser.account_ids) ? cwUser.account_ids : [];
   const regionalOverride = user.regional && String(user.regional).trim();
 
-  if (regionalOverride && !isLocalAdmin && !isCwSuperAdmin) {
+  if (regionalOverride && !isUnrestricted) {
     // Override regional: ignora CW.account_ids, busca todas unidades da regional
     try {
       const ucRows = await supaSelect(
@@ -163,7 +163,7 @@ async function handle({ request, env }) {
       console.error('regional lookup failed:', e);
       return j(500, { error: 'rbac_error' });
     }
-  } else if (!isLocalAdmin && !isCwSuperAdmin && cwAccountIds.length > 0) {
+  } else if (!isUnrestricted && cwAccountIds.length > 0) {
     try {
       const ucRows = await supaSelect(
         env, 'unitConfigs',
@@ -177,11 +177,11 @@ async function handle({ request, env }) {
         return j(403, { error: 'no_clinic_access', message: 'Seu usuário no Chatwoot não tem clínica associada como administrador no dashboard.' });
       }
     } catch (e) {
-      // Se erro no lookup, falha aberta (permite acesso) só pra admin local. Operador comum bloqueado.
+      // Se erro no lookup, NUNCA falha aberta. Sem unrestricted, bloqueia.
       console.error('unitConfigs lookup failed:', e);
-      if (!isLocalAdmin) return j(500, { error: 'rbac_error' });
+      if (!isUnrestricted) return j(500, { error: 'rbac_error' });
     }
-  } else if (!isLocalAdmin && !isCwSuperAdmin && cwAccountIds.length === 0) {
+  } else if (!isUnrestricted && cwAccountIds.length === 0) {
     // Caso: Chatwoot autenticou mas user nao e admin em NENHUMA account → nega
     return j(403, { error: 'no_admin_access', message: 'Você precisa ter permissão de administrador em pelo menos uma unidade no Chatwoot para acessar o dashboard.' });
   }
@@ -206,7 +206,7 @@ async function handle({ request, env }) {
       cw_is_super: !!cwUser.is_super_admin,
       cw_role: cwUser.role || null,
       cw_type: cwUser.type || null,
-      local_admin: isLocalAdmin,
+      unrestricted: isUnrestricted,
       regional_override: regionalOverride || null
     }
   };
