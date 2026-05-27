@@ -31,7 +31,9 @@ export async function onRequestGet({ request, env, data }) {
 
   if (!start || !end) return j(400, { error: 'missing_params' });
 
-  const toStatus = type === 'reschedule' ? 3 : 4;
+  // type=confirmation → logs com to_status=4
+  // type=reschedule   → logs com is_reschedule=true (novo campo da Ecuro 21/05/2026)
+  const isReschedule = type === 'reschedule';
 
   // RBAC
   const allowed = data?.user?.allowed_clinic_ids;
@@ -52,8 +54,12 @@ export async function onRequestGet({ request, env, data }) {
   const qs = new URLSearchParams();
   // Embed: pega appointment relacionado pra mostrar paciente/clínica.
   // Sintaxe PostgREST: select=...,appointment:BI Appointments(...)
-  qs.set('select', 'id,appointment_id,user_id,from_status,to_status,changeDate,appointment:BI Appointments!inner(id,patient_id,patient_name,clinic_id,start_time,scheduled_start_time,doctor_name,speciality_id,phone,created_by_name,status,type,campaign_token,channel_name,patient_channel_name,patient_subchannel_name)');
-  qs.append('to_status', `eq.${toStatus}`);
+  qs.set('select', 'id,appointment_id,user_id,from_status,to_status,is_reschedule,changeDate,appointment:BI Appointments!inner(id,patient_id,patient_name,clinic_id,start_time,scheduled_start_time,doctor_name,speciality_id,phone,created_by_name,status,type,campaign_token,channel_name,patient_channel_name,patient_subchannel_name)');
+  if (isReschedule) {
+    qs.append('is_reschedule', 'eq.true');
+  } else {
+    qs.append('to_status', 'eq.4');
+  }
   qs.append('changeDate', `gte.${start}T00:00:00+00:00`);
   qs.append('changeDate', `lt.${end}T00:00:00+00:00`);
 
@@ -128,6 +134,7 @@ export async function onRequestGet({ request, env, data }) {
         is_mc: r.user_id === MC_USER_ID,
         from_status: r.from_status,
         to_status: r.to_status,
+        is_reschedule: r.is_reschedule === true,
         action_at: r.changeDate,
         patient_id: a.patient_id,
         patient_name: a.patient_name,
