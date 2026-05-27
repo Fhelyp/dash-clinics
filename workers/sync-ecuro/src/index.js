@@ -22,7 +22,8 @@ export default {
       // ANTES do bootstrap: roda cleanup rolling 3 meses pra liberar espaço.
       const today = new Date();
       const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-      const start = new Date(Math.min(monthStart.getTime(), today.getTime() - 30 * 24 * 3600 * 1000));
+      // Ecuro limita janela de bootstrap a 31 dias. Usamos 29 pra ter folga de 2 dias.
+      const start = new Date(Math.max(monthStart.getTime(), today.getTime() - 29 * 24 * 3600 * 1000));
       const ymd = (d) => d.toISOString().slice(0, 10);
       console.log(`[cron 22h BRT] Cleanup + Bootstrap ${ymd(start)} → ${ymd(today)}`);
       ctx.waitUntil((async () => {
