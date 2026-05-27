@@ -145,7 +145,8 @@ export async function onRequestGet({ request, env, data }) {
   const upstreamUrl = `${env.SUPABASE_URL}/rest/v1/BI%20Appointments?${qs.toString()}`;
   try {
     const res = await fetch(upstreamUrl, {
-      headers: { ...supaHeaders(env), 'Range-Unit': 'items', Range: `${from}-${to}`, Prefer: 'count=exact' }
+      // count=planned: estimativa via planner ao invés de count=exact (escala mal com 81 clínicas)
+      headers: { ...supaHeaders(env), 'Range-Unit': 'items', Range: `${from}-${to}`, Prefer: 'count=planned' }
     });
     if (!res.ok && res.status !== 206) {
       return j(res.status, { error: 'query_failed', message: (await res.text()).slice(0,300) });

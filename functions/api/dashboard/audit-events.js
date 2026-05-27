@@ -114,7 +114,10 @@ export async function onRequestGet({ request, env, data }) {
 
   try {
     const res = await fetch(upstreamUrl, {
-      headers: { ...supaHeaders(env), 'Range-Unit': 'items', Range: `${from}-${to}`, Prefer: 'count=exact' }
+      // count=planned: estimativa via planner (instantânea) ao invés de
+      // count=exact que faz JOIN inteiro (chegou a 6.6s timeout com 49 GO clinics).
+      // O total fica aproximado mas a paginação por página continua precisa.
+      headers: { ...supaHeaders(env), 'Range-Unit': 'items', Range: `${from}-${to}`, Prefer: 'count=planned' }
     });
     if (!res.ok && res.status !== 206) {
       return j(res.status, { error: 'query_failed', message: (await res.text()).slice(0, 300) });
