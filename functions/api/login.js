@@ -198,6 +198,7 @@ async function handle({ request, env }) {
     auth: authedViaCw ? 'chatwoot' : 'local',
     // null = acesso a todas as clínicas; array = restrito
     allowed_clinic_ids: allowedClinicIds,
+    regional: regionalOverride || null,
     // Diagnóstico (apenas pra debug — pode remover depois)
     _debug: {
       cw_admin_account_ids: cwAccountIds,
