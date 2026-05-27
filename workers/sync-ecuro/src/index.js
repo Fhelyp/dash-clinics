@@ -69,7 +69,18 @@ export default {
       return json({ ok: true, message: 'incremental iniciado' });
     }
 
-    return json({ ok: true, name: 'sync-ecuro', endpoints: ['/health', 'POST /backfill', 'POST /run-incremental'] });
+    // Fan-out: processa UMA clinica por invocacao (cada uma com seu CPU budget)
+    if (url.pathname === '/run-clinic' && req.method === 'POST') {
+      const auth = req.headers.get('x-admin-token') || '';
+      if (!env.ADMIN_TOKEN || auth !== env.ADMIN_TOKEN) return json({ error: 'unauthorized' }, 401);
+      const clinicId = url.searchParams.get('clinicId');
+      const lookbackHours = Math.min(parseInt(url.searchParams.get('lookbackHours') || '36', 10), 144);
+      if (!clinicId) return json({ error: 'missing_clinicId' }, 400);
+      ctx.waitUntil(runIncrementalOneClinic(env, clinicId, lookbackHours));
+      return json({ ok: true, message: `clinic ${clinicId.slice(0,8)} sync started`, lookbackHours });
+    }
+
+    return json({ ok: true, name: 'sync-ecuro', endpoints: ['/health', 'POST /backfill', 'POST /run-incremental', 'POST /run-clinic?clinicId=X'] });
   }
 };
 
@@ -183,46 +194,63 @@ async function ecuroFetch(env, path, params, _attempt = 0) {
 }
 
 // ── Sync run modes ──────────────────────────────────────────────────
+// URL pública do próprio worker — usada pra fan-out
+const SELF_URL = 'https://dash-clinics-sync-ecuro.foruxdigital.workers.dev';
+
+// FAN-OUT (27/05): runIncremental agora dispara /run-clinic pra cada clinica
+// como invocacao separada (cada uma com seu CPU budget de 30s).
+// 81 clinicas sequenciais estouravam timeout do scheduler.
 async function runIncremental(env, { lookbackHours = 36 } = {}) {
   const clinics = await listClinics(env);
-  // API Ecuro rejeita updatedAfter > 7 dias. Margem de 6 dias para garantir.
+  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+  console.log(`[incremental fan-out] ${clinics.length} clinicas, lookbackHours=${lookbackHours}`);
+  let dispatched = 0, errors = 0;
+  for (let i = 0; i < clinics.length; i++) {
+    const c = clinics[i];
+    if (!c.Ecuro_clinicId) continue;
+    if (i > 0) await sleep(900); // throttle ~1.1 req/s
+    try {
+      const url = `${SELF_URL}/run-clinic?clinicId=${c.Ecuro_clinicId}&lookbackHours=${lookbackHours}`;
+      const r = await fetch(url, { method: 'POST', headers: { 'x-admin-token': env.ADMIN_TOKEN || '' }});
+      if (!r.ok) { errors++; console.error(`[fan-out] ${c.Unidade} ${r.status}`); }
+      else dispatched++;
+    } catch (e) { errors++; console.error(`[fan-out] ${c.Unidade} ${e.message}`); }
+  }
+  console.log(`[incremental fan-out] dispatched=${dispatched} errors=${errors}`);
+}
+
+// Processa UMA clinica (chamada via /run-clinic)
+async function runIncrementalOneClinic(env, clinicId, lookbackHours = 36) {
+  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
   const MAX_LOOKBACK_HOURS = 6 * 24;
   const safeHours = Math.min(lookbackHours, MAX_LOOKBACK_HOURS);
   const since = new Date(Date.now() - safeHours * 3600 * 1000).toISOString();
-  console.log(`[incremental] ${clinics.length} clínicas, since=${since}`);
-  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
-
-  for (let i = 0; i < clinics.length; i++) {
-    const c = clinics[i];
-    if (i > 0) await sleep(1800); // pausa entre clínicas
-    const clinicId = c.Ecuro_clinicId;
-    if (!clinicId) continue;
-    for (let fi = 0; fi < FEEDS.length; fi++) {
-      const feed = FEEDS[fi];
-      if (fi > 0) await sleep(1000);
-      try {
-        const state = await readSyncState(env, feed.name, clinicId);
-        const updatedAfter = state?.last_updated_at || since;
-        const total = await pullAndUpsert(env, feed, clinicId, { mode: 'incremental', updatedAfter });
-        await writeSyncState(env, {
-          feed: feed.name, clinic_id: clinicId,
-          last_updated_at: new Date().toISOString(),
-          last_run_at: new Date().toISOString(),
-          last_run_status: 'ok',
-          last_run_error: null,
-          rows_synced_total: (state?.rows_synced_total || 0) + total
-        });
-      } catch (e) {
-        console.error(`[incremental][${c.Unidade}][${feed.name}]`, e.message);
-        await writeSyncState(env, {
-          feed: feed.name, clinic_id: clinicId,
-          last_run_at: new Date().toISOString(),
-          last_run_status: 'error', last_run_error: e.message.slice(0, 500)
-        });
-      }
+  console.log(`[one-clinic ${clinicId.slice(0,8)}] since=${since}`);
+  for (let fi = 0; fi < FEEDS.length; fi++) {
+    const feed = FEEDS[fi];
+    if (fi > 0) await sleep(800);
+    try {
+      const state = await readSyncState(env, feed.name, clinicId);
+      const updatedAfter = state?.last_updated_at || since;
+      const total = await pullAndUpsert(env, feed, clinicId, { mode: 'incremental', updatedAfter });
+      await writeSyncState(env, {
+        feed: feed.name, clinic_id: clinicId,
+        last_updated_at: new Date().toISOString(),
+        last_run_at: new Date().toISOString(),
+        last_run_status: 'ok',
+        last_run_error: null,
+        rows_synced_total: (state?.rows_synced_total || 0) + total
+      });
+      console.log(`[one-clinic ${clinicId.slice(0,8)}][${feed.name}] +${total}`);
+    } catch (e) {
+      console.error(`[one-clinic ${clinicId.slice(0,8)}][${feed.name}]`, e.message);
+      await writeSyncState(env, {
+        feed: feed.name, clinic_id: clinicId,
+        last_run_at: new Date().toISOString(),
+        last_run_status: 'error', last_run_error: e.message.slice(0, 500)
+      });
     }
   }
-  console.log('[incremental] done');
 }
 
 async function runBootstrap(env, { startDate, endDate, feeds = [], onlyClinics = [] }) {
