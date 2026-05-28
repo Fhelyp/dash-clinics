@@ -19,16 +19,41 @@ export async function onRequestPost({ request, env }) {
 
 async function chatwootSignIn(baseUrl, email, password) {
   if (!baseUrl) return { ok: false, reason: 'no_chatwoot_url' };
-  try {
-    const res = await fetch(`${baseUrl.replace(/\/$/, '')}/auth/sign_in`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify({ email, password })
-    });
-    if (res.status === 401 || res.status === 400) {
-      return { ok: false, reason: 'invalid_credentials' };
+  // Retry transient errors (429 rate limit, 5xx) com backoff curto
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const res = await fetch(`${baseUrl.replace(/\/$/, '')}/auth/sign_in`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      if (res.status === 401 || res.status === 400) {
+        return { ok: false, reason: 'invalid_credentials' };
+      }
+      // 429 ou 5xx: retry com backoff
+      if (res.status === 429 || (res.status >= 500 && res.status < 600)) {
+        if (attempt < 2) {
+          const wait = 1500 * Math.pow(2, attempt);
+          await new Promise(r => setTimeout(r, wait));
+          continue;
+        }
+        // Esgotou retries → reporta explicitamente
+        return { ok: false, reason: 'chatwoot_unavailable', status: res.status };
+      }
+      if (!res.ok) return { ok: false, reason: 'chatwoot_error', status: res.status };
+      return await parseSuccess(res);
+    } catch (e) {
+      if (attempt < 2) {
+        await new Promise(r => setTimeout(r, 1500));
+        continue;
+      }
+      return { ok: false, reason: 'fetch_error', error: String(e?.message || e) };
     }
-    if (!res.ok) return { ok: false, reason: 'chatwoot_error', status: res.status };
+  }
+}
+
+async function parseSuccess(res) {
+  try {
     const data = await res.json().catch(() => null);
     const u = data?.data;
     if (!u || !u.email) return { ok: false, reason: 'unexpected_response' };
@@ -107,7 +132,18 @@ async function handle({ request, env }) {
     }
   }
 
-  if (!authedViaCw && !cwUser) return j(401, { error: 'invalid_credentials' });
+  if (!authedViaCw && !cwUser) {
+    // Distingue rate limit/unavailable do CW de credenciais inválidas reais.
+    // Esses erros são transientes — o user deve tentar de novo em 1-2 min.
+    if (cw.reason === 'chatwoot_unavailable' || cw.reason === 'chatwoot_error' || cw.reason === 'fetch_error') {
+      return j(503, {
+        error: 'auth_service_unavailable',
+        message: 'O serviço de autenticação (Chatwoot) está temporariamente indisponível. Tente novamente em 1 minuto.',
+        upstream_status: cw.status || null
+      });
+    }
+    return j(401, { error: 'invalid_credentials' });
+  }
 
   // ── 3. Lookup / auto-provision em auth_users (controle de acesso ao dashboard) ─
   let users = await supaSelect(
