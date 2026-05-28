@@ -104,6 +104,7 @@ f.addEventListener('submit', async (e) => {
     if (!res.ok) {
       // Mensagens específicas por código
       if (data.error === 'invalid_credentials') err.textContent = 'E-mail ou senha inválidos.';
+      else if (data.error === 'rate_limited') err.textContent = data.message || 'Muitas tentativas. Verifique a senha e aguarde 1 minuto.';
       else if (data.error === 'auth_service_unavailable') err.textContent = data.message || 'Autenticação temporariamente indisponível. Tente novamente em 1 minuto.';
       else if (data.error === 'no_admin_access') err.textContent = data.message || 'Você precisa de permissão de administrador.';
       else if (data.error === 'no_clinic_access') err.textContent = data.message || 'Nenhuma clínica associada.';

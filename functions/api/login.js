@@ -133,12 +133,18 @@ async function handle({ request, env }) {
   }
 
   if (!authedViaCw && !cwUser) {
-    // Distingue rate limit/unavailable do CW de credenciais inválidas reais.
-    // Esses erros são transientes — o user deve tentar de novo em 1-2 min.
+    // 429 do CW: rate limit por email/IP. Normalmente acontece após múltiplas
+    // tentativas com senha errada. Mostra mensagem combinada (mais útil pro user).
+    if (cw.reason === 'chatwoot_unavailable' && cw.status === 429) {
+      return j(429, {
+        error: 'rate_limited',
+        message: 'Muitas tentativas de login. Verifique a senha e aguarde 1 minuto antes de tentar novamente.'
+      });
+    }
     if (cw.reason === 'chatwoot_unavailable' || cw.reason === 'chatwoot_error' || cw.reason === 'fetch_error') {
       return j(503, {
         error: 'auth_service_unavailable',
-        message: 'O serviço de autenticação (Chatwoot) está temporariamente indisponível. Tente novamente em 1 minuto.',
+        message: 'Serviço de autenticação temporariamente indisponível. Tente em 1 minuto.',
         upstream_status: cw.status || null
       });
     }
