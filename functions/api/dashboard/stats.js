@@ -52,6 +52,27 @@ export async function onRequestGet({ request, env, data }) {
   const creators     = url.searchParams.get('creators');
   const agentMode    = url.searchParams.get('agent_mode') || 'ALL';
 
+  // ── CACHE (Cloudflare Cache API) — TTL 180s, isolado por RBAC ─────────
+  // Chave: hash de (allowed_clinic_ids + todos os filtros). Garante que
+  // user GO nunca recebe cache de user SP, e que filtros mudados invalidam.
+  const cacheKeyStr = JSON.stringify({
+    a: clinicIdsParam,
+    s: start, e: end,
+    sp: specialtyIds, st: statusCodes, cr: creators, am: agentMode
+  });
+  const cacheKeyHash = await sha256Short(cacheKeyStr);
+  const cacheKey = new Request(`https://cache.local/stats/${cacheKeyHash}`, { method: 'GET' });
+  const cache = caches.default;
+  const cached = await cache.match(cacheKey);
+  if (cached) {
+    // Add header pra debug — útil pra ver se hit/miss
+    const body = await cached.text();
+    return new Response(body, {
+      status: 200,
+      headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'X-Cache': 'HIT' }
+    });
+  }
+
   // Chama função SQL via PostgREST RPC
   const rpcUrl = `${env.SUPABASE_URL}/rest/v1/rpc/dashboard_stats`;
   const body = {
@@ -80,14 +101,23 @@ export async function onRequestGet({ request, env, data }) {
     return j(500, { error: 'rpc_exception', message: String(e?.message || e) });
   }
 
-  return new Response(JSON.stringify(json), {
+  const bodyStr = JSON.stringify(json);
+  // Grava cache (180s TTL — balanço entre frescor e perf).
+  // Nota: cache só ativa pra status 200; erros NÃO cacheiam.
+  const cacheResponse = new Response(bodyStr, {
     status: 200,
     headers: {
       'Content-Type': 'application/json',
-      // Sem cache pra evitar contaminação cross-user (RBAC). Cliente já
-      // implementa debounce de 600ms que evita rebates desnecessários.
-      'Cache-Control': 'no-store, must-revalidate'
+      'Cache-Control': 'public, max-age=180, s-maxage=180'
     }
+  });
+  // Fire-and-forget pro cache
+  if (typeof caches !== 'undefined' && caches.default) {
+    caches.default.put(cacheKey, cacheResponse.clone()).catch(() => {});
+  }
+  return new Response(bodyStr, {
+    status: 200,
+    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'X-Cache': 'MISS' }
   });
 }
 
@@ -95,4 +125,10 @@ function j(status, body) {
   return new Response(JSON.stringify(body), {
     status, headers: { 'Content-Type': 'application/json' }
   });
+}
+
+async function sha256Short(s) {
+  const enc = new TextEncoder().encode(s);
+  const hash = await crypto.subtle.digest('SHA-256', enc);
+  return Array.from(new Uint8Array(hash)).slice(0, 12).map(b => b.toString(16).padStart(2, '0')).join('');
 }
