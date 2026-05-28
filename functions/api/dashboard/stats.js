@@ -61,15 +61,19 @@ export async function onRequestGet({ request, env, data }) {
     sp: specialtyIds, st: statusCodes, cr: creators, am: agentMode
   });
   const cacheKeyHash = await sha256Short(cacheKeyStr);
-  const cacheKey = new Request(`https://cache.local/stats/${cacheKeyHash}`, { method: 'GET' });
+  // Usa a own URL do site (mesma origem) pra que o cache do edge funcione corretamente
+  const cacheUrl = new URL(url);
+  cacheUrl.pathname = '/__stats_cache__';
+  cacheUrl.search = '?k=' + cacheKeyHash;
+  const cacheKey = new Request(cacheUrl.toString(), { method: 'GET' });
   const cache = caches.default;
-  const cached = await cache.match(cacheKey);
+  let cached = null;
+  try { cached = await cache.match(cacheKey); } catch (_) {}
   if (cached) {
-    // Add header pra debug — útil pra ver se hit/miss
     const body = await cached.text();
     return new Response(body, {
       status: 200,
-      headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'X-Cache': 'HIT' }
+      headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'X-Cache': 'HIT', 'X-Cache-Key': cacheKeyHash }
     });
   }
 
@@ -103,7 +107,6 @@ export async function onRequestGet({ request, env, data }) {
 
   const bodyStr = JSON.stringify(json);
   // Grava cache (180s TTL — balanço entre frescor e perf).
-  // Nota: cache só ativa pra status 200; erros NÃO cacheiam.
   const cacheResponse = new Response(bodyStr, {
     status: 200,
     headers: {
@@ -111,13 +114,10 @@ export async function onRequestGet({ request, env, data }) {
       'Cache-Control': 'public, max-age=180, s-maxage=180'
     }
   });
-  // Fire-and-forget pro cache
-  if (typeof caches !== 'undefined' && caches.default) {
-    caches.default.put(cacheKey, cacheResponse.clone()).catch(() => {});
-  }
+  try { await cache.put(cacheKey, cacheResponse.clone()); } catch (_) {}
   return new Response(bodyStr, {
     status: 200,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'X-Cache': 'MISS' }
+    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'X-Cache': 'MISS', 'X-Cache-Key': cacheKeyHash }
   });
 }
 
