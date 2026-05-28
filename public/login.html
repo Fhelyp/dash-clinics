@@ -102,7 +102,13 @@ f.addEventListener('submit', async (e) => {
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      err.textContent = data.error === 'invalid_credentials' ? 'E-mail ou senha inválidos.' : 'Não foi possível entrar.';
+      // Mensagens específicas por código
+      if (data.error === 'invalid_credentials') err.textContent = 'E-mail ou senha inválidos.';
+      else if (data.error === 'auth_service_unavailable') err.textContent = data.message || 'Autenticação temporariamente indisponível. Tente novamente em 1 minuto.';
+      else if (data.error === 'no_admin_access') err.textContent = data.message || 'Você precisa de permissão de administrador.';
+      else if (data.error === 'no_clinic_access') err.textContent = data.message || 'Nenhuma clínica associada.';
+      else if (data.error === 'user_inactive') err.textContent = 'Usuário desativado.';
+      else err.textContent = data.message || 'Não foi possível entrar.';
       err.classList.add('on');
       return;
     }
