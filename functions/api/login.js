@@ -19,8 +19,9 @@ export async function onRequestPost({ request, env }) {
 
 async function chatwootSignIn(baseUrl, email, password) {
   if (!baseUrl) return { ok: false, reason: 'no_chatwoot_url' };
-  // Retry transient errors (429 rate limit, 5xx) com backoff curto
-  for (let attempt = 0; attempt < 3; attempt++) {
+  // Retry só pra erros 5xx (servidor). 429 NÃO retry — não vale agravar
+  // o rate limit que o CW aplica por email. Falha rápido com mensagem clara.
+  for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const res = await fetch(`${baseUrl.replace(/\/$/, '')}/auth/sign_in`, {
         method: 'POST',
@@ -30,14 +31,16 @@ async function chatwootSignIn(baseUrl, email, password) {
       if (res.status === 401 || res.status === 400) {
         return { ok: false, reason: 'invalid_credentials' };
       }
-      // 429 ou 5xx: retry com backoff
-      if (res.status === 429 || (res.status >= 500 && res.status < 600)) {
-        if (attempt < 2) {
-          const wait = 1500 * Math.pow(2, attempt);
-          await new Promise(r => setTimeout(r, wait));
+      // 429: NÃO retry — agrava o rate limit do CW. Falha imediato.
+      if (res.status === 429) {
+        return { ok: false, reason: 'chatwoot_unavailable', status: 429 };
+      }
+      // 5xx: 1 retry só (2s)
+      if (res.status >= 500 && res.status < 600) {
+        if (attempt === 0) {
+          await new Promise(r => setTimeout(r, 2000));
           continue;
         }
-        // Esgotou retries → reporta explicitamente
         return { ok: false, reason: 'chatwoot_unavailable', status: res.status };
       }
       if (!res.ok) return { ok: false, reason: 'chatwoot_error', status: res.status };
