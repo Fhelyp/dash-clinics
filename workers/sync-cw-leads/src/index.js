@@ -58,12 +58,13 @@ export default {
     if (!env.ADMIN_TOKEN || auth !== env.ADMIN_TOKEN) return j({ error: 'unauthorized' }, 401);
 
     if (url.pathname === '/run-incremental' && req.method === 'POST') {
-      ctx.waitUntil(runIncremental(env));
-      return j({ ok: true, message: 'incremental started' });
+      // Usa fan-out (igual scheduled) — runIncremental sequencial estourava timeout
+      ctx.waitUntil(fanOutAccounts(env, false));
+      return j({ ok: true, message: 'incremental started (fan-out)' });
     }
     if (url.pathname === '/run-full-refresh' && req.method === 'POST') {
-      ctx.waitUntil(runFullRefresh(env));
-      return j({ ok: true, message: 'full refresh started' });
+      ctx.waitUntil(fanOutAccounts(env, true));
+      return j({ ok: true, message: 'full refresh started (fan-out)' });
     }
     if (url.pathname === '/run-account' && req.method === 'POST') {
       const accountId = parseInt(url.searchParams.get('accountId') || '', 10);
