@@ -307,31 +307,31 @@ async function runIncremental(env) {
   console.log(`[incremental] DONE +${grand} leads`);
 }
 
-// Fan-out: dispara /run-account pra cada conta como invocação separada do worker.
-// Cada uma ganha seu próprio orçamento de CPU (~30s) — assim 32 contas processam
-// em paralelo sem estourar o limit do scheduler.
+// Fan-out: processa contas em BATCHES PARALELOS (sem self-fetch — Cloudflare
+// estava bloqueando/silenciando o fetch interno do worker pra própria URL).
+// Cada batch: PROMISE.ALL de 5 runOneAccount simultâneos. Throttle natural
+// pelo IO bound. ~33 contas / 5 = ~7 batches × ~5s = ~35s total.
 async function fanOutAccounts(env, force) {
   let units;
   try { units = await listUnits(env); }
   catch (e) { console.error('[fan-out] listUnits failed:', e.message); return; }
-  const DELAY_BETWEEN_INVOCATIONS_MS = 800; // throttle CW: ~1.25 req/s no fan-out
-  let dispatched = 0, errors = 0;
-  for (let i = 0; i < units.length; i++) {
-    const accId = Number(units[i].chatwoot_account_id);
-    if (!accId) continue;
-    if (i > 0) await sleep(DELAY_BETWEEN_INVOCATIONS_MS);
-    try {
-      const url = `${SELF_URL}/run-account?accountId=${accId}&force=${force}`;
-      // Não aguardar resposta — o handler /run-account usa ctx.waitUntil pra processar async
-      const r = await fetch(url, { method: 'POST', headers: { 'x-admin-token': env.ADMIN_TOKEN || '' }});
-      if (!r.ok) { errors++; console.error(`[fan-out] ${accId} status=${r.status}`); }
-      else { dispatched++; }
-    } catch (e) {
-      errors++;
-      console.error(`[fan-out] ${accId} ${e.message}`);
+  const BATCH_SIZE = 5;
+  let ok = 0, errors = 0;
+  for (let i = 0; i < units.length; i += BATCH_SIZE) {
+    const batch = units.slice(i, i + BATCH_SIZE);
+    const results = await Promise.allSettled(batch.map(u => {
+      const accId = Number(u.chatwoot_account_id);
+      if (!accId) return Promise.resolve(null);
+      return runOneAccount(env, accId, { force });
+    }));
+    for (const r of results) {
+      if (r.status === 'fulfilled') ok++;
+      else { errors++; console.error('[fan-out] err:', r.reason?.message); }
     }
+    // Throttle leve entre batches pra não saturar CW
+    if (i + BATCH_SIZE < units.length) await sleep(500);
   }
-  console.log(`[fan-out] dispatched=${dispatched} errors=${errors} (force=${force})`);
+  console.log(`[fan-out] processed=${ok} errors=${errors} (force=${force})`);
 }
 
 async function runFullRefresh(env) {
