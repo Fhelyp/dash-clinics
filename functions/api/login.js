@@ -157,7 +157,7 @@ async function handle({ request, env }) {
   // ── 3. Lookup / auto-provision em auth_users (controle de acesso ao dashboard) ─
   let users = await supaSelect(
     env, 'auth_users',
-    `select=id,email,role,active,must_change_password,display_name,regional,unrestricted&email=eq.${encodeURIComponent(email)}`
+    `select=id,email,role,active,must_change_password,display_name,regional,unrestricted,allowed_clinic_ids&email=eq.${encodeURIComponent(email)}`
   );
   let user = users[0];
 
@@ -193,7 +193,13 @@ async function handle({ request, env }) {
   const cwAccountIds = Array.isArray(cwUser.account_ids) ? cwUser.account_ids : [];
   const regionalOverride = user.regional && String(user.regional).trim();
 
-  if (regionalOverride && !isUnrestricted) {
+  // PRIORIDADE 1: allowed_clinic_ids explícito na tabela (líderes com escopo customizado)
+  const explicitClinicIds = Array.isArray(user.allowed_clinic_ids) && user.allowed_clinic_ids.length > 0
+    ? user.allowed_clinic_ids.filter(Boolean)
+    : null;
+  if (explicitClinicIds && !isUnrestricted) {
+    allowedClinicIds = explicitClinicIds;
+  } else if (regionalOverride && !isUnrestricted) {
     // Override regional: ignora CW.account_ids, busca todas unidades da regional
     try {
       const ucRows = await supaSelect(
