@@ -133,6 +133,23 @@ async function cwGet(env, path, params, attempt = 0) {
   return r.json();
 }
 
+async function cwPost(env, path, body, attempt = 0) {
+  const url = `${env.CHATWOOT_BASE_URL.replace(/\/$/, '')}${path}`;
+  const r = await fetch(url, {
+    method: 'POST',
+    headers: { api_access_token: env.CHATWOOT_API_KEY, Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: JSON.stringify(body || {})
+  });
+  if (r.status === 429 || (r.status >= 500 && r.status < 600)) {
+    if (attempt >= 5) throw new Error(`CW ${r.status} after ${attempt} retries`);
+    const wait = 3000 * Math.pow(2, attempt) + Math.random() * 1500;
+    await sleep(wait);
+    return cwPost(env, path, body, attempt + 1);
+  }
+  if (!r.ok) throw new Error(`CW POST ${path} ${r.status}: ${(await r.text()).slice(0, 200)}`);
+  return r.json();
+}
+
 async function upsertLeads(env, rows) {
   if (!rows.length) return 0;
   // Dedup por (id, account_id) dentro do batch — Chatwoot pode retornar duplicatas entre páginas
@@ -270,6 +287,101 @@ async function runOneAccount(env, accountId, { force = false } = {}) {
     page++;
     await sleep(SLEEP_PAGE_MS);
   }
+
+  // ── FONTE 2 (09/06): contatos cujas CONVERSAS têm label=campanha ────
+  // A tag campanha agora é aplicada nas conversas, não nos contatos. O endpoint
+  // /contacts?labels[]=campanha não captura isso. Buscamos via /conversations
+  // e extraímos sender (contato) de cada conversa.
+  let totalConv = 0;
+  try {
+    let pageConv = 1;
+    const seenInThisSource = new Set();
+    while (pageConv <= 50) {
+      const respConv = await cwGet(env, `/api/v1/accounts/${accountId}/conversations`, {
+        'labels[]': label, page: pageConv, status: 'all'
+      });
+      const convs = respConv?.data?.payload || [];
+      if (!convs.length) break;
+      const batchConv = [];
+      let allBeforeCutoff = true;
+      for (const conv of convs) {
+        const sender = conv.meta?.sender;
+        if (!sender || !sender.id || seenInThisSource.has(sender.id)) continue;
+        seenInThisSource.add(sender.id);
+        // Usa conversation.created_at se contato não tem
+        const createdMs = (conv.created_at || 0) * 1000;
+        const lastAct = (conv.last_activity_at || conv.created_at || 0) * 1000;
+        if (cutoffTs && lastAct <= cutoffTs) continue;
+        allBeforeCutoff = false;
+        // Sintetiza um "contact" no formato esperado por mapContact
+        const synthContact = {
+          id: sender.id,
+          name: sender.name,
+          email: sender.email,
+          phone_number: sender.phone_number,
+          identifier: sender.identifier,
+          created_at: conv.created_at, // fallback: usa data da conversa
+          last_activity_at: conv.last_activity_at || conv.created_at,
+          contact_inboxes: [{ inbox: { id: conv.inbox_id } }]
+        };
+        batchConv.push(mapContact(synthContact, accountId, ecuroClinicId));
+        if (seenIds) seenIds.add(sender.id);
+        if (lastAct && (!maxSeen || lastAct > maxSeen.getTime())) maxSeen = new Date(lastAct);
+      }
+      if (batchConv.length) {
+        try { await upsertLeads(env, batchConv); totalConv += batchConv.length; }
+        catch (e) { console.error(`[${accountId}] conv-source upsert error: ${e.message}`); break; }
+      }
+      if (cutoffTs && allBeforeCutoff) break;
+      pageConv++;
+      await sleep(SLEEP_PAGE_MS);
+    }
+    console.log(`[${accountId}] conversations source: +${totalConv} leads (from ${seenInThisSource.size} unique senders)`);
+  } catch (e) {
+    console.error(`[${accountId}] conv-source fetch error: ${e.message}`);
+  }
+  total += totalConv;
+
+  // ── FONTE 3 (09/06): contatos com custom_attribute anuncio_de_origem ────
+  // CW agora salva anuncio_de_origem em todo lead vindo de anúncio, INDEPENDENTE
+  // da tag campanha. Buscamos via /contacts/filter (POST) com is_present.
+  // labels=['campanha'] no Supabase pra unificar com a fonte 1.
+  let totalAdOrigin = 0;
+  try {
+    let pageAd = 1;
+    while (pageAd <= 100) {
+      const respAd = await cwPost(env, `/api/v1/accounts/${accountId}/contacts/filter?page=${pageAd}`, {
+        payload: [{ attribute_key: 'anuncio_de_origem', filter_operator: 'is_present', attribute_model: 'custom_attributes' }]
+      });
+      const items = respAd?.payload || [];
+      if (!items.length) break;
+      const batchAd = [];
+      let allBeforeCutoff = true;
+      for (const c of items) {
+        const createdMs = c.created_at ? c.created_at * 1000 : 0;
+        const lastAct = c.last_activity_at ? c.last_activity_at * 1000 : createdMs;
+        // Cutoff vs last_activity (mesmo critério da fonte 1)
+        if (cutoffTs && lastAct <= cutoffTs) continue;
+        allBeforeCutoff = false;
+        batchAd.push(mapContact(c, accountId, ecuroClinicId));
+        if (seenIds) seenIds.add(c.id);
+        if (lastAct && (!maxSeen || lastAct > maxSeen.getTime())) maxSeen = new Date(lastAct);
+      }
+      if (batchAd.length) {
+        try { await upsertLeads(env, batchAd); totalAdOrigin += batchAd.length; }
+        catch (e) { console.error(`[${accountId}] ad-origin upsert error: ${e.message}`); break; }
+      }
+      // Se TODOS items dessa página vieram antes do cutoff e CW ordena por created_at DESC,
+      // não vai ter mais nada novo — para.
+      if (cutoffTs && allBeforeCutoff) break;
+      pageAd++;
+      await sleep(SLEEP_PAGE_MS);
+    }
+    console.log(`[${accountId}] ad-origin source: +${totalAdOrigin} leads`);
+  } catch (e) {
+    console.error(`[${accountId}] ad-origin fetch error: ${e.message}`);
+  }
+  total += totalAdOrigin;
 
   // Full refresh: reconcile (DELETE leads que não vieram nessa sync — perderam a tag no CW).
   // Só faz se NÃO houve erro no fetch — senão pode deletar erroneamente.
