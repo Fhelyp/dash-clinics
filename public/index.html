@@ -709,10 +709,17 @@
         <button class="dapply" onclick="applyDateFilter()">Aplicar Período</button>
       </div>
     </div>
+    <!-- Botão "Aplicar Filtros" — só aparece quando há mudanças pendentes -->
+    <button id="applyFiltersBtn" onclick="applyPendingFilters()" style="display:none;background:linear-gradient(135deg,#a855f7,#6366f1);border:none;color:#fff;padding:6px 14px;border-radius:14px;cursor:pointer;font-family:inherit;font-size:11px;font-weight:700;white-space:nowrap;letter-spacing:.02em;box-shadow:0 2px 8px rgba(168,85,247,.4);animation:pulse-apply 2s ease-in-out infinite;">
+      <span style="display:inline-flex;align-items:center;gap:5px;"><svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Aplicar Filtros</span>
+    </button>
     <!-- Botão "Limpar tudo" — só aparece quando há filtros aplicados -->
     <button id="clearAllBtn" onclick="clearAllFilters()" style="display:none;background:transparent;border:1px solid rgba(168,85,247,.4);color:var(--purple);padding:5px 11px;border-radius:14px;cursor:pointer;font-family:inherit;font-size:10.5px;font-weight:600;white-space:nowrap;">Limpar filtros</button>
   </div>
 </nav>
+<style>
+@keyframes pulse-apply { 0%,100%{box-shadow:0 2px 8px rgba(168,85,247,.4);} 50%{box-shadow:0 2px 16px rgba(168,85,247,.7);} }
+</style>
 
 <!-- Barra de chips integrada à nav (já está dentro do espaço da nav, não duplica) -->
 <div id="activeFilters" style="display:none;"></div>
@@ -1167,7 +1174,7 @@ function tdi(el){
   APPLIED.statuses=getSelectedItems('dds');
   // Repopula dropdown de operador respeitando o filtro de unidade selecionado
   if(typeof populateOperatorList === 'function') populateOperatorList();
-  updateDashboard();
+  markFiltersDirty();
 }
 
 // ── CHARTS ─────────────────────────────────────────────
@@ -1233,7 +1240,7 @@ function toggleCreator(key){
     APPLIED.creators.add(key);
   }
   if(APPLIED.creators.size === 0) APPLIED.creators = null;
-  updateDashboard();
+  markFiltersDirty();
   renderCreatorFilterIndicator();
   // Re-render da legenda com estados visuais atualizados
   const tot = origemVals.reduce((a,b)=>a+b,0) || 1;
@@ -1242,7 +1249,7 @@ function toggleCreator(key){
 
 function clearCreatorFilter(){
   APPLIED.creators = null;
-  updateDashboard();
+  markFiltersDirty();
   renderCreatorFilterIndicator();
   const tot = origemVals.reduce((a,b)=>a+b,0) || 1;
   renderOleg(origemVals, tot);
@@ -1401,13 +1408,38 @@ function setMCMode(mode) {
   });
   const bar = document.getElementById('mcComparBar');
   if (bar) bar.style.display = (mode === 'MC') ? 'block' : 'none';
-  updateDashboard();
+  markFiltersDirty();
 }
 
 // ── APPLIED FILTER STATE ─────────────────────────────
 // creators: null (todos) | Set<string> contendo nomes E/OU tokens especiais
 //           '__outros__' (bucket cauda) e '__sem_criador__' (nomes vazios)
 const APPLIED={units:null,specs:null,statuses:null,d1:null,d2:null,creators:null,origens:null};
+
+// ── DRAFT MODE: mudanças nos filtros viram pendentes ──────────────
+// User mexe à vontade, vê botão "Aplicar Filtros" piscar no topo, e só
+// recarrega o dashboard quando clica. Economiza dezenas de chamadas SQL.
+let FILTERS_DIRTY = false;
+let MC_MODE_LAST_APPLIED = 'ALL';
+function markFiltersDirty(){
+  FILTERS_DIRTY = true;
+  const btn = document.getElementById('applyFiltersBtn');
+  if(btn) btn.style.display = 'inline-flex';
+}
+function applyPendingFilters(){
+  FILTERS_DIRTY = false;
+  MC_MODE_LAST_APPLIED = MC_MODE;
+  const btn = document.getElementById('applyFiltersBtn');
+  if(btn) btn.style.display = 'none';
+  updateDashboard();
+}
+// Atalho ENTER em qualquer input dispara apply
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && FILTERS_DIRTY) {
+    e.preventDefault();
+    applyPendingFilters();
+  }
+});
 
 // Verifica se um item passa no filtro de criador (operador)
 function matchCreatorFilter(p){
@@ -1436,7 +1468,7 @@ function applyFilter(ddId){
   APPLIED.statuses=getSelectedItems('dds');
   // Repopula dropdown de operador respeitando o filtro de unidade selecionado
   if(typeof populateOperatorList === 'function') populateOperatorList();
-  updateDashboard();
+  markFiltersDirty();
 }
 
 function applyDateFilter(){
@@ -1449,7 +1481,7 @@ function applyDateFilter(){
   APPLIED.statuses=getSelectedItems('dds');
   // Repopula dropdown de operador respeitando o filtro de unidade selecionado
   if(typeof populateOperatorList === 'function') populateOperatorList();
-  updateDashboard();
+  markFiltersDirty();
 }
 
 // ── FILTRO POR OPERADOR (com search) ──────────────────────
@@ -1501,7 +1533,7 @@ function tdiOperator(el, name){
       }
     }
   }
-  updateDashboard();
+  markFiltersDirty();
 }
 
 // ── FILTRO POR ORIGEM (patient_channel_name) ──
@@ -1531,7 +1563,7 @@ function tdiOrigem(el, name){
       }
     }
   }
-  updateDashboard();
+  markFiltersDirty();
 }
 
 function quickPeriod(kind){
@@ -1562,7 +1594,7 @@ function quickPeriod(kind){
   APPLIED.d1=d1?ymd(d1):null;
   APPLIED.d2=d2?ymd(d2):null;
   tdd('ddp');
-  updateDashboard();
+  markFiltersDirty();
 }
 
 function filteredNoMC(){
