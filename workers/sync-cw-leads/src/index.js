@@ -150,6 +150,42 @@ async function cwPost(env, path, body, attempt = 0) {
   return r.json();
 }
 
+// Garante que o contato e suas conversas tenham a label `campanha`,
+// SEM remover labels existentes (Chatwoot POST /labels é SET — substituir).
+// Estratégia: GET labels atuais → se não tem campanha, POST com [...existentes, campanha].
+async function ensureCampanhaTag(env, accountId, contactId, campLabel) {
+  // 1. Contato
+  try {
+    const cur = await cwGet(env, `/api/v1/accounts/${accountId}/contacts/${contactId}/labels`, {});
+    const labels = Array.isArray(cur?.payload) ? cur.payload : [];
+    if (!labels.includes(campLabel)) {
+      const newLabels = [...labels, campLabel];
+      await cwPost(env, `/api/v1/accounts/${accountId}/contacts/${contactId}/labels`, { labels: newLabels });
+      console.log(`[${accountId}] tag campanha aplicada no contato ${contactId} (${labels.length}→${newLabels.length})`);
+    }
+  } catch (e) {
+    console.error(`[${accountId}] contact ${contactId} label sync: ${e.message}`);
+  }
+  // 2. Conversas do contato
+  try {
+    const convs = await cwGet(env, `/api/v1/accounts/${accountId}/contacts/${contactId}/conversations`, {});
+    const list = convs?.payload || [];
+    for (const c of list) {
+      const convLabels = Array.isArray(c.labels) ? c.labels : [];
+      if (!convLabels.includes(campLabel)) {
+        const newLabels = [...convLabels, campLabel];
+        try {
+          await cwPost(env, `/api/v1/accounts/${accountId}/conversations/${c.id}/labels`, { labels: newLabels });
+          console.log(`[${accountId}] tag campanha aplicada na conversa ${c.id} (contato ${contactId})`);
+        } catch (e) { console.error(`[${accountId}] conv ${c.id} label sync: ${e.message}`); }
+        await sleep(300);
+      }
+    }
+  } catch (e) {
+    console.error(`[${accountId}] contact ${contactId} convs label sync: ${e.message}`);
+  }
+}
+
 async function upsertLeads(env, rows) {
   if (!rows.length) return 0;
   // Dedup por (id, account_id) dentro do batch — Chatwoot pode retornar duplicatas entre páginas
@@ -356,6 +392,7 @@ async function runOneAccount(env, accountId, { force = false } = {}) {
       const items = respAd?.payload || [];
       if (!items.length) break;
       const batchAd = [];
+      const contactsToTag = []; // pra aplicar tag campanha no CW (mutação)
       let allBeforeCutoff = true;
       for (const c of items) {
         const createdMs = c.created_at ? c.created_at * 1000 : 0;
@@ -364,8 +401,18 @@ async function runOneAccount(env, accountId, { force = false } = {}) {
         if (cutoffTs && lastAct <= cutoffTs) continue;
         allBeforeCutoff = false;
         batchAd.push(mapContact(c, accountId, ecuroClinicId));
+        contactsToTag.push(c.id);
         if (seenIds) seenIds.add(c.id);
         if (lastAct && (!maxSeen || lastAct > maxSeen.getTime())) maxSeen = new Date(lastAct);
+      }
+      // Mutação: garante tag campanha no contato + conversas (CW aplicada por Thauany 09/06)
+      // Skip se SKIP_TAG_APPLY=true (modo só-leitura)
+      if (env.SKIP_TAG_APPLY !== 'true' && contactsToTag.length) {
+        for (const cid of contactsToTag) {
+          try { await ensureCampanhaTag(env, accountId, cid, label); }
+          catch (e) { console.error(`[${accountId}] tag apply ${cid}: ${e.message}`); }
+          await sleep(700); // rate-limit gentil — 1.4 req/s
+        }
       }
       if (batchAd.length) {
         try { await upsertLeads(env, batchAd); totalAdOrigin += batchAd.length; }
