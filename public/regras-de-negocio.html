@@ -45,11 +45,44 @@
 <body class="light">
 <div class="top">
   <a href="/">← Voltar ao dashboard</a>
-  <span style="font-size:11px;color:var(--gray);">Atualizado em <strong style="color:var(--gray-l);">2026-04-29</strong></span>
+  <span style="font-size:11px;color:var(--gray);">Atualizado em <strong style="color:var(--gray-l);">2026-06-24</strong></span>
 </div>
 <div class="wrap">
   <h1>Regras de Negócio</h1>
   <p class="lead">Como cada métrica do dashboard é calculada. Esta página existe para que decisões financeiras (comissionamento, atribuição de receita, performance de campanhas) sejam <strong style="color:var(--white);">auditáveis e questionáveis</strong>.</p>
+
+  <h2>★ Funil de Marketing — Leads de Campanha</h2>
+  <div class="card">
+    <p>O funil mede a jornada dos <strong style="color:var(--white);">leads de campanha</strong>: Leads → Agendaram → Confirmaram → Compareceram → Venderam. <strong style="color:var(--white);">Cada etapa conta o LEAD (pessoa/telefone) uma única vez</strong> — não importa quantas consultas ou cadastros a pessoa tenha.</p>
+
+    <h3>Quem é "lead de campanha"</h3>
+    <ul>
+      <li>Contato no Chatwoot com a tag <code>campanha</code> e telefone válido.</li>
+      <li>Tag aplicada a partir de <strong style="color:var(--white);">06/04/2026</strong> (corte que exclui o lixo do bulk import da Cloudia).</li>
+    </ul>
+
+    <h3>Atribuição (lead → agendamento)</h3>
+    <p>Por <strong style="color:var(--white);">telefone</strong>: o número do lead bate com o número do agendamento, testando 4 variantes brasileiras (com/sem 9º dígito, com/sem 55). O Ecuro não envia <code>campaign_token</code>, então o telefone é a única ponte. Pré-calculado todo dia de madrugada (tabelas <code>campaign_appt_attribution</code> + <code>campaign_patient</code>).</p>
+
+    <h3>Como cada etapa conta</h3>
+    <table>
+      <thead><tr><th>Etapa</th><th>Critério</th></tr></thead>
+      <tbody>
+        <tr><td>Leads</td><td>Telefones únicos com tag campanha criados no período</td></tr>
+        <tr><td>Agendaram</td><td>Leads (telefone) com ≥1 agendamento no período</td></tr>
+        <tr><td>Confirmaram</td><td>Leads com ≥1 agendamento confirmado (status 7/8 ou log de confirmação)</td></tr>
+        <tr><td>Compareceram</td><td>Leads com ≥1 consulta <strong style="color:var(--white);">Concluída (status 8)</strong></td></tr>
+        <tr><td>Venderam</td><td>Leads cuja pessoa fez ≥1 pagamento no período</td></tr>
+        <tr><td>Receita</td><td>SOMA de <strong style="color:var(--white);">TODOS</strong> os pagamentos da pessoa no período (mesmo múltiplos, independente de confirmado)</td></tr>
+      </tbody>
+    </table>
+
+    <div class="note"><strong>Regra do período (cohort):</strong> conta o EVENTO que aconteceu no período, independente de quando o lead chegou. Lead de abril que compareceu em junho conta no funil de junho. Só a coluna <strong style="color:var(--white);">"Leads"</strong> é fixa (contatos criados no período) — por isso a conversão pode passar de 100%.</div>
+
+    <div class="note"><strong>1 lead = 1 pessoa, sempre:</strong> se a mesma pessoa tem cadastro duplicado no Ecuro, ou um familiar agendou no mesmo telefone, ainda conta como <strong style="color:var(--white);">1 lead</strong> nas etapas. Só na <strong style="color:var(--white);">receita</strong> somamos todos os pagamentos da pessoa.</div>
+
+    <div class="warn"><strong>Teto da atribuição por telefone:</strong> se o lead agendou com um número diferente do que entrou no Chatwoot, o match não pega — auditoria manual sempre encontra mais. O número do dash é o <strong style="color:var(--orange);">piso garantido</strong>, não o teto.</div>
+  </div>
 
   <h2>1 · Origem dos dados</h2>
   <div class="card">
@@ -116,7 +149,8 @@
 
   <h2>6 · Receita do Período</h2>
   <div class="card">
-    <div class="formula">Receita = SUM(amount) em BI Payments WHERE is_confirmed = true AND deleted_at IS NULL AND date BETWEEN d1 AND d2 AND clinic_id IN unidades_filtradas</div>
+    <div class="formula">Receita = SUM(amount) em BI Payments WHERE deleted_at IS NULL AND date BETWEEN d1 AND d2 AND clinic_id IN unidades_filtradas</div>
+    <div class="note">Conta <strong style="color:var(--white);">todos os pagamentos</strong> do período (cartão, pix, boleto), independente do status de confirmado. A regra antiga (<code>is_confirmed = true</code>) foi removida em 19/06/2026.</div>
     <p>"Melhor Mês" exibe o mês com maior receita confirmada no dataset completo (não respeita filtro de período, por design).</p>
   </div>
 
