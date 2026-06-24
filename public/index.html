@@ -914,11 +914,10 @@
       </div>
       <div style="font-size:9.5px;color:var(--gray);margin-top:12px;line-height:1.5;border-top:1px solid var(--border);padding-top:10px;">
         <strong>Definições:</strong>
-        <strong>Lead</strong> = contato Chatwoot com tag <code>campanha</code> (criado a partir de 06/04 — antes desse dia houve bulk import que está excluído).
-        <strong>Agendou</strong> = telefone do lead bate com algum agendamento criado <em>após</em> a chegada do lead (testa variantes do 9º dígito).
-        <strong>Confirmou</strong> = o agendamento tem log <code>to_status=4</code> OU já está com status concluído (concluído implica que foi confirmado).
-        <strong>Compareceu</strong> = appt status <code>atendido</code> ou <code>concluído</code>.
-        <strong>Vendeu</strong> = paciente pagou <em>pelo menos uma vez</em> após chegar como lead (qualquer especialidade, qualquer valor).
+        <strong>Lead</strong> = contato Chatwoot com tag <code>campanha</code> que <em>chegou no período filtrado</em> (a partir de 06/04 — bulk import anterior excluído).
+        <strong>Agendou / Confirmou / Compareceu / Vendeu</strong> = pacientes de campanha (de <em>qualquer mês de chegada</em>) cujo agendamento, comparecimento ou pagamento aconteceu <em>no período filtrado</em>. Quem clica numa barra vê a coluna <strong>"Chegou em"</strong> pra distinguir o mês de origem.
+        <em style="color:var(--gray-l)">⚠️ Por isso "Agendou/Compareceu" pode passar do nº de "Leads" e a conversão Lead→Agendou pode passar de 100% — são leads de meses anteriores que converteram agora.</em>
+        Match lead↔agendamento por telefone (testa variantes do 9º dígito). Vendeu = qualquer pagamento (cartão/Pix/boleto contam).
       </div>
     </div>
     <style>
@@ -2656,8 +2655,9 @@ async function computeThauanyMetrics(){
   const campPatientIds = new Set(campAppts.map(a => a.patient_id));
 
   // Vendas campanha = pagamentos de pacientes classificados como campanha
+  // 19/06: removido filtro is_confirmed - cartao/pix/boleto contam imediato (regra confirmada c/ Cleber)
   const campSales = payments
-    .filter(p => p.is_confirmed && originOf(p.patient_id) === 'campanha')
+    .filter(p => originOf(p.patient_id) === 'campanha')
     .reduce((s,p) => s + parseFloat(p.amount || 0), 0);
 
   // ── 3. Tentativa de pegar contagem real de leads via cache Chatwoot (mês corrente) ──
@@ -2746,7 +2746,7 @@ async function computeThauanyMetrics(){
     buckets[o].q.add(a.patient_id);
   }
   for(const p of payments){
-    if(!p.is_confirmed || !p.patient_id) continue;
+    if(!p.patient_id) continue;
     const o = originOf(p.patient_id);
     buckets[o].r += parseFloat(p.amount || 0);
   }
@@ -2758,7 +2758,6 @@ async function computeThauanyMetrics(){
   // ── 5. Vendas: 1ª Consulta vs Follow-Up ──
   let v1 = 0, v1Q = 0, vF = 0, vFQ = 0, vFCmp = 0, vFOrg = 0;
   for(const p of payments){
-    if(!p.is_confirmed) continue;
     const amt = parseFloat(p.amount || 0);
     const isAval = SPEC_AVALIACAO_NAMES.has((p.specialty_name||'').trim());
     if(isAval){ v1 += amt; v1Q++; }
