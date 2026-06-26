@@ -4,6 +4,7 @@ const PUBLIC_PATHS = new Set([
   '/login.html',
   '/login',
   '/api/login',
+  '/api/sso',
   '/favicon.ico',
 ]);
 
