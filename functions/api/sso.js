@@ -202,8 +202,12 @@ async function handle({ request, env }) {
     await supaUpdate(env, 'auth_users', `id=eq.${user.id}`, { last_login_at: new Date().toISOString() }).catch(() => {});
   }
 
+  // `token` no corpo: o gci-sso.js guarda em localStorage (particionado) e o SPA o envia como
+  // Authorization: Bearer. Necessário no Safari, que NÃO grava/manda o cookie de terceiro do embed
+  // (sem suporte a CHIPS/Partitioned). O cookie continua p/ Chrome e login direto (sem regressão).
   return new Response(JSON.stringify({
     ok: true,
+    token,
     user: { email: user.email, role: user.role, name: claims.name }
   }), {
     status: 200,

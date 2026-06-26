@@ -1,6 +1,28 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+<script>
+/* Embed cross-site no Safari: o cookie de terceiro do hub não é enviado (sem CHIPS), então o
+   gci-sso.js guarda o token da sessão em localStorage (particionado, funciona no Safari) e aqui
+   injetamos como Authorization: Bearer nas chamadas /api/. No-op se não houver token (login direto
+   e Chrome seguem pelo cookie). Roda antes de qualquer fetch do app. */
+(function(){try{
+  var t=localStorage.getItem('dc_embed_token'); if(!t) return;
+  var of=window.fetch;
+  window.fetch=function(input,init){
+    try{
+      var u=typeof input==='string'?input:(input&&input.url)||'';
+      if(u.indexOf('/api/')===0){
+        init=init||{};
+        var h=new Headers(init.headers||(typeof input!=='string'&&input.headers)||{});
+        if(!h.has('Authorization')) h.set('Authorization','Bearer '+t);
+        init.headers=h;
+      }
+    }catch(e){}
+    return of.call(this,input,init);
+  };
+}catch(e){}})();
+</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Ecuro Dash</title>

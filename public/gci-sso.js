@@ -12,13 +12,15 @@
     // inclusive o particionado do embed). sendBeacon sobrevive ao redirect da /login (não é
     // cancelado pela navegação), garantindo que o /api/logout complete.
     if (location.search.indexOf('gci_logout') >= 0) {
+      try { localStorage.removeItem('dc_embed_token'); } catch (_) {}   // limpa o token do embed
       try {
         if (navigator.sendBeacon) navigator.sendBeacon('/api/logout');
         else fetch('/api/logout', { method: 'POST', credentials: 'include' });
       } catch (_) {}
       return;
     }
-    var HUB_ORIGINS = ['https://gci.arvore.party', 'https://app.arvore.party'];
+    var HUB_ORIGINS = ['https://gci.arvore.party', 'https://app.arvore.party',
+                       'https://hml.gci.arvore.party', 'https://gci-hub-hml.pages.dev'];
     var done = false;
 
     // Esconde a tela de login enquanto tenta o SSO (não pisca).
@@ -43,8 +45,13 @@
             api_access_token: m.api_access_token   // token pessoal (não rotaciona) — validação robusta
           } })
         }).then(function (r) {
-          if (r.ok) window.location.replace('/');   // sessão criada -> entra
-          else reveal();                            // SSO recusado -> login normal
+          if (!r.ok) { reveal(); return; }          // SSO recusado -> login normal
+          return r.json().then(function (d) {
+            // Guarda o token (localStorage particionado) p/ o SPA mandar via Authorization: Bearer
+            // no Safari, que não envia o cookie de terceiro. No Chrome o cookie também funciona.
+            try { if (d && d.token) localStorage.setItem('dc_embed_token', d.token); } catch (_) {}
+            window.location.replace('/');            // sessão criada -> entra
+          });
         }).catch(function () { reveal(); });
       }
     });
