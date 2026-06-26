@@ -14,8 +14,12 @@ export async function onRequestPost({ request, env }) {
 }
 
 // Cookie de sessão para uso embedado (iframe). Mesmo nome do login normal.
+// `Partitioned` (CHIPS): com o bloqueio de cookies de terceiros do Chrome, um Set-Cookie
+// SameSite=None comum é descartado em iframe cross-site. Com Partitioned o cookie é gravado
+// no "jar" particionado por site de topo (gci.arvore.party) e é enviado nas requisições do
+// iframe — funciona inclusive em aba anônima / com cookies de terceiros bloqueados.
 function embedCookie(token, ttl) {
-  return `dc_session=${token}; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=${ttl}`;
+  return `dc_session=${token}; Path=/; HttpOnly; Secure; SameSite=None; Partitioned; Max-Age=${ttl}`;
 }
 
 // Valida a credencial devise no Chatwoot e devolve o user no MESMO formato do sign_in.
@@ -39,11 +43,30 @@ async function chatwootValidate(baseUrl, cred) {
   }
 }
 
+// Valida pelo token PESSOAL de API (api_access_token) via /api/v1/profile. Esse token NÃO
+// rotaciona (ao contrário do devise de sessão, que o uso do Chatwoot embedado invalida) — é o
+// caminho robusto, o mesmo que o Connect usa. /api/v1/profile devolve o user no nível raiz.
+async function chatwootValidateProfile(baseUrl, apiToken) {
+  if (!baseUrl || !apiToken) return { ok: false, reason: 'no_api_token' };
+  try {
+    const res = await fetch(`${baseUrl.replace(/\/$/, '')}/api/v1/profile`, {
+      method: 'GET',
+      headers: { api_access_token: apiToken, Accept: 'application/json' }
+    });
+    if (!res.ok) return { ok: false, reason: 'invalid_credentials', status: res.status };
+    return await parseSuccess(res);
+  } catch (e) {
+    return { ok: false, reason: 'fetch_error', error: String(e?.message || e) };
+  }
+}
+
 // Idêntico ao parseSuccess do login.js
 async function parseSuccess(res) {
   try {
     const data = await res.json().catch(() => null);
-    const u = data?.data;
+    // Formatos: /auth/validate_token → `payload.data`; /auth/sign_in → `data`;
+    // /api/v1/profile → o user no nível RAIZ. Trata os três.
+    const u = (data && (data.payload?.data || data.data || data)) || null;
     if (!u || !u.email) return { ok: false, reason: 'unexpected_response' };
     const accounts = Array.isArray(u.accounts) ? u.accounts : [];
     const adminAccountIds = accounts
@@ -75,11 +98,13 @@ async function handle({ request, env }) {
   let body;
   try { body = await request.json(); } catch { return j(400, { error: 'invalid_json' }); }
   const cred = body.cred || body || {};
-  if (!cred.access_token || !cred.uid) return j(400, { error: 'missing_cred' });
+  if (!cred.access_token && !cred.api_access_token) return j(400, { error: 'missing_cred' });
 
   // ── 1. Valida a credencial no Chatwoot (fonte de verdade) ──
+  // Preferência: token PESSOAL de API (não rotaciona) → robusto. Fallback: devise de sessão.
   const cwUrl = env.CHATWOOT_BASE_URL || 'https://chatclinics.5ef4kt.easypanel.host';
-  const cw = await chatwootValidate(cwUrl, cred);
+  let cw = await chatwootValidateProfile(cwUrl, cred.api_access_token);
+  if (!cw.ok && cred.access_token) cw = await chatwootValidate(cwUrl, cred);
   if (!cw.ok) return j(401, { error: 'invalid_credentials' });
   const cwUser = cw.user;
   const email = cwUser.email;
