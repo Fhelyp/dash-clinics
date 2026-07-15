@@ -1,6 +1,28 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+<script>
+/* Embed cross-site no Safari: o cookie de terceiro do hub não é enviado (sem CHIPS), então o
+   gci-sso.js guarda o token da sessão em localStorage (particionado, funciona no Safari) e aqui
+   injetamos como Authorization: Bearer nas chamadas /api/. No-op se não houver token (login direto
+   e Chrome seguem pelo cookie). Roda antes de qualquer fetch do app. */
+(function(){try{
+  var t=localStorage.getItem('dc_embed_token'); if(!t) return;
+  var of=window.fetch;
+  window.fetch=function(input,init){
+    try{
+      var u=typeof input==='string'?input:(input&&input.url)||'';
+      if(u.indexOf('/api/')===0){
+        init=init||{};
+        var h=new Headers(init.headers||(typeof input!=='string'&&input.headers)||{});
+        if(!h.has('Authorization')) h.set('Authorization','Bearer '+t);
+        init.headers=h;
+      }
+    }catch(e){}
+    return of.call(this,input,init);
+  };
+}catch(e){}})();
+</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Ecuro Dash</title>
@@ -908,16 +930,62 @@
       <div id="fnlBars" style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;align-items:end;min-height:170px;">
         <div class="fnl-stage" data-stage="leads" onclick="openFunnelDrill('leads')"><div class="fnl-bar" style="background:linear-gradient(180deg,var(--purple),rgba(168,85,247,.4))"></div><div class="fnl-lbl">Leads</div><div class="fnl-val" id="fnlLeads">0</div><div class="fnl-conv" id="fnlConvLA">—</div></div>
         <div class="fnl-stage" data-stage="agendados" onclick="openFunnelDrill('agendados')"><div class="fnl-bar" style="background:linear-gradient(180deg,var(--blue),rgba(59,130,246,.4))"></div><div class="fnl-lbl">Agend.</div><div class="fnl-val" id="fnlAgend">0</div><div class="fnl-conv" id="fnlConvAC">—</div></div>
-        <div class="fnl-stage" data-stage="confirmados" onclick="openFunnelDrill('confirmados')"><div class="fnl-bar" style="background:linear-gradient(180deg,var(--teal),rgba(45,212,191,.4))"></div><div class="fnl-lbl">Confirmados</div><div class="fnl-val" id="fnlConf">0</div><div class="fnl-conv" id="fnlConvCC">—</div></div>
+        <div class="fnl-stage" data-stage="confirmados" onclick="openFunnelDrill('confirmados')" title="A confirmação conta a TOTALIDADE das confirmações do período. Operador e Maria Clara confirmam qualquer paciente (de campanha ou não), então esta barra pode ficar MAIOR que a de agendados — isso é esperado, não é erro do gráfico."><div class="fnl-bar" style="background:linear-gradient(180deg,var(--teal),rgba(45,212,191,.4))"></div><div class="fnl-lbl">Confirmados <span style="opacity:.6;cursor:help">ⓘ</span></div><div class="fnl-val" id="fnlConf">0</div><div class="fnl-conv" id="fnlConvCC">—</div></div>
         <div class="fnl-stage" data-stage="compareceram" onclick="openFunnelDrill('compareceram')"><div class="fnl-bar" style="background:linear-gradient(180deg,var(--orange),rgba(251,146,60,.4))"></div><div class="fnl-lbl">Compar.</div><div class="fnl-val" id="fnlComp">0</div><div class="fnl-conv" id="fnlConvCV">—</div></div>
         <div class="fnl-stage" data-stage="venderam" onclick="openFunnelDrill('venderam')"><div class="fnl-bar" style="background:linear-gradient(180deg,var(--green),rgba(34,197,94,.4))"></div><div class="fnl-lbl">Venderam</div><div class="fnl-val" id="fnlVend">0</div><div class="fnl-conv" id="fnlConvVR" style="font-weight:700;color:var(--green)">R$ 0</div></div>
       </div>
       <div style="font-size:9.5px;color:var(--gray);margin-top:12px;line-height:1.5;border-top:1px solid var(--border);padding-top:10px;">
-        <strong>Definições:</strong>
-        <strong>Lead</strong> = contato Chatwoot com tag <code>campanha</code> que <em>chegou no período filtrado</em> (a partir de 06/04 — bulk import anterior excluído).
-        <strong>Agendou / Confirmou / Compareceu / Vendeu</strong> = pacientes de campanha (de <em>qualquer mês de chegada</em>) cujo agendamento, comparecimento ou pagamento aconteceu <em>no período filtrado</em>. Quem clica numa barra vê a coluna <strong>"Chegou em"</strong> pra distinguir o mês de origem.
-        <em style="color:var(--gray-l)">⚠️ Por isso "Agendou/Compareceu" pode passar do nº de "Leads" e a conversão Lead→Agendou pode passar de 100% — são leads de meses anteriores que converteram agora.</em>
-        Match lead↔agendamento por telefone (testa variantes do 9º dígito). Vendeu = qualquer pagamento (cartão/Pix/boleto contam).
+        <strong>Definições (regras acordadas na reunião de 10/07):</strong>
+        <strong>Campanha</strong> = contato com tag <code>campanha</code> no Chatwoot <em>OU</em> agendamento marcado como <code>Lead Campanha</code> no Ecuro (o operador marca no Ecuro — o manual pede assim).
+        <strong>Período</strong> = conta pela <em>data em que o operador agendou</em> (não pela data da consulta), alinhado com a operação e o comissionamento.
+        <strong>Lead</strong> = contato Chatwoot com tag <code>campanha</code> (criado a partir de 06/04 — antes disso houve bulk import excluído). Só do Chatwoot.
+        <strong>Agendou</strong> = paciente de campanha com agendamento no período. Exclui <em>cliente passante</em> (quem já tem consulta concluída anterior — é da casa, não campanha nova).
+        <strong>Confirmou</strong> = <em>totalidade</em> das confirmações do período (log <code>to_status=4</code> ou concluído), <em>sem</em> o filtro de passante — por isso pode passar os agendados.
+        <strong>Compareceu</strong> = appt status <code>atendido</code> ou <code>concluído</code>.
+        <strong>Vendeu</strong> = paciente de campanha pagou <em>pelo menos uma vez</em> no período.
+      </div>
+    </div>
+
+    <!-- ═══ Funil de Resgate e Follow-up (ação do operador) — SEPARADO da campanha ═══ -->
+    <div class="card" id="resgCard" style="margin-bottom:var(--gap);padding:18px 22px;">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--gray-l);">Resgate & Follow-up — ação do operador</div>
+        <div style="font-size:9.5px;color:var(--gray);">retrabalho de base, <strong>não</strong> é lead novo de campanha</div>
+      </div>
+      <div style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;font-size:12px;min-width:520px;">
+        <thead>
+          <tr style="text-align:right;color:var(--gray-l);font-size:9.5px;text-transform:uppercase;letter-spacing:.06em;">
+            <th style="text-align:left;padding:7px 8px;">Ação</th>
+            <th style="padding:7px 8px;" title="Contatos do Chatwoot com a tag, criados no período">Contatos (CW)</th>
+            <th style="padding:7px 8px;" title="Agendamentos marcados no Ecuro, pela data do agendamento">Agendados</th>
+            <th style="padding:7px 8px;">Confirmados</th>
+            <th style="padding:7px 8px;">Compareceram</th>
+            <th style="padding:7px 8px;">Receita</th>
+          </tr>
+        </thead>
+        <tbody style="font-variant-numeric:tabular-nums;">
+          <tr style="border-top:1px solid var(--border);">
+            <td style="padding:9px 8px;font-weight:600;color:var(--orange);">Resgate</td>
+            <td id="rgCw"   onclick="openResgateDrill('resgate','contatos')"    style="padding:9px 8px;text-align:right;cursor:pointer;">–</td>
+            <td id="rgAg"   onclick="openResgateDrill('resgate','agendados')"   style="padding:9px 8px;text-align:right;cursor:pointer;">–</td>
+            <td id="rgConf" onclick="openResgateDrill('resgate','confirmados')" style="padding:9px 8px;text-align:right;cursor:pointer;">–</td>
+            <td id="rgComp" onclick="openResgateDrill('resgate','compareceram')" style="padding:9px 8px;text-align:right;cursor:pointer;">–</td>
+            <td id="rgRec"  style="padding:9px 8px;text-align:right;font-weight:600;color:var(--green);">–</td>
+          </tr>
+          <tr style="border-top:1px solid var(--border);">
+            <td style="padding:9px 8px;font-weight:600;color:var(--blue);">Follow-up</td>
+            <td id="fwCw"   onclick="openResgateDrill('follow','contatos')"    style="padding:9px 8px;text-align:right;cursor:pointer;">–</td>
+            <td id="fwAg"   onclick="openResgateDrill('follow','agendados')"   style="padding:9px 8px;text-align:right;cursor:pointer;">–</td>
+            <td id="fwConf" onclick="openResgateDrill('follow','confirmados')" style="padding:9px 8px;text-align:right;cursor:pointer;">–</td>
+            <td id="fwComp" onclick="openResgateDrill('follow','compareceram')" style="padding:9px 8px;text-align:right;cursor:pointer;">–</td>
+            <td id="fwRec"  style="padding:9px 8px;text-align:right;font-weight:600;color:var(--green);">–</td>
+          </tr>
+        </tbody>
+      </table>
+      </div>
+      <div style="font-size:9.5px;color:var(--gray);margin-top:10px;line-height:1.5;border-top:1px solid var(--border);padding-top:9px;">
+        <strong>Contatos (CW)</strong> = contatos do Chatwoot com tag <code style="font-size:10px">resgate</code> / <code style="font-size:10px">follow_1..4</code>, pela data de criação. <strong>Agendados</strong> em diante = agendamentos que o operador marcou no Ecuro como <code style="font-size:10px">CRC · Resgate/Follow-Up</code>, pela data do agendamento. Sem carência. Follow-up soma campanha + orgânico.
       </div>
     </div>
     <style>
@@ -1568,7 +1636,9 @@ function tdiOrigem(el, name){
 function quickPeriod(kind){
   const today=new Date(); today.setHours(0,0,0,0);
   let d1,d2=new Date(today); d2.setHours(23,59,59,0);
-  const ymd=d=>d.toISOString().slice(0,10);
+  // LOCAL (não toISOString/UTC): com 23:59:59 no fuso BRT, toISOString jogaria o dia
+  // pro dia seguinte em UTC (ex.: 30/06 23:59 BRT -> "2026-07-01"). Bug do "mês passado".
+  const ymd=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
   switch(kind){
     case 'today':     d1=new Date(today); break;
     case 'mtd':       d1=new Date(today.getFullYear(),today.getMonth(),1); break;
@@ -2458,6 +2528,78 @@ async function loadTablePage(k){
 }
 
 // ═══════════════════════════════════════════════════════════════════
+// Funil de Resgate/Follow-up (visão apartada da campanha) → /api/dashboard/funnel-resgate
+// Popula a tabela do card #resgCard. Blindado: qualquer erro só loga, não afeta o resto.
+// ═══════════════════════════════════════════════════════════════════
+async function loadFunnelResgate(fparams){
+  try {
+    const r = await fetch('/api/dashboard/funnel-resgate?' + fparams.toString(), { credentials: 'same-origin' });
+    if (!r.ok) return;
+    const jr = await r.json();
+    const cw = jr.contatos_cw || {};
+    const b  = jr.buckets || {};
+    const rg = b.resgate || {};
+    const fc = b.follow_campanha || {};
+    const fo = b.follow_organico || {};
+    const n = v => (Number(v)||0).toLocaleString('pt-BR');
+    // Resgate
+    setTxt('rgCw',   n(cw.resgate));
+    setTxt('rgAg',   n(rg.agendados));
+    setTxt('rgConf', n(rg.confirmados));
+    setTxt('rgComp', n(rg.compareceram));
+    setTxt('rgRec',  fmtMoney((Number(rg.receita)||0)));
+    // Follow-up = campanha + orgânico
+    setTxt('fwCw',   n(cw.follow));
+    setTxt('fwAg',   n((Number(fc.agendados)||0)   + (Number(fo.agendados)||0)));
+    setTxt('fwConf', n((Number(fc.confirmados)||0) + (Number(fo.confirmados)||0)));
+    setTxt('fwComp', n((Number(fc.compareceram)||0)+ (Number(fo.compareceram)||0)));
+    setTxt('fwRec',  fmtMoney((Number(fc.receita)||0) + (Number(fo.receita)||0)));
+  } catch(e) { console.warn('[funnel-resgate]', e.message); }
+}
+
+// Drill-down do funil de Resgate/Follow-up: clica numa célula → lista os contatos/agendamentos.
+async function openResgateDrill(bucket, stage){
+  const modal = document.getElementById('drillModal');
+  if (!modal) return;
+  if (modal.parentNode !== document.body) document.body.appendChild(modal);
+  document.body.classList.add('drill-open');
+  const titles = {contatos:'Contatos (Chatwoot)', agendados:'Agendamentos', confirmados:'Confirmados', compareceram:'Compareceram'};
+  const buckLbl = bucket==='resgate' ? '🟠 Resgate' : '🔵 Follow-up';
+  document.getElementById('drillTitle').textContent = buckLbl + ' · ' + (titles[stage]||stage);
+  document.getElementById('drillSub').textContent = 'Carregando…';
+  document.getElementById('drillBody').innerHTML = '<div class="drill-empty">Carregando…</div>';
+  const foot = document.getElementById('drillFootInfo'); if (foot) foot.textContent = '—';
+  modal.classList.add('show');
+  const usp = new URLSearchParams(buildStatsParams().toString());
+  usp.set('bucket', bucket); usp.set('stage', stage); usp.set('limit','300');
+  try {
+    const r = await fetch('/api/dashboard/funnel-resgate-detail?' + usp.toString(), { credentials:'same-origin' });
+    if (r.status===401){ window.location.href='/login.html'; return; }
+    if (!r.ok){ document.getElementById('drillBody').innerHTML='<div class="drill-empty">Erro: '+r.status+'</div>'; return; }
+    const jr = await r.json();
+    const rows = jr.rows||[];
+    document.getElementById('drillSub').textContent = jr.count + ' ' + (stage==='contatos'?'contatos':'agendamentos');
+    if(!rows.length){ document.getElementById('drillBody').innerHTML='<div class="drill-empty">Nenhum registro</div>'; return; }
+    const esc = s => (s==null?'':String(s)).replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+    const cabecalho = stage==='contatos'
+      ? '<th style="padding:6px 8px;">Nome</th><th style="padding:6px 8px;">Telefone</th><th style="padding:6px 8px;">Criado em</th>'
+      : '<th style="padding:6px 8px;">Nome</th><th style="padding:6px 8px;">Telefone</th><th style="padding:6px 8px;">Agendado</th><th style="padding:6px 8px;">Status</th><th style="padding:6px 8px;text-align:right;">Pago</th><th style="padding:6px 8px;">Ficha</th>';
+    let html = '<table style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr style="text-align:left;color:var(--gray-l);font-size:10px;text-transform:uppercase;letter-spacing:.05em;">'+cabecalho+'</tr></thead><tbody>';
+    for(const x of rows){
+      if(stage==='contatos'){
+        html += '<tr style="border-top:1px solid var(--border);"><td style="padding:7px 8px;font-weight:600;">'+esc(x.nome)+'</td><td style="padding:7px 8px;">'+esc(x.telefone)+'</td><td style="padding:7px 8px;">'+esc(x.data)+'</td></tr>';
+      } else {
+        const ficha = x.patient_id ? '<a href="https://ecuro.com.br/dashboard/patient-profile/'+x.patient_id+'?activeTab=appointments" target="_blank" rel="noopener" style="color:var(--blue);text-decoration:none">↗ ficha</a>' : '—';
+        html += '<tr style="border-top:1px solid var(--border);"><td style="padding:7px 8px;font-weight:600;">'+esc(x.nome)+'</td><td style="padding:7px 8px;">'+esc(x.telefone)+'</td><td style="padding:7px 8px;">'+esc(x.data)+'</td><td style="padding:7px 8px;">'+esc(x.status||'—')+'</td><td style="padding:7px 8px;text-align:right;">'+(Number(x.pago)>0?fmtMoney(x.pago):'—')+'</td><td style="padding:7px 8px;">'+ficha+'</td></tr>';
+      }
+    }
+    html += '</tbody></table>';
+    document.getElementById('drillBody').innerHTML = html;
+    if (foot) foot.textContent = rows.length + ' de ' + jr.count;
+  } catch(e){ document.getElementById('drillBody').innerHTML='<div class="drill-empty">Erro: '+e.message+'</div>'; }
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // Drill-down do Funil (clica numa barra → modal com lista de contatos)
 // ═══════════════════════════════════════════════════════════════════
 const STAGE_LABELS = {
@@ -2655,9 +2797,8 @@ async function computeThauanyMetrics(){
   const campPatientIds = new Set(campAppts.map(a => a.patient_id));
 
   // Vendas campanha = pagamentos de pacientes classificados como campanha
-  // 19/06: removido filtro is_confirmed - cartao/pix/boleto contam imediato (regra confirmada c/ Cleber)
   const campSales = payments
-    .filter(p => originOf(p.patient_id) === 'campanha')
+    .filter(p => p.is_confirmed && originOf(p.patient_id) === 'campanha')
     .reduce((s,p) => s + parseFloat(p.amount || 0), 0);
 
   // ── 3. Tentativa de pegar contagem real de leads via cache Chatwoot (mês corrente) ──
@@ -2734,6 +2875,9 @@ async function computeThauanyMetrics(){
     }
   } catch(e) { console.warn('[funnel]', e.message); }
 
+  // Funil de Resgate/Follow-up (visão apartada). Fire-and-forget: nunca bloqueia nem quebra o resto.
+  loadFunnelResgate(buildStatsParams());
+
   // Blocos antigos (Origem por campaign_token / Vendas 1ª vs Follow-up) removidos.
   // Os números reais de campanha são populados pelo bloco do funil acima.
   return; // skip código antigo abaixo
@@ -2746,7 +2890,7 @@ async function computeThauanyMetrics(){
     buckets[o].q.add(a.patient_id);
   }
   for(const p of payments){
-    if(!p.patient_id) continue;
+    if(!p.is_confirmed || !p.patient_id) continue;
     const o = originOf(p.patient_id);
     buckets[o].r += parseFloat(p.amount || 0);
   }
@@ -2758,6 +2902,7 @@ async function computeThauanyMetrics(){
   // ── 5. Vendas: 1ª Consulta vs Follow-Up ──
   let v1 = 0, v1Q = 0, vF = 0, vFQ = 0, vFCmp = 0, vFOrg = 0;
   for(const p of payments){
+    if(!p.is_confirmed) continue;
     const amt = parseFloat(p.amount || 0);
     const isAval = SPEC_AVALIACAO_NAMES.has((p.specialty_name||'').trim());
     if(isAval){ v1 += amt; v1Q++; }

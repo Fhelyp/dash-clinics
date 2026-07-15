@@ -195,29 +195,25 @@ async function ecuroFetch(env, path, params, _attempt = 0) {
 }
 
 // ── Sync run modes ──────────────────────────────────────────────────
-// URL pública do próprio worker — usada pra fan-out
-const SELF_URL = 'https://dash-clinics-sync-ecuro.foruxdigital.workers.dev';
-
-// FAN-OUT (27/05): runIncremental agora dispara /run-clinic pra cada clinica
-// como invocacao separada (cada uma com seu CPU budget de 30s).
-// 81 clinicas sequenciais estouravam timeout do scheduler.
+// Fan-out direto (16/06): chama runIncrementalOneClinic em batches Promise.allSettled,
+// SEM self-fetch via SELF_URL — porque o self-fetch falhava silenciosamente em CF
+// Workers e deixava 75/81 clinicas dessincronizadas desde 26/05.
 async function runIncremental(env, { lookbackHours = 36 } = {}) {
-  const clinics = await listClinics(env);
-  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
-  console.log(`[incremental fan-out] ${clinics.length} clinicas, lookbackHours=${lookbackHours}`);
-  let dispatched = 0, errors = 0;
-  for (let i = 0; i < clinics.length; i++) {
-    const c = clinics[i];
-    if (!c.Ecuro_clinicId) continue;
-    if (i > 0) await sleep(900); // throttle ~1.1 req/s
-    try {
-      const url = `${SELF_URL}/run-clinic?clinicId=${c.Ecuro_clinicId}&lookbackHours=${lookbackHours}`;
-      const r = await fetch(url, { method: 'POST', headers: { 'x-admin-token': env.ADMIN_TOKEN || '' }});
-      if (!r.ok) { errors++; console.error(`[fan-out] ${c.Unidade} ${r.status}`); }
-      else dispatched++;
-    } catch (e) { errors++; console.error(`[fan-out] ${c.Unidade} ${e.message}`); }
+  const clinics = (await listClinics(env)).filter(c => c.Ecuro_clinicId);
+  console.log(`[incremental direct] ${clinics.length} clinicas, lookbackHours=${lookbackHours}`);
+  const BATCH = 5; // 5 clinicas em paralelo (~15 sub-requests cada = 75 simultaneas, dentro do limite CF)
+  let ok = 0, errors = 0;
+  for (let i = 0; i < clinics.length; i += BATCH) {
+    const batch = clinics.slice(i, i + BATCH);
+    const results = await Promise.allSettled(
+      batch.map(c => runIncrementalOneClinic(env, c.Ecuro_clinicId, lookbackHours))
+    );
+    for (let k = 0; k < results.length; k++) {
+      if (results[k].status === 'fulfilled') ok++;
+      else { errors++; console.error(`[batch] ${batch[k].Unidade}: ${results[k].reason?.message || results[k].reason}`); }
+    }
   }
-  console.log(`[incremental fan-out] dispatched=${dispatched} errors=${errors}`);
+  console.log(`[incremental direct] ok=${ok} errors=${errors} total=${clinics.length}`);
 }
 
 // Processa UMA clinica (chamada via /run-clinic)

@@ -8,7 +8,7 @@
 <style>
   :root{
     --bg:#060810;--card:#0f1623;--card2:#141d2b;--border:rgba(255,255,255,.06);
-    --purple:#a855f7;--blue:#3b82f6;--green:#10b981;--orange:#f97316;
+    --purple:#a855f7;--blue:#3b82f6;--green:#10b981;--orange:#f97316;--teal:#2dd4bf;
     --white:#f1f5f9;--gray:#475569;--gray-l:#94a3b8;
   }
   body.light{
@@ -39,173 +39,132 @@
   .note strong{color:var(--purple);}
   .warn{font-size:12px;background:rgba(249,115,22,.08);border:1px solid rgba(249,115,22,.25);padding:12px 14px;border-radius:8px;color:var(--gray-l);margin:10px 0;}
   .warn strong{color:var(--orange);}
+  .ok{font-size:12px;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.25);padding:12px 14px;border-radius:8px;color:var(--gray-l);margin:10px 0;}
+  .ok strong{color:var(--green);}
   .formula{background:var(--card2);border-left:3px solid var(--purple);padding:10px 14px;border-radius:0 6px 6px 0;font-family:'JetBrains Mono',monospace;font-size:11.5px;color:var(--white);margin:10px 0;overflow-x:auto;}
+  .step{display:inline-block;background:var(--card2);border:1px solid var(--border);border-radius:6px;padding:3px 9px;margin:2px;font-size:11.5px;font-weight:600;color:var(--white);}
 </style>
 </head>
 <body class="light">
 <div class="top">
   <a href="/">← Voltar ao dashboard</a>
-  <span style="font-size:11px;color:var(--gray);">Atualizado em <strong style="color:var(--gray-l);">2026-06-24</strong></span>
+  <span style="font-size:11px;color:var(--gray);">Atualizado em <strong style="color:var(--gray-l);">2026-07-10</strong> · reunião com CRC/líderes</span>
 </div>
 <div class="wrap">
   <h1>Regras de Negócio</h1>
-  <p class="lead">Como cada métrica do dashboard é calculada. Esta página existe para que decisões financeiras (comissionamento, atribuição de receita, performance de campanhas) sejam <strong style="color:var(--white);">auditáveis e questionáveis</strong>.</p>
+  <p class="lead">Como cada métrica do dashboard é calculada. Esta página existe para que decisões (comissionamento, atribuição de receita, performance de campanhas) sejam <strong style="color:var(--white);">auditáveis e questionáveis</strong>. As regras do funil abaixo foram acordadas na reunião de <strong style="color:var(--white);">10/07/2026</strong> com a coordenação do CRC e os líderes.</p>
 
-  <h2>★ Funil de Marketing — Leads de Campanha</h2>
-  <div class="card">
-    <p>O funil mede a jornada dos <strong style="color:var(--white);">leads de campanha</strong>: Leads → Agendaram → Confirmaram → Compareceram → Venderam. <strong style="color:var(--white);">Cada etapa conta o LEAD (pessoa/telefone) uma única vez</strong> — não importa quantas consultas ou cadastros a pessoa tenha.</p>
-
-    <h3>Quem é "lead de campanha"</h3>
-    <ul>
-      <li>Contato no Chatwoot com a tag <code>campanha</code> e telefone válido.</li>
-      <li>Tag aplicada a partir de <strong style="color:var(--white);">06/04/2026</strong> (corte que exclui o lixo do bulk import da Cloudia).</li>
-    </ul>
-
-    <h3>Atribuição (lead → agendamento)</h3>
-    <p>Por <strong style="color:var(--white);">telefone</strong>: o número do lead bate com o número do agendamento, testando 4 variantes brasileiras (com/sem 9º dígito, com/sem 55). O Ecuro não envia <code>campaign_token</code>, então o telefone é a única ponte. Pré-calculado todo dia de madrugada (tabelas <code>campaign_appt_attribution</code> + <code>campaign_patient</code>).</p>
-
-    <h3>Como cada etapa conta</h3>
-    <table>
-      <thead><tr><th>Etapa</th><th>Critério</th></tr></thead>
-      <tbody>
-        <tr><td>Leads</td><td>Telefones únicos com tag campanha criados no período</td></tr>
-        <tr><td>Agendaram</td><td>Leads (telefone) com ≥1 agendamento no período</td></tr>
-        <tr><td>Confirmaram</td><td>Leads com ≥1 agendamento confirmado (status 7/8 ou log de confirmação)</td></tr>
-        <tr><td>Compareceram</td><td>Leads com ≥1 consulta <strong style="color:var(--white);">Concluída (status 8)</strong></td></tr>
-        <tr><td>Venderam</td><td>Leads cuja pessoa fez ≥1 pagamento no período</td></tr>
-        <tr><td>Receita</td><td>SOMA de <strong style="color:var(--white);">TODOS</strong> os pagamentos da pessoa no período (mesmo múltiplos, independente de confirmado)</td></tr>
-      </tbody>
-    </table>
-
-    <div class="note"><strong>Regra do período (cohort):</strong> conta o EVENTO que aconteceu no período, independente de quando o lead chegou. Lead de abril que compareceu em junho conta no funil de junho. Só a coluna <strong style="color:var(--white);">"Leads"</strong> é fixa (contatos criados no período) — por isso a conversão pode passar de 100%.</div>
-
-    <div class="note"><strong>1 lead = 1 pessoa, sempre:</strong> se a mesma pessoa tem cadastro duplicado no Ecuro, ou um familiar agendou no mesmo telefone, ainda conta como <strong style="color:var(--white);">1 lead</strong> nas etapas. Só na <strong style="color:var(--white);">receita</strong> somamos todos os pagamentos da pessoa.</div>
-
-    <div class="warn"><strong>Teto da atribuição por telefone:</strong> se o lead agendou com um número diferente do que entrou no Chatwoot, o match não pega — auditoria manual sempre encontra mais. O número do dash é o <strong style="color:var(--orange);">piso garantido</strong>, não o teto.</div>
-  </div>
+  <div class="ok"><strong>Resumo do que mudou em 10/07:</strong> o funil de campanha passou a (1) reconhecer campanha marcada no <strong>Ecuro</strong>, não só no Chatwoot; (2) contar pela <strong>data em que o operador agendou</strong>; (3) excluir <strong>cliente passante</strong> (quem já é da casa); (4) mostrar a <strong>totalidade</strong> das confirmações. Além disso, criamos um funil <strong>separado</strong> de Resgate/Follow-up, porque é outra natureza (retrabalho de base, não lead novo de campanha).</p></div>
 
   <h2>1 · Origem dos dados</h2>
   <div class="card">
-    <p>Todos os dados vêm de 3 feeds da API Ecuro <code>/api/v1/ecuro-light</code>:</p>
+    <p>Os dados vêm de 3 feeds da API Ecuro + do Chatwoot:</p>
     <ul>
-      <li><code>/bi/appointments</code> → tabela <code>BI Appointments</code></li>
-      <li><code>/bi/appointment-logs</code> → tabela <code>BI Appointment Logs</code> (trilha de mudanças de status)</li>
-      <li><code>/bi/payments</code> → tabela <code>BI Payments</code> (com <code>deleted_at</code> para exclusões lógicas)</li>
+      <li><code>/bi/appointments</code> → <code>BI Appointments</code> (agendamentos; traz <code>channel_name</code>/<code>subchannel_name</code> — como o operador classificou)</li>
+      <li><code>/bi/appointment-logs</code> → <code>BI Appointment Logs</code> (trilha de mudanças de status)</li>
+      <li><code>/bi/payments</code> → <code>BI Payments</code> (com <code>deleted_at</code> para exclusões lógicas)</li>
+      <li><strong>Chatwoot</strong> → <code>chatwoot_leads</code> (contatos com tag <code>campanha</code>, <code>resgate</code>, <code>follow_1..4</code>)</li>
     </ul>
-    <p style="margin-top:8px;">A sincronização é <strong style="color:var(--white);">incremental</strong> com lookback de 6 dias. Para histórico completo (até 31 dias), bootstrap noturno entre 20:00–08:00 BRT (regra da API).</p>
-    <div class="note"><strong>Dados vivos:</strong> qualquer paciente que tenha registro em <code>BI Payments</code> mas não em <code>BI Appointments</code> não aparece — Ecuro só vincula pagamento a quem teve agendamento.</div>
+    <p style="margin-top:8px;">Sync <strong style="color:var(--white);">incremental</strong> diário (madrugada). O funil não recalcula no navegador — é uma RPC no banco (<code>funnel_stats</code>), então é rápido e o mesmo número para todos.</p>
   </div>
 
-  <h2>2 · Status de agendamento</h2>
+  <h2>2 · O que conta como CAMPANHA</h2>
   <div class="card">
-    <p>Mapeamento oficial (fonte: OpenAPI da Ecuro):</p>
+    <p>Um paciente é de campanha se <strong style="color:var(--white);">qualquer</strong> uma for verdadeira:</p>
+    <ul>
+      <li><strong style="color:var(--purple);">Chatwoot:</strong> o contato tem a tag <code>campanha</code> na conversa (casado por telefone), OU</li>
+      <li><strong style="color:var(--purple);">Ecuro:</strong> o operador marcou o agendamento com o subcanal <code>Lead Campanha</code>.</li>
+    </ul>
+    <div class="note">Antes o dash só olhava a tag do Chatwoot. O <strong>manual de auditoria</strong> manda considerar campanha o paciente lançado no Ecuro como <code>Lead Campanha</code> — por isso agora lemos os dois. Foi o ajuste que trouxe de volta os pacientes que o operador marcava no Ecuro sem tag no Chatwoot.</div>
+  </div>
+
+  <h2>3 · O Funil de Campanha (5 etapas)</h2>
+  <div class="card">
+    <p style="margin-bottom:8px;">
+      <span class="step" style="color:var(--purple)">Leads</span> →
+      <span class="step" style="color:var(--blue)">Agendados</span> →
+      <span class="step" style="color:var(--teal)">Confirmados</span> →
+      <span class="step" style="color:var(--orange)">Compareceram</span> →
+      <span class="step" style="color:var(--green)">Venderam</span>
+    </p>
+    <h3>Regra 1 — janela pela DATA DO AGENDAMENTO</h3>
+    <p>O paciente entra no mês em que o <strong style="color:var(--white);">operador criou o agendamento</strong> (<code>created_at</code>), não na data da consulta. Agendou em 30/06 para consultar em 03/07 → conta em <strong>junho</strong>. Alinha com a operação e o comissionamento.</p>
+    <div class="warn"><strong>Efeito coorte:</strong> o mês corrente aparece "verde" (parte das consultas ainda é no futuro) e se completa retroativamente conforme as consultas acontecem.</div>
+
+    <h3>Regra 2 — exclui CLIENTE PASSANTE</h3>
+    <p>Não há mais carência de dias. Trabalho de base em lead antigo <strong>conta</strong>. A única exclusão: o paciente que <strong style="color:var(--white);">já tem uma consulta Concluída (status 8) anterior</strong> a esta. Esse é cliente da casa (passante), não campanha nova — mesmo que o operador o remarque como <code>Lead Campanha</code>.</p>
+    <div class="formula">Agendou = paciente de campanha com agendamento criado no período E SEM consulta status 8 anterior à 1ª consulta do período.</div>
+
+    <h3>Regra 3 — Confirmados = totalidade (a exceção)</h3>
+    <p><strong style="color:var(--teal);">Confirmados</strong> conta a totalidade das confirmações do período (log <code>to_status = 4</code> ou já concluído), <strong>sem</strong> o filtro de passante. Operador e Maria Clara confirmam qualquer paciente — por isso essa barra <strong>pode ficar maior que a de agendados</strong>, e não é erro do gráfico.</p>
+
+    <h3>As demais etapas</h3>
+    <ul>
+      <li><strong>Leads</strong> = contatos do Chatwoot com tag <code>campanha</code>, criados a partir de 06/04/2026 (antes disso houve importação em massa, excluída). <strong>Só do Chatwoot</strong> — é a coluna que já bate com a auditoria dos líderes.</li>
+      <li><strong>Compareceram</strong> = dos agendados elegíveis, os com status <code>Atendido</code> ou <code>Concluído</code>.</li>
+      <li><strong>Venderam</strong> = dos agendados elegíveis, os que tiveram pagamento confirmado no período.</li>
+    </ul>
+    <p>Unidade de contagem = <strong style="color:var(--white);">paciente</strong> (um paciente com 3 agendamentos = 1). Clicar em qualquer barra abre a lista nominal (drill-down) que bate exatamente com o número.</p>
+  </div>
+
+  <h2>4 · Funil de Resgate e Follow-up (separado da campanha)</h2>
+  <div class="card">
+    <p><strong style="color:var(--white);">Campanha, resgate e follow-up são coisas distintas.</strong> Campanha é lead novo que veio do marketing. Resgate e follow-up são retrabalho de base antiga pelo operador. Por isso têm um funil <strong>à parte</strong>, para não misturar com o de marketing.</p>
+    <ul>
+      <li><strong>1ª coluna (Chatwoot):</strong> contatos com tag <code>resgate</code> ou <code>follow_1..4</code>, contados pela <strong>data de criação do contato</strong> (mesma lógica da coluna de leads da campanha) — evidência do trabalho do operador.</li>
+      <li><strong>Colunas seguintes (Ecuro):</strong> agendamentos marcados como <code>CRC → Resgate</code>, <code>Follow-Up - Campanha</code> ou <code>Follow-Up - Orgânico</code>, pela data do agendamento; depois quantos confirmaram, compareceram e a receita.</li>
+    </ul>
+    <div class="note"><strong>Sem carência e sem inferência.</strong> Conta a ação do operador no período. Não tentamos "adivinhar" resgate de quem compareceu sem agendar.</div>
+  </div>
+
+  <h2>5 · Receita do Período</h2>
+  <div class="card">
+    <div class="formula">Receita = SUM(amount) em BI Payments WHERE deleted_at IS NULL AND date no período AND clinic_id nas unidades filtradas</div>
+    <p>No funil de campanha, a receita conta só pacientes de campanha elegíveis (não passantes). Pagamentos excluídos (<code>deleted_at</code>) nunca entram.</p>
+  </div>
+
+  <h2>6 · Status de agendamento</h2>
+  <div class="card">
     <table>
-      <thead><tr><th>Código</th><th>Nome interno</th><th>Significado oficial</th></tr></thead>
+      <thead><tr><th>Código</th><th>Nome</th><th>Uso no funil</th></tr></thead>
       <tbody>
-        <tr><td>1</td><td>À Confirmar</td><td>Pendente</td></tr>
-        <tr><td>2</td><td>Não Respondido</td><td>Não atendeu (ligação/mensagem)</td></tr>
-        <tr><td>3</td><td>Reagendado</td><td>Mudou data/hora</td></tr>
-        <tr><td>4</td><td>Confirmado</td><td>Paciente confirmou comparecimento</td></tr>
-        <tr><td>5</td><td>Cancelado</td><td>Cancelou explicitamente</td></tr>
-        <tr><td>6</td><td>Check-in</td><td>Compareceu</td></tr>
-        <tr><td>7</td><td>Atendido</td><td>Em consulta</td></tr>
-        <tr><td>8</td><td>Concluído</td><td>Atendimento finalizado</td></tr>
-        <tr><td>9</td><td>Não Resolvido</td><td>—</td></tr>
-        <tr><td>10</td><td>Aprovação</td><td>Sign-off (revisão administrativa)</td></tr>
-        <tr><td>11</td><td>Aguardando Retorno</td><td>Aguarda retorno futuro</td></tr>
-        <tr><td>12</td><td>Retorno Criado</td><td>Retorno já agendado</td></tr>
+        <tr><td>1</td><td>À Confirmar</td><td>—</td></tr>
+        <tr><td>4</td><td>Confirmado</td><td>marca "confirmou" (via log to_status=4)</td></tr>
+        <tr><td>5</td><td>Cancelado</td><td>—</td></tr>
+        <tr><td>7</td><td>Atendido</td><td>conta como compareceu</td></tr>
+        <tr><td>8</td><td>Concluído</td><td>conta como compareceu; e define "cliente passante" se anterior</td></tr>
+        <tr><td>11 / 12</td><td>Ag. Retorno / Retorno Criado</td><td>—</td></tr>
       </tbody>
     </table>
   </div>
 
-  <h2>3 · Pacientes Únicos</h2>
+  <h2>7 · Reagendamentos</h2>
   <div class="card">
-    <div class="formula">Pacientes únicos = COUNT(DISTINCT patient_id) em BI Appointments filtrados pelo período/unidade/etc.</div>
-    <p>É <strong style="color:var(--white);">contagem de pessoas distintas que aparecem como agendamentos no recorte</strong>. Um mesmo paciente com 3 agendamentos = 1 paciente único.</p>
-    <div class="warn"><strong>Atenção:</strong> Como Ecuro só registra paciente que teve agendamento, "Pacientes Únicos" ≠ "Leads totais". Para leads sem agendamento, ver Chatwoot (próxima seção).</div>
+    <p>Preferencial: linhas em <code>BI Appointment Logs</code> com <code>to_status = 3</code>. Fallback (heurística 24h) quando os logs não cobrem: reagendamento se <code>|start_time − scheduled_start_time| &gt; 24h</code>.</p>
   </div>
 
-  <h2>4 · Reagendamentos</h2>
+  <h2>8 · Permissionamento (quem vê o quê)</h2>
   <div class="card">
-    <p>Estratégia em 2 níveis:</p>
-    <ol style="padding-left:22px;color:var(--gray-l);font-size:13px;">
-      <li><strong style="color:var(--white);">Preferencial (logs oficial):</strong> linhas em <code>BI Appointment Logs</code> com <code>to_status = 3</code></li>
-      <li><strong style="color:var(--white);">Fallback (heurística 24h):</strong> quando logs não preenchem essa info, considera reagendamento se <code>|start_time − scheduled_start_time| &gt; 24h</code></li>
-    </ol>
-    <p>O banner indica qual estratégia está em uso a cada carregamento.</p>
-  </div>
-
-  <h2>5 · Origem dos Pacientes (Campanha / Orgânico / Indicação / Resgate)</h2>
-  <div class="card">
-    <p>Critério atual:</p>
+    <p>A visão de cada usuário é a do <strong style="color:var(--white);">Chatwoot</strong> — vê exatamente as unidades onde é admin lá. Ordem:</p>
     <ul>
-      <li><strong style="color:var(--purple);">Campanha:</strong> paciente cujo <strong>primeiro</strong> agendamento (mais antigo) tem <code>campaign_token</code> preenchido</li>
-      <li><strong style="color:var(--blue);">Orgânico:</strong> paciente cujo primeiro agendamento NÃO tem <code>campaign_token</code></li>
-      <li><strong style="color:#06b6d4;">Indicação:</strong> a definir — Ecuro tem categoria <code>indicacao</code> em <code>/orto-patients</code>, mas é específica de ortodontia. Precisa de tag/regra dedicada</li>
-      <li><strong style="color:var(--orange);">Resgate:</strong> a definir — sugestão: paciente cujo agendamento mais recente foi precedido por outro com status 5 (Cancelado) ou 11 (Aguardando Retorno) há mais de N dias</li>
+      <li><strong>Irrestrito</strong> — vê tudo (contas de sistema).</li>
+      <li><strong>Regional</strong> — quem tem regional definida (ex.: coordenação SP) vê todas as unidades da regional.</li>
+      <li><strong>Chatwoot</strong> — os demais veem exatamente as unidades de admin no Chatwoot (ao vivo — provisionar/revogar no Chatwoot reflete no próximo login).</li>
     </ul>
-    <div class="note">A definição de Indicação/Resgate impacta diretamente comissionamento. Quando alinharmos as regras, atualizar este documento e o código.</div>
+    <div class="note"><strong>Sem listas fixas.</strong> Não há mais "lista congelada" de unidades por usuário; o Chatwoot é a fonte única. Goiás não usa Chatwoot — por isso sua coluna de Leads fica zerada (esperado), mas o resto do funil aparece pelo que o operador marca no Ecuro.</div>
   </div>
 
-  <h2>6 · Receita do Período</h2>
-  <div class="card">
-    <div class="formula">Receita = SUM(amount) em BI Payments WHERE deleted_at IS NULL AND date BETWEEN d1 AND d2 AND clinic_id IN unidades_filtradas</div>
-    <div class="note">Conta <strong style="color:var(--white);">todos os pagamentos</strong> do período (cartão, pix, boleto), independente do status de confirmado. A regra antiga (<code>is_confirmed = true</code>) foi removida em 19/06/2026.</div>
-    <p>"Melhor Mês" exibe o mês com maior receita confirmada no dataset completo (não respeita filtro de período, por design).</p>
-  </div>
-
-  <h2>7 · Vendas: 1ª Consulta vs Follow-Up</h2>
+  <h2>9 · O que ainda não é coberto</h2>
   <div class="card">
     <ul>
-      <li><strong style="color:var(--green);">1ª Consulta:</strong> pagamentos da especialidade <code>Avaliação</code></li>
-      <li><strong style="color:var(--blue);">Follow-Up:</strong> qualquer outra especialidade</li>
-      <li><strong>Follow-Up Campanha:</strong> follow-up de paciente classificado como Campanha (origem)</li>
-      <li><strong>Follow-Up Orgânico:</strong> follow-up de paciente classificado como Orgânico</li>
+      <li><strong>Valor aprovado</strong> (plano de tratamento) — o dash tem valor pago, não o aprovado.</li>
+      <li><strong>Funil de Orgânico / Indicação dedicado</strong> — hoje só campanha e resgate/follow têm funil próprio.</li>
+      <li><strong>Atribuição WhatsApp → Ecuro por clique de anúncio</strong> — depende de match adicional.</li>
+      <li><strong>Meta Marketing API</strong> — gasto, CTR, leads gerados (planejado).</li>
     </ul>
   </div>
 
-  <h2>8 · Atribuição Maria Clara vs Operadores</h2>
-  <div class="card">
-    <p>Em desenvolvimento. Regras propostas (a confirmar):</p>
-    <ul>
-      <li><strong>Criação do agendamento:</strong> bonificação para quem aparece em <code>created_by_id</code> (se = MC, MC; senão operador)</li>
-      <li><strong>Confirmação:</strong> última linha em <code>BI Appointment Logs</code> com <code>to_status = 4</code> e seu <code>user_id</code></li>
-      <li><strong>Reagendamento:</strong> última linha com <code>to_status = 3</code></li>
-    </ul>
-    <p>Filtro 3-estados no topo (Todos / Maria Clara / Operadores) atualmente classifica appointment como <code>agent='MC'</code> se o channel_id ou user_id em logs corresponde ao ID conhecido da Maria Clara.</p>
-    <div class="warn"><strong>Próximo passo:</strong> alinhar com a operação se a comissão segue a regra acima ou se há nuances (ex: comissão dividida quando MC e operador atuam no mesmo agendamento).</div>
-  </div>
-
-  <h2>9 · Leads de Campanha (Chatwoot)</h2>
-  <div class="card">
-    <p>Conta contatos únicos cujas conversas têm a tag <code>campanha</code>, no mês corrente.</p>
-    <div class="formula">Leads campanha (mês) = COUNT(DISTINCT conversation.contact_id) em /api/v1/accounts/{id}/conversations?labels[]=campanha onde conversation.created_at &ge; primeiro dia do mês</div>
-    <p>Cada uma das 32 unidades tem seu próprio Chatwoot account. O agregador roda com throttle pesado (8s/unidade, 2,5s/página) para não comprometer o atendimento em produção.</p>
-  </div>
-
-  <h2>10 · Filtros</h2>
-  <div class="card">
-    <p>Cada filtro <strong style="color:var(--white);">recalcula todas as métricas</strong> (não escala valores pré-calculados):</p>
-    <ul>
-      <li><strong>Período</strong> — janela de datas; charts mensais limitam aos meses dentro</li>
-      <li><strong>Unidade</strong> — filtra por <code>clinic_id</code>; afeta receita também</li>
-      <li><strong>Especialidade</strong> — match por <code>specialty_name</code> canonical (sem acento)</li>
-      <li><strong>Status</strong> — match por nome PT-BR (lookup em STM)</li>
-      <li><strong>Maria Clara / Operadores</strong> — switch 3-estados; classifica via campo <code>agent</code> derivado dos logs</li>
-    </ul>
-  </div>
-
-  <h2>11 · O que ainda não é coberto</h2>
-  <div class="card">
-    <ul>
-      <li><strong>Indicações / Resgates</strong> — categoria de origem ainda sem regra definida</li>
-      <li><strong>Atribuição WhatsApp → Ecuro</strong> — clique em ad de campanha vira agendamento? depende de match por telefone (a fazer)</li>
-      <li><strong>Meta Marketing API</strong> — performance de campanhas, gasto, CTR, leads gerados (planejado)</li>
-      <li><strong>Pré-cálculo noturno</strong> — atualmente recalcula no client; previsto cron 02:00 BRT em <code>dashboard_snapshots</code></li>
-    </ul>
-  </div>
-
-  <p style="margin-top:40px;font-size:11.5px;color:var(--gray);text-align:center;">Quando uma regra mudar, esta página é atualizada antes do código.</p>
+  <p style="margin-top:40px;font-size:11.5px;color:var(--gray);text-align:center;">Quando uma regra mudar, esta página é atualizada junto com o código.</p>
 </div>
 <script>
   const t = localStorage.getItem('dc_theme') || 'light';
