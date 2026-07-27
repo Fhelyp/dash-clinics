@@ -974,12 +974,20 @@
             <td id="rgRec"  style="padding:9px 8px;text-align:right;font-weight:600;color:var(--green);">–</td>
           </tr>
           <tr style="border-top:1px solid var(--border);">
-            <td style="padding:9px 8px;font-weight:600;color:var(--blue);">Follow-up</td>
-            <td id="fwCw"   onclick="openResgateDrill('follow','contatos')"    style="padding:9px 8px;text-align:right;cursor:pointer;">–</td>
-            <td id="fwAg"   onclick="openResgateDrill('follow','agendados')"   style="padding:9px 8px;text-align:right;cursor:pointer;">–</td>
-            <td id="fwConf" onclick="openResgateDrill('follow','confirmados')" style="padding:9px 8px;text-align:right;cursor:pointer;">–</td>
-            <td id="fwComp" onclick="openResgateDrill('follow','compareceram')" style="padding:9px 8px;text-align:right;cursor:pointer;">–</td>
-            <td id="fwRec"  style="padding:9px 8px;text-align:right;font-weight:600;color:var(--green);">–</td>
+            <td style="padding:9px 8px;font-weight:600;color:var(--blue);">Follow-Up Campanha</td>
+            <td id="fcCw"   title="Contatos de Follow no Chatwoot (a tag follow_1..4 não separa campanha de orgânico — total compartilhado com a linha abaixo)" onclick="openResgateDrill('follow_campanha','contatos')" style="padding:9px 8px;text-align:right;cursor:pointer;">–</td>
+            <td id="fcAg"   onclick="openResgateDrill('follow_campanha','agendados')"   style="padding:9px 8px;text-align:right;cursor:pointer;">–</td>
+            <td id="fcConf" onclick="openResgateDrill('follow_campanha','confirmados')" style="padding:9px 8px;text-align:right;cursor:pointer;">–</td>
+            <td id="fcComp" onclick="openResgateDrill('follow_campanha','compareceram')" style="padding:9px 8px;text-align:right;cursor:pointer;">–</td>
+            <td id="fcRec"  style="padding:9px 8px;text-align:right;font-weight:600;color:var(--green);">–</td>
+          </tr>
+          <tr style="border-top:1px solid var(--border);">
+            <td style="padding:9px 8px;font-weight:600;color:var(--blue);">Follow-Up Orgânico</td>
+            <td id="foCw"   title="Contatos de Follow no Chatwoot não se separam por campanha/orgânico — ver o total na linha Follow-Up Campanha" style="padding:9px 8px;text-align:right;color:var(--gray-l);">–</td>
+            <td id="foAg"   onclick="openResgateDrill('follow_organico','agendados')"   style="padding:9px 8px;text-align:right;cursor:pointer;">–</td>
+            <td id="foConf" onclick="openResgateDrill('follow_organico','confirmados')" style="padding:9px 8px;text-align:right;cursor:pointer;">–</td>
+            <td id="foComp" onclick="openResgateDrill('follow_organico','compareceram')" style="padding:9px 8px;text-align:right;cursor:pointer;">–</td>
+            <td id="foRec"  style="padding:9px 8px;text-align:right;font-weight:600;color:var(--green);">–</td>
           </tr>
         </tbody>
       </table>
@@ -2548,12 +2556,17 @@ async function loadFunnelResgate(fparams){
     setTxt('rgConf', n(rg.confirmados));
     setTxt('rgComp', n(rg.compareceram));
     setTxt('rgRec',  fmtMoney((Number(rg.receita)||0)));
-    // Follow-up = campanha + orgânico
-    setTxt('fwCw',   n(cw.follow));
-    setTxt('fwAg',   n((Number(fc.agendados)||0)   + (Number(fo.agendados)||0)));
-    setTxt('fwConf', n((Number(fc.confirmados)||0) + (Number(fo.confirmados)||0)));
-    setTxt('fwComp', n((Number(fc.compareceram)||0)+ (Number(fo.compareceram)||0)));
-    setTxt('fwRec',  fmtMoney((Number(fc.receita)||0) + (Number(fo.receita)||0)));
+    // Follow-Up separado: Campanha e Orgânico (o dado já vem apartado do banco).
+    // Contatos (CW) só existe combinado (a tag follow_N não distingue) → total na linha Campanha.
+    setTxt('fcCw',   n(cw.follow));
+    setTxt('fcAg',   n(fc.agendados));
+    setTxt('fcConf', n(fc.confirmados));
+    setTxt('fcComp', n(fc.compareceram));
+    setTxt('fcRec',  fmtMoney((Number(fc.receita)||0)));
+    setTxt('foAg',   n(fo.agendados));
+    setTxt('foConf', n(fo.confirmados));
+    setTxt('foComp', n(fo.compareceram));
+    setTxt('foRec',  fmtMoney((Number(fo.receita)||0)));
   } catch(e) { console.warn('[funnel-resgate]', e.message); }
 }
 
@@ -2564,7 +2577,7 @@ async function openResgateDrill(bucket, stage){
   if (modal.parentNode !== document.body) document.body.appendChild(modal);
   document.body.classList.add('drill-open');
   const titles = {contatos:'Contatos (Chatwoot)', agendados:'Agendamentos', confirmados:'Confirmados', compareceram:'Compareceram'};
-  const buckLbl = bucket==='resgate' ? '🟠 Resgate' : '🔵 Follow-up';
+  const buckLbl = {resgate:'🟠 Resgate', follow_campanha:'🔵 Follow-Up Campanha', follow_organico:'🔵 Follow-Up Orgânico', follow:'🔵 Follow-up'}[bucket] || bucket;
   document.getElementById('drillTitle').textContent = buckLbl + ' · ' + (titles[stage]||stage);
   document.getElementById('drillSub').textContent = 'Carregando…';
   document.getElementById('drillBody').innerHTML = '<div class="drill-empty">Carregando…</div>';
