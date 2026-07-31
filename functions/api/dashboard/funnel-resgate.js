@@ -32,8 +32,8 @@ export async function onRequestGet({ request, env, data }) {
 
   const rpcUrl = `${env.SUPABASE_URL}/rest/v1/rpc/funnel_resgate_followup`;
   const body = {
-    p_start: start + 'T00:00:00+00:00',
-    p_end:   end   + 'T00:00:00+00:00',
+    p_start: start + 'T00:00:00-03:00',
+    p_end:   end   + 'T00:00:00-03:00',
     p_clinic_ids: clinicIdsParam
   };
 
