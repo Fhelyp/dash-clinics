@@ -41,11 +41,20 @@ não mudou → continuava OK (por isso pgto != 0 nos alertas).
    Se o buraco for > 6,5 dias → bootstrap (janela 20h–08h BRT, 29 dias máx).
 4. Refazer o rollup da janela afetada (ver `db/ROLLUP_CRON.md`).
 
-## Prevenção (ideal, a fazer)
-O `sanitizeRows` do sync (VPS `src/jobs/sync-ecuro.js`) poderia **filtrar campos
-desconhecidos** (allowlist por tabela) em vez de repassar o payload inteiro — aí campo novo
-do Ecuro degrada suave (ignora o campo) em vez de derrubar o feed. Alternativa: alerta
-específico de schema-drift no health-check.
+## Prevenção — ✅ IMPLEMENTADA (31/08, dash-sync-jobs `feada7c`)
+O `bulkUpsertBI`/`upsertChatwootLeads` (VPS `src/lib/supabase.js`) agora **filtram campos
+desconhecidos** antes do upsert: pegam as **colunas REAIS da tabela** (via PostgREST
+`select=*&limit=1`, cache por processo) e descartam qualquer chave que não seja coluna —
+excluindo também as `GENERATED ALWAYS` (`patient_name_norm`/`phone_norm`/`created_by_name_norm`).
+Campo novo do Ecuro → **ignorado + alerta 1×** no log (`SCHEMA DRIFT ...`), o feed NÃO cai.
+Abordagem DINÂMICA (auto-mantém): se um dia a gente ADD a coluna no banco, o campo passa a
+fluir sozinho no próximo restart — sem editar lista hardcoded. Fallback seguro: se a leitura
+das colunas falhar, não filtra (comportamento antigo). Testado: dropa desconhecido + geradas,
+upsert retorna OK. **Falta só o redeploy da VPS no Easypanel** (o código já está na `main`).
+
+> Nota: a Routine da nuvem já tinha detectado isto (PR #14, branch `puc52p`, allowlist
+> ESTÁTICA) — o `feada7c` na main o supersede (dinâmico + guarda `cancellation_reason_code`).
+> PR #14 pode ser fechado como resolvido. Uma vez deployado, as ~65 ativações da Routine param.
 
 ## Observações da mesma investigação
 - **Bertioga** (`c04fd517-…`): clínica NOVA no `unitConfigs`, sem Chatwoot, entrou na frota
