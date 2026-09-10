@@ -56,3 +56,11 @@ se `select 1` passar de 3s. Ver histórico em reference_dashboard_rollup (memór
 Não foi a função (roda em 9s) — é sinal de **banco saturado** (sync pesado concorrente,
 tier baixo). Investigar carga antes de mexer na função. A função já é auto-protegida:
 `statement_timeout 2700s` + try/catch por lote (lote lento não derruba o batch).
+
+## Ampliação da janela (10/09/2026) — meses fechados não congelam mais
+Sintoma: `dashboard_stats_fast` divergia do `_live` em meses FECHADOS (agosto: agend −19,
+receita −73k) porque o cron só refrescava `d2-16` (16 dias) → ao sair da janela, o dia
+"congelava" e não pegava pagamentos/cancelamentos tardios.
+Fix: `refresh_rollup_and_precompute()` agora usa `d_from = 1º dia do mês ANTERIOR`
+(cobre mês atual + anterior sempre). Testado: 37 clínicas, range 01/08→10/09, **52s**,
+0 falhas, health 0,09s. Dentro do statement_timeout de 2700s com folga.
