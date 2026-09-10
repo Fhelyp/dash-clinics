@@ -32,7 +32,7 @@ elig AS MATERIALIZED (SELECT b.* FROM base b JOIN pac_ok o ON o.patient_id = b.p
 agend AS (SELECT DISTINCT patient_id FROM elig),
 comp  AS (SELECT DISTINCT patient_id FROM elig WHERE attended_time IS NOT NULL),
 -- confirmados: totalidade do periodo, sem filtro de elegibilidade (decisao 10/07)
-conf  AS (SELECT DISTINCT b.patient_id FROM base b
+conf  AS (SELECT DISTINCT b.patient_id FROM elig b
           WHERE b.confirmed_time IS NOT NULL
              OR b.status IN (7,8)
              OR EXISTS (SELECT 1 FROM "BI Appointment Logs" lg
@@ -68,8 +68,9 @@ SELECT jsonb_build_object(
     'campanha','tag Chatwoot OU subchannel Lead Campanha (Ecuro)',
     'exclusao','paciente ja ATENDIDO (attended_time) antes da 1a consulta de campanha dele — por PACIENTE',
     'compareceu','attended_time preenchido no Ecuro',
-    'confirmados','totalidade do periodo, sem filtro de elegibilidade',
+    'confirmados','leads de campanha ELEGIVEIS do periodo que foram confirmados (mesma base de agendados/compareceram)',
     'unidade','paciente',
     'versao','v6 (15/07)')
 ) FROM m;
 $function$
+
