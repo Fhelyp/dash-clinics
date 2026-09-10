@@ -2440,6 +2440,55 @@ async function loadFromSupabase(){
   console.log('[load v3] stats:', { kpis: stats.kpis, mc_revenue: stats.mc_revenue, mc_revenue_v4: stats.mc_revenue_v4 });
 }
 
+// ══ Filtro rápido por Regional (Líder → unidades) ══════════════════════════
+// Atalho pra gerente/admin que enxerga muitas unidades: 1 clique seleciona todas
+// as unidades da regional. Mapa OFICIAL 10/09/2026 (Cleber, Líder Regional).
+// Nomeadas pelo gerente/LÍDER. Mapeado por clinic_id (robusto a variação de nome).
+// Nota: o Cleber lista "Vila Matilde" na Regional Anne, mas essa unidade ainda NÃO
+//    tem cadastro (Ecuro_clinicId) — quando entrar, é só somar o id aqui na 'Anne'.
+//    Ubatuba (confirmada pelo Cleber) é a 7ª da Anne. GO (Goiânia) não tem regional.
+const REGIONAIS = {
+  'Edina':  ['878b3cf8-fc89-4e4d-9185-49d96b458cd0','661505d5-ddf9-4ab4-add4-3c06cdd24fa2','5f14bec4-c724-425d-8423-09d6bd6b22e0','534835d2-546d-456a-a345-b40d0341dd74','1327855b-c60a-422f-977d-bdedaf87b53d','2dcbbf90-35cb-4fa2-a1fd-ccbf572c8ac5','1a45ebd1-e7b0-4871-8cf8-7fcb9ce333fb'],
+  'Ellen':  ['aeba9cb3-47f5-4c6c-94bf-9a87423d8f58','ef6d8c42-2590-4045-8e19-536c221b037b','10243db2-15b8-416e-a34b-66aaa85e8312','36a08f45-5f3b-4659-adee-7a92031c7fc3','df0ab130-b38a-4677-a4d8-597f9aa75e7c','879b4612-a795-43df-9373-cc08641ab56d','a62898ca-4f2c-48f2-bdc3-e1a03e2f9be6'],
+  'Cleber': ['2b372a03-4ca9-475d-8987-003997393ec6','7e34b1df-c152-49df-a84c-d659033ee5be','97317042-836a-4ba0-8ac4-715cfb98a9e4','471ebdbb-a820-4e4a-910b-68495ec18104','44daf0c9-bf0d-4c17-b120-f83b47289069','8240d4d3-0a82-47ef-94b7-2509e1dd4145','4610c3b8-fd32-47ef-9649-cabea52cebac','20fdb96d-b69b-40cf-a033-3497855bf1b1'],
+  'Ingrid': ['729608b5-7f87-416d-b580-9d160250907f','f64b0ae3-2b0a-4ff1-b983-758794fa18d8','f8acb842-464f-471c-b87e-1f793d0a5b10','6f6446ab-cc94-455c-ab22-8e820a937dee','cd74c625-c275-4426-8d30-9d0f6ebe3bc3','6d7d9b6b-58a9-4d3b-a3ce-270ede54967f','c04fd517-3582-444f-851b-dd17c0331d66'],
+  'Anne':   ['dc71ba56-68ad-47df-b7c1-3675af28f8a8','e98f4740-dc56-463e-9f6c-9fc24b03290c','h14fd517-3582-444f-851b-dd17c0331d34','e236eb9a-934c-414b-ad1d-0901a232911e','cbbcac00-0427-41d0-a952-67fa4f0c49eb','f7c99889-5a16-450a-9d9d-f15d9e97a18c','fc9b3646-697d-4074-8b66-0bf858739561'],
+};
+
+// Renderiza os chips no topo do dropdown de Unidade. Mostra só regionais com ≥1
+// unidade VISÍVEL pro usuário (respeita o RBAC do /lookups). Some se o usuário
+// enxerga menos de 2 regionais (não é gerente multi-unidade → chip não ajuda).
+function renderRegionalChips(){
+  const box = document.getElementById('dduRegionais');
+  if(!box) return;
+  const visibleIds = new Set((LOOKUPS?.clinics||[]).map(c => c.id));
+  const chips = [];
+  for(const nome in REGIONAIS){
+    const n = REGIONAIS[nome].filter(id => visibleIds.has(id)).length;
+    if(n === 0) continue;
+    chips.push('<button type="button" onclick="selectRegional(\''+nome+'\')" '
+      + 'style="display:inline-block;margin:0 6px 6px 0;padding:5px 10px;font-family:inherit;font-size:11px;font-weight:600;color:var(--purple);background:rgba(168,85,247,.10);border:1px solid rgba(168,85,247,.30);border-radius:14px;cursor:pointer;">'
+      + 'Regional ' + nome + ' <span style="opacity:.55">' + n + '</span></button>');
+  }
+  if(chips.length < 2){ box.innerHTML = ''; box.style.padding = '0'; return; }
+  box.style.padding = '8px 10px 2px';
+  box.style.borderBottom = '1px solid var(--border)';
+  box.innerHTML = '<div style="font-size:9px;font-weight:700;letter-spacing:.08em;color:var(--gray-l);text-transform:uppercase;margin-bottom:6px;">Filtrar por regional</div>' + chips.join('');
+}
+
+// Seleciona todas as unidades da regional e aplica o filtro na hora.
+function selectRegional(nome){
+  const ids = new Set(REGIONAIS[nome] || []);
+  const list = document.getElementById('dduList');
+  if(!list) return;
+  [...list.querySelectorAll('.ddi')].forEach((el, i) => {
+    if(i === 0){ el.classList.remove('sl'); return; } // "Todas" desliga
+    el.classList.toggle('sl', ids.has(el.dataset.id));
+  });
+  applyFilter('ddu');     // lê seleção → APPLIED.units, fecha o dropdown, marca dirty
+  applyPendingFilters();  // recarrega o dashboard imediatamente
+}
+
 // ── Repopula dropdown de Unidades a partir de lookups (READ-ONLY de unitConfigs) ──
 function rebuildUnitDropdown(clinics){
   const ddu = document.getElementById('ddu');
@@ -2461,7 +2510,9 @@ function rebuildUnitDropdown(clinics){
   }
   ddu.innerHTML = '<div style="padding:8px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--card2);z-index:1;">'
     + '<input type="text" id="dduSearch" placeholder="Buscar unidade\u2026" oninput="filterUnitList(this.value)" style="width:100%;background:rgba(0,0,0,.04);border:1px solid var(--border);color:var(--white);font-family:inherit;font-size:11.5px;padding:7px 10px;border-radius:6px;outline:none;"></div>'
+    + '<div id="dduRegionais"></div>'
     + '<div id="dduList" style="max-height:300px;overflow-y:auto;">' + listHtml + '</div>';
+  try { renderRegionalChips(); } catch(e){ console.warn('[regionalChips]', e); }
 }
 
 function filterUnitList(q){
