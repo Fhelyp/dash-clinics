@@ -1,0 +1,34 @@
+name: Deploy Homolog (preview)
+
+# Homologação do dash-clinics.
+# push na branch `homolog`  ->  deploy num alias de preview: https://homolog.dash-clinics.pages.dev
+# Valide ali e, se estiver OK, faça merge de `homolog` no `main` (que deploya produção).
+# Mesmo projeto Pages, mesma conta; branch != main => deployment de preview (não afeta produção).
+
+on:
+  push:
+    branches: [homolog]
+  workflow_dispatch:
+
+jobs:
+  deploy-homolog:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Deploy Pages homolog (dash-clinics)
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: de356bf3b5b6db75835e33e84876eefb
+          command: pages deploy public --project-name=dash-clinics --branch=homolog
+
+# NOTA: o ambiente de PREVIEW do Pages usa os secrets de "preview" do projeto. Se as APIs
+# (login/dados) não funcionarem em homolog, é preciso setar os secrets de preview espelhando
+# os de produção: `wrangler pages secret put JWT_SECRET --project-name=dash-clinics` etc.
+# (no painel: Pages > dash-clinics > Settings > Environment variables > Preview).

@@ -1,5 +1,10 @@
 name: Deploy to Cloudflare
 
+# Pipeline de produção do dash-clinics (frontend).
+# push no `main`  ->  deploy automático do Pages (Direct Upload via wrangler-action).
+# NUNCA fazer `wrangler pages deploy` de clone local: tudo passa pelo git -> main.
+# Homologação: ver workflow deploy-homolog.yml (branch `homolog` -> preview URL).
+
 on:
   push:
     branches: [main]
@@ -16,7 +21,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
       - name: Deploy Pages (dash-clinics)
         uses: cloudflare/wrangler-action@v3
         with:
@@ -24,34 +29,12 @@ jobs:
           accountId: de356bf3b5b6db75835e33e84876eefb
           command: pages deploy public --project-name=dash-clinics --branch=main --commit-dirty=true
 
-  # ─── Worker: sync-ecuro ───────────────────────────────────────
-  deploy-worker-ecuro:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-      - name: Deploy sync-ecuro worker
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: de356bf3b5b6db75835e33e84876eefb
-          workingDirectory: workers/sync-ecuro
-          command: deploy
-
-  # ─── Worker: sync-chatwoot ────────────────────────────────────
-  deploy-worker-chatwoot:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-      - name: Deploy sync-chatwoot worker
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: de356bf3b5b6db75835e33e84876eefb
-          workingDirectory: workers/sync-chatwoot
-          command: deploy
+# ─────────────────────────────────────────────────────────────────────────────
+# REMOVIDO em 14/09/2026: os jobs `deploy-worker-ecuro` e `deploy-worker-chatwoot`.
+# O SYNC (Ecuro -> Supabase incremental/bootstrap, Chatwoot leads, health-check) roda
+# na VPS (EasyPanel, repo Forux-Digital/dash-sync-jobs) — fonte AUTORITATIVA e única.
+# Os workers Cloudflare de sync eram duplicados e re-armavam seus crons a cada deploy
+# (risco de sync dobrado -> Supabase saturado). Mantidos fora do pipeline de propósito.
+# Pendência: migrar a agregação `campaign_contacts_cache` (worker sync-chatwoot) pra VPS
+# e então deletar o worker CF. Ver docs/AI_START_HERE.md.
+# ─────────────────────────────────────────────────────────────────────────────
