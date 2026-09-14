@@ -184,23 +184,44 @@ async function handle({ request, env }) {
   if (!user.active) return j(403, { error: 'user_inactive', message: 'Usuário desativado.' });
 
   // ── 3.5. Mapeia accounts do Chatwoot → clinic_ids permitidas (RBAC) ──
-  // POLITICA (26/05): apenas auth_users.unrestricted=true tem acesso irrestrito.
-  // Hoje somente admin@arvore.ia. Removido bypass por role='admin' e por
-  // SuperAdmin do Chatwoot — eles devem passar pelo RBAC normal (CW admin accounts).
-  // Override por regional: se user.regional='GO', acesso a todas unidades GO independente do CW.
+  // FONTE DE VERDADE = Chatwoot: quem é ADMINISTRADOR de uma conta no Chatwoot vê exatamente
+  // aquelas unidades no dashboard, AO VIVO. Provisionar/revogar no Chatwoot reflete no próximo
+  // login sem tocar no banco. allowed_clinic_ids e regional só valem pra quem NÃO é admin de
+  // NENHUMA conta no Chatwoot (recepção agente, regional GO fora do CW, conta especial).
+  // unrestricted=true = acesso total (hoje só admin@arvore.ia).
   let allowedClinicIds = null; // null = sem restrição (UNICO caso: unrestricted=true)
   const isUnrestricted = user.unrestricted === true;
   const cwAccountIds = Array.isArray(cwUser.account_ids) ? cwUser.account_ids : [];
   const regionalOverride = user.regional && String(user.regional).trim();
-
-  // PRIORIDADE 1: allowed_clinic_ids explícito na tabela (líderes com escopo customizado)
   const explicitClinicIds = Array.isArray(user.allowed_clinic_ids) && user.allowed_clinic_ids.length > 0
     ? user.allowed_clinic_ids.filter(Boolean)
     : null;
-  if (explicitClinicIds && !isUnrestricted) {
+
+  if (isUnrestricted) {
+    allowedClinicIds = null; // acesso total
+  } else if (cwAccountIds.length > 0) {
+    // PRIORIDADE 1 (fonte de verdade): admin no Chatwoot → deriva unidades AO VIVO do CW.
+    // Precede qualquer lista salva: provisionou no CW, aparece; tirou no CW, some.
+    try {
+      const ucRows = await supaSelect(
+        env, 'unitConfigs',
+        `select=Ecuro_clinicId,chatwoot_account_id&chatwoot_account_id=in.(${cwAccountIds.join(',')})`
+      );
+      allowedClinicIds = ucRows.map(r => r.Ecuro_clinicId).filter(Boolean);
+      // Chatwoot tem accounts admin mas nenhum bate com unitConfigs → nega acesso.
+      if (allowedClinicIds.length === 0) {
+        return j(403, { error: 'no_clinic_access', message: 'Seu usuário no Chatwoot não tem clínica associada como administrador no dashboard.' });
+      }
+    } catch (e) {
+      // Nunca falha aberta: sem unrestricted, bloqueia.
+      console.error('unitConfigs lookup failed:', e);
+      return j(500, { error: 'rbac_error' });
+    }
+  } else if (explicitClinicIds) {
+    // PRIORIDADE 2: sem admin no Chatwoot → escopo explícito salvo (recepção/conta especial).
     allowedClinicIds = explicitClinicIds;
-  } else if (regionalOverride && !isUnrestricted) {
-    // Override regional: ignora CW.account_ids, busca todas unidades da regional
+  } else if (regionalOverride) {
+    // PRIORIDADE 3: usuário regional fora do Chatwoot (ex: crcgoias GO) → todas da regional.
     try {
       const ucRows = await supaSelect(
         env, 'unitConfigs',
@@ -214,26 +235,8 @@ async function handle({ request, env }) {
       console.error('regional lookup failed:', e);
       return j(500, { error: 'rbac_error' });
     }
-  } else if (!isUnrestricted && cwAccountIds.length > 0) {
-    try {
-      const ucRows = await supaSelect(
-        env, 'unitConfigs',
-        `select=Ecuro_clinicId,chatwoot_account_id&chatwoot_account_id=in.(${cwAccountIds.join(',')})`
-      );
-      allowedClinicIds = ucRows
-        .map(r => r.Ecuro_clinicId)
-        .filter(Boolean);
-      // Se Chatwoot tem accounts admin mas nenhum bate com unitConfigs → nega acesso
-      if (allowedClinicIds.length === 0) {
-        return j(403, { error: 'no_clinic_access', message: 'Seu usuário no Chatwoot não tem clínica associada como administrador no dashboard.' });
-      }
-    } catch (e) {
-      // Se erro no lookup, NUNCA falha aberta. Sem unrestricted, bloqueia.
-      console.error('unitConfigs lookup failed:', e);
-      if (!isUnrestricted) return j(500, { error: 'rbac_error' });
-    }
-  } else if (!isUnrestricted && cwAccountIds.length === 0) {
-    // Caso: Chatwoot autenticou mas user nao e admin em NENHUMA account → nega
+  } else {
+    // Sem admin no Chatwoot, sem escopo salvo, sem regional → nega.
     return j(403, { error: 'no_admin_access', message: 'Você precisa ter permissão de administrador em pelo menos uma unidade no Chatwoot para acessar o dashboard.' });
   }
 

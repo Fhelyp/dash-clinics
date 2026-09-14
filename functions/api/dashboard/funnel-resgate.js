@@ -1,5 +1,6 @@
-// Endpoint do Funil de Vendas. Chama funnel_stats(start, end, clinic_ids).
-// Cruza chatwoot_leads (label=campanha) × BI Appointments × BI Payments.
+// Endpoint do Funil de Resgate/Follow-up. Chama funnel_resgate_followup(start, end, clinic_ids).
+// Visao APARTADA da campanha: acao do operador (CRC Resgate/Follow-Up no Ecuro) +
+// 1a coluna = contatos Chatwoot com tag resgate/follow_1..4. Mesmo RBAC do funnel.js.
 import { supaHeaders } from '../../_lib/supabase.js';
 
 export async function onRequestGet({ request, env, data }) {
@@ -11,7 +12,7 @@ export async function onRequestGet({ request, env, data }) {
   const reDate = /^\d{4}-\d{2}-\d{2}$/;
   if (!reDate.test(start) || !reDate.test(end)) return j(400, { error: 'invalid_date_format' });
 
-  // RBAC
+  // RBAC (identico ao funnel.js): intersecta o filtro do cliente com o escopo do usuario
   const allowed = data?.user?.allowed_clinic_ids;
   const clientClinicsRaw = url.searchParams.get('clinic_ids') || '';
   let clinicIdsParam = null;
@@ -29,7 +30,7 @@ export async function onRequestGet({ request, env, data }) {
     if (clinicIdsParam.length === 0) clinicIdsParam = null;
   }
 
-  const rpcUrl = `${env.SUPABASE_URL}/rest/v1/rpc/funnel_stats`;
+  const rpcUrl = `${env.SUPABASE_URL}/rest/v1/rpc/funnel_resgate_followup`;
   const body = {
     p_start: start + 'T00:00:00-03:00',
     p_end:   end   + 'T00:00:00-03:00',

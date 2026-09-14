@@ -137,16 +137,36 @@ async function handle({ request, env }) {
   if (!user.active) return j(403, { error: 'user_inactive', message: 'Usuário desativado.' });
 
   // ── 3. RBAC: accounts do Chatwoot → clinic_ids (idêntico ao login) ──
+  // FONTE DE VERDADE = Chatwoot (ao vivo); allowed_clinic_ids/regional só p/ quem NÃO é
+  // admin de nenhuma conta no Chatwoot. Ver login.js pra detalhes.
   let allowedClinicIds = null;
   const isUnrestricted = user.unrestricted === true;
   const cwAccountIds = Array.isArray(cwUser.account_ids) ? cwUser.account_ids : [];
   const regionalOverride = user.regional && String(user.regional).trim();
-
   const explicitClinicIds = Array.isArray(user.allowed_clinic_ids) && user.allowed_clinic_ids.length > 0
     ? user.allowed_clinic_ids.filter(Boolean) : null;
-  if (explicitClinicIds && !isUnrestricted) {
+
+  if (isUnrestricted) {
+    allowedClinicIds = null; // acesso total
+  } else if (cwAccountIds.length > 0) {
+    // PRIORIDADE 1 (fonte de verdade): admin no Chatwoot → unidades AO VIVO do CW.
+    try {
+      const ucRows = await supaSelect(
+        env, 'unitConfigs',
+        `select=Ecuro_clinicId,chatwoot_account_id&chatwoot_account_id=in.(${cwAccountIds.join(',')})`
+      );
+      allowedClinicIds = ucRows.map(r => r.Ecuro_clinicId).filter(Boolean);
+      if (allowedClinicIds.length === 0) {
+        return j(403, { error: 'no_clinic_access', message: 'Seu usuário no Chatwoot não tem clínica associada como administrador no dashboard.' });
+      }
+    } catch (e) {
+      return j(500, { error: 'rbac_error' });
+    }
+  } else if (explicitClinicIds) {
+    // PRIORIDADE 2: sem admin no Chatwoot → escopo explícito salvo (recepção/conta especial).
     allowedClinicIds = explicitClinicIds;
-  } else if (regionalOverride && !isUnrestricted) {
+  } else if (regionalOverride) {
+    // PRIORIDADE 3: usuário regional fora do Chatwoot (ex: crcgoias GO) → todas da regional.
     try {
       const ucRows = await supaSelect(
         env, 'unitConfigs',
@@ -159,20 +179,7 @@ async function handle({ request, env }) {
     } catch (e) {
       return j(500, { error: 'rbac_error' });
     }
-  } else if (!isUnrestricted && cwAccountIds.length > 0) {
-    try {
-      const ucRows = await supaSelect(
-        env, 'unitConfigs',
-        `select=Ecuro_clinicId,chatwoot_account_id&chatwoot_account_id=in.(${cwAccountIds.join(',')})`
-      );
-      allowedClinicIds = ucRows.map(r => r.Ecuro_clinicId).filter(Boolean);
-      if (allowedClinicIds.length === 0) {
-        return j(403, { error: 'no_clinic_access', message: 'Seu usuário no Chatwoot não tem clínica associada como administrador no dashboard.' });
-      }
-    } catch (e) {
-      if (!isUnrestricted) return j(500, { error: 'rbac_error' });
-    }
-  } else if (!isUnrestricted && cwAccountIds.length === 0) {
+  } else {
     return j(403, { error: 'no_admin_access', message: 'Você precisa ter permissão de administrador em pelo menos uma unidade no Chatwoot para acessar o dashboard.' });
   }
 

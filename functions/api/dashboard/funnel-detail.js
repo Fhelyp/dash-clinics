@@ -43,10 +43,10 @@ export async function onRequestGet({ request, env, data }) {
   const rpcUrl = `${env.SUPABASE_URL}/rest/v1/rpc/funnel_detail`;
   const body = {
     p_stage: stage,
-    p_start: start + 'T00:00:00+00:00',
-    p_end:   end   + 'T00:00:00+00:00',
+    p_start: start + 'T00:00:00-03:00',
+    p_end:   end   + 'T00:00:00-03:00',
     p_clinic_ids: clinicIdsParam,
-    p_min_lead_created_at: minLead + 'T00:00:00+00:00',
+    p_min_lead_created_at: minLead + 'T00:00:00-03:00',
     p_limit: limit,
     p_offset: offset,
     p_search: search,

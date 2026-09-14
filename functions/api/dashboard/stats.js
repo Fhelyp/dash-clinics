@@ -51,14 +51,17 @@ export async function onRequestGet({ request, env, data }) {
   const statusCodes  = url.searchParams.get('status_codes');
   const creators     = url.searchParams.get('creators');
   const agentMode    = url.searchParams.get('agent_mode') || 'ALL';
+  const origem       = url.searchParams.get('origem');   // patient_channel_name
 
   // ── CACHE (Cloudflare Cache API) — TTL 180s, isolado por RBAC ─────────
   // Chave: hash de (allowed_clinic_ids + todos os filtros). Garante que
   // user GO nunca recebe cache de user SP, e que filtros mudados invalidam.
+  // TODO filtro só entra aqui se também for pra RPC — se sair da chave, mudar
+  // o filtro devolve o cache do filtro anterior (foi o bug da origem).
   const cacheKeyStr = JSON.stringify({
     a: clinicIdsParam,
     s: start, e: end,
-    sp: specialtyIds, st: statusCodes, cr: creators, am: agentMode
+    sp: specialtyIds, st: statusCodes, cr: creators, am: agentMode, or: origem
   });
   const cacheKeyHash = await sha256Short(cacheKeyStr);
   // Usa a own URL do site (mesma origem) pra que o cache do edge funcione corretamente
@@ -86,7 +89,9 @@ export async function onRequestGet({ request, env, data }) {
     p_specialty_ids: specialtyIds ? specialtyIds.split(',').filter(Boolean) : null,
     p_status_codes: statusCodes ? statusCodes.split(',').map(c => parseInt(c,10)).filter(n => !isNaN(n)) : null,
     p_creators: creators ? creators.split('|').filter(Boolean) : null,  // creators podem ter vírgula no nome → use |
-    p_agent_mode: agentMode || 'ALL'
+    p_agent_mode: agentMode || 'ALL',
+    // o front manda separado por vírgula (nomes de canal não têm vírgula); aceita | por compat
+    p_origem: origem ? origem.split(/[|,]/).map(s => s.trim()).filter(Boolean) : null
   };
 
   let res, json;
