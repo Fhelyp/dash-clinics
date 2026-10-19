@@ -97,3 +97,23 @@ de 120s e o cron passou a morrer. Nunca esteve realmente protegido pelos 2700s.
 
 ⚠️ **Regra daqui pra frente:** para QUALQUER cron pesado (>120s), o `SET statement_timeout`
 tem que estar no **comando do cron** (antes do SELECT), NÃO só na definição da função.
+
+## Meses antigos congelados (19/10/2026) — reprocesso semanal
+**Sintoma:** ao reprocessar o rollup de maio, a receita do dash subiu R$ 314 mil (de R$ 8,62 mi
+para R$ 8,93 mi). O caminho rápido estava abaixo do real.
+**Causa:** o `rollup-precompute-nightly` só refaz o mês atual e o anterior. Meses mais antigos
+ficam com o valor do último reprocesso, mas o Ecuro continua lançando, corrigindo e excluindo
+pagamentos com data nesses meses (R$ 2,6 mi dos pagamentos de maio foram lançados ou alterados
+depois de 01/07). Esses ajustes nunca chegavam ao dash.
+**Correção:**
+- Reprocessado mai–out com a regra de receita nova.
+- Novo job **`rollup-old-months-weekly`** (jobid 7), domingo 05:00 UTC (02h BRT), antes dos syncs:
+  ```sql
+  SELECT cron.schedule('rollup-old-months-weekly', '0 5 * * 0',
+    $$SET statement_timeout = '7200s'; SELECT public.refresh_rollup_old_months();$$);
+  ```
+  `refresh_rollup_old_months()` refaz do mês mais antigo do rollup até o mês retrasado, uma chamada
+  por mês exato, em lotes de 10 clínicas com try/catch, e roda `refresh_precomputed()` no fim.
+  Tempo de referência: maio 70s, junho 194s.
+**Como conferir:** `SELECT * FROM cron.job_run_details WHERE jobid=7 ORDER BY start_time DESC LIMIT 3;`
+e `fast == live` num mês antigo.

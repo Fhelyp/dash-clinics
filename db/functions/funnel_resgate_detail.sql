@@ -28,7 +28,8 @@ ag AS (
               WHEN 11 THEN 'aguard. retorno' WHEN 12 THEN 'retorno criado' WHEN 5 THEN 'cancelado'
               WHEN 1 THEN 'à confirmar' ELSE a.status::text END AS status,
          COALESCE((SELECT SUM(p.amount) FROM "BI Payments" p WHERE p.patient_id=a.patient_id
-                   AND p.deleted_at IS NULL AND p.date>=p_start AND p.date<p_end),0)::numeric AS pago,
+                   AND p.deleted_at IS NULL AND p.date>=p_start AND p.date<p_end
+        AND NOT (btrim(COALESCE(p.payment_type_name,'')) ILIKE 'boleto programado' AND COALESCE(p.is_confirmed,false) = false)),0)::numeric AS pago,
          a.patient_id, a.id appt_id, a.status status_code
   FROM "BI Appointments" a CROSS JOIN subs
   WHERE a.channel_name='CRC' AND a.subchannel_name = ANY(subs.list)
@@ -48,4 +49,4 @@ SELECT jsonb_build_object('bucket',p_bucket,'stage',p_stage,
   'rows', COALESCE((SELECT jsonb_agg(row_to_json(r)) FROM (
     SELECT nome,telefone,data,status,pago,patient_id FROM filtered
     ORDER BY pago DESC, nome LIMIT p_limit OFFSET p_offset) r),'[]'::jsonb));
-$function$
+$function$;

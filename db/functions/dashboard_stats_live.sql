@@ -41,6 +41,8 @@ patient_set AS MATERIALIZED (SELECT DISTINCT patient_id FROM appts_f WHERE patie
 pays_all AS MATERIALIZED (
   SELECT id, patient_id, clinic_id, date, amount, specialty_name, specialty_id FROM "BI Payments"
   WHERE date >= p_start AND date < p_end AND deleted_at IS NULL
+    -- receita = valor VENDIDO (Thauany 19/10/26): boleto da clinica conta inteiro; boleto programado so quando pago (date = dia do pagamento)
+    AND NOT (btrim(COALESCE(payment_type_name,'')) ILIKE 'boleto programado' AND COALESCE(is_confirmed,false) = false)
   AND (p_clinic_ids IS NULL OR clinic_id = ANY(p_clinic_ids))
 ),
 mc_eval_attended AS MATERIALIZED (
@@ -124,4 +126,4 @@ SELECT jsonb_build_object(
   ),
   'campaign_count', (SELECT COUNT(*) FILTER (WHERE campaign_token IS NOT NULL AND TRIM(campaign_token) != '') FROM appts_f)
 );
-$function$
+$function$;

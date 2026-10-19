@@ -1,6 +1,30 @@
 # Regras de Negócio — Dashboard Ecuro
 
 Documento atualizado em **24/06/2026** (refactor do funil por lead + receita por pessoa).
+Seção 0 atualizada em **19/10/2026** — ela prevalece sobre as seções abaixo quando houver conflito.
+
+## 0. Regras em vigor (19/10/2026)
+
+### Receita = valor VENDIDO (definição da Thauany, 19/10/2026)
+Vale para a receita do dash principal, o funil de marketing ("venderam") e o funil de resgate.
+- **Boleto da clínica** (`payment_type_name = 'Boleto'`): conta o valor completo, todas as
+  parcelas, no mês em que foram lançadas.
+- **Boleto programado** (`'Boleto Programado'`): só conta quando o paciente paga
+  (`is_confirmed = true`). Ao pagar, o Ecuro grava em `date` o dia do pagamento, e é nesse dia
+  que entra. Antes de pagar, não entra.
+- **Demais formas** (cartão, Pix, dinheiro etc.): contam como vendido, confirmadas ou não.
+- Lançamento **excluído** (`deleted_at` preenchido) nunca conta.
+
+### Funil de marketing (v6, em produção)
+- **Campanha** = consulta com subcanal `Lead Campanha` no Ecuro **ou** consulta cujo telefone
+  bate com um contato do Chatwoot etiquetado `campanha` (criada depois do lead).
+- **Telefone compartilhado** (19/10/2026): se o telefone do lead aparece em mais de um paciente
+  (família que usa o mesmo número), só conta como campanha quem tem nome compatível com o do lead:
+  o primeiro nome de um aparece no nome do outro (`public.nome_compativel`). Paciente sozinho no
+  número continua contando mesmo com apelido no Chatwoot. Ex.: Maisa e Marília Sena Cunha
+  (recepção) deixaram de contar pelo lead da mãe, Maria do Socorro.
+- **Janela** = data em que a consulta foi criada. **Exclui** quem já tinha sido atendido antes da
+  primeira consulta de campanha (paciente antigo). Detalhe em `db/functions/funnel_stats_v6.sql`.
 
 ## 1. Atribuição de Receita à Maria Clara (MC)
 

@@ -39,6 +39,8 @@ conf  AS (SELECT DISTINCT b.patient_id FROM elig b
                         WHERE lg.appointment_id = b.appt_id AND lg.to_status = 4)),
 pay AS (SELECT DISTINCT p.id pay_id, p.patient_id, p.amount FROM "BI Payments" p
         WHERE p.deleted_at IS NULL AND p.date >= p_start AND p.date < p_end
+          -- receita = valor VENDIDO (Thauany 19/10/26): boleto da clinica conta inteiro; boleto programado so quando pago (date = dia do pagamento)
+          AND NOT (btrim(COALESCE(p.payment_type_name,'')) ILIKE 'boleto programado' AND COALESCE(p.is_confirmed,false) = false)
           AND (p_clinic_ids IS NULL OR p.clinic_id = ANY(p_clinic_ids))
           AND p.patient_id IN (SELECT patient_id FROM agend)),
 vend AS (SELECT patient_id, SUM(amount) tot FROM pay GROUP BY patient_id),
@@ -68,9 +70,10 @@ SELECT jsonb_build_object(
     'campanha','tag Chatwoot OU subchannel Lead Campanha (Ecuro)',
     'exclusao','paciente ja ATENDIDO (attended_time) antes da 1a consulta de campanha dele — por PACIENTE',
     'compareceu','attended_time preenchido no Ecuro',
+    'receita','valor vendido; boleto programado so quando pago (19/10)',
+    'atribuicao_telefone','telefone compartilhado por varios pacientes: so conta quem tem nome compativel com o lead (19/10)',
     'confirmados','leads de campanha ELEGIVEIS do periodo que foram confirmados (mesma base de agendados/compareceram)',
     'unidade','paciente',
     'versao','v6 (15/07)')
 ) FROM m;
-$function$
-
+$function$;

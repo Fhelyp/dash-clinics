@@ -116,6 +116,14 @@ financeiro e auditoria das ~37 clínicas. É acessado de 2 formas:
   do cron. Se o dash "carrega pra sempre" em datas recentes, cheque se o rollup congelou.
 - **Funil** → `db/functions/funnel_stats_v6.sql` (em prod). Conta pela data do agendamento; exclui
   passante por PACIENTE; Confirmados usa a base ELEGÍVEL (mesma de agendados/compareceram).
+- **Receita = valor vendido** → `docs/BUSINESS_RULES.md` §0. Boleto da clínica conta inteiro;
+  **boleto programado só quando pago** (`is_confirmed`). A regra está repetida em 6 funções
+  (`dashboard_stats_live`, `refresh_daily_rollup`, `funnel_stats_v6`, `funnel_detail`,
+  `funnel_resgate_followup`, `funnel_resgate_detail`). Mudou a regra? Mude nas 6, reprocesse o rollup
+  dos meses afetados e confira `fast == live`.
+- **Atribuição por telefone** → `refresh_campaign_attribution` + `nome_compativel`. Telefone com
+  vários pacientes (família) só atribui quem tem nome compatível com o lead. Roda todo dia na VPS
+  depois do sync; para reprocessar na mão, eleve o `statement_timeout` na sessão antes.
 - **Schema drift do Ecuro** → `db/SYNC_SCHEMA_DRIFT.md`. O Ecuro pode ADICIONAR campos; o sync da
   VPS filtra colunas desconhecidas pra não derrubar o feed.
 - **RBAC/permissionamento** → `functions/api/login.js` e `sso.js`. Fonte de verdade = Chatwoot
