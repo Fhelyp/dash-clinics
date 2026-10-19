@@ -61,6 +61,8 @@ BEGIN
     SELECT pc.patient_id, COALESCE(SUM(p.amount),0)::numeric total_pago, COUNT(p.id)::int n_pgto
     FROM pac pc
     LEFT JOIN "BI Payments" p ON p.patient_id = pc.patient_id AND p.deleted_at IS NULL
+      -- receita = valor VENDIDO (Thauany 19/10/26): boleto da clinica conta inteiro; boleto programado so quando pago (date = dia do pagamento)
+      AND NOT (btrim(COALESCE(p.payment_type_name,'')) ILIKE 'boleto programado' AND COALESCE(p.is_confirmed,false) = false)
       AND p.date >= p_start AND p.date < p_end
       AND (p_clinic_ids IS NULL OR p.clinic_id = ANY(p_clinic_ids))
     GROUP BY 1),
@@ -92,7 +94,8 @@ BEGIN
         ELSE false END
       AND (p_search IS NULL OR p_search = '' OR
            lower(public.immutable_unaccent(lead_name)) ILIKE '%'||lower(public.immutable_unaccent(p_search))||'%' OR
-           phone_norm ILIKE '%'||regexp_replace(p_search,'[^0-9]','','g')||'%')
+           -- busca por telefone so quando o texto tem digitos (antes '%%' casava com todos)
+           (regexp_replace(p_search,'[^0-9]','','g') <> '' AND phone_norm ILIKE '%'||regexp_replace(p_search,'[^0-9]','','g')||'%'))
       AND (p_origem_channels IS NULL OR patient_channel_names && p_origem_channels))
   SELECT jsonb_build_object('stage', p_stage, 'count', (SELECT COUNT(*) FROM filtered),
     'limit', p_limit, 'offset', p_offset,
@@ -103,4 +106,4 @@ BEGIN
        LIMIT p_limit OFFSET p_offset) r), '[]'::jsonb)
   ) INTO v_result;
   RETURN v_result;
-END $function$
+END $function$;

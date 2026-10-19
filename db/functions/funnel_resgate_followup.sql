@@ -31,7 +31,8 @@ pay AS (
   SELECT DISTINCT ac.bucket, p.id pay_id, p.amount
   FROM acao ac
   JOIN "BI Payments" p ON p.patient_id = ac.patient_id AND p.clinic_id = ac.clinic_id
-   AND p.deleted_at IS NULL AND p.date >= p_start AND p.date < p_end),
+   AND p.deleted_at IS NULL AND p.date >= p_start AND p.date < p_end
+           AND NOT (btrim(COALESCE(p.payment_type_name,'')) ILIKE 'boleto programado' AND COALESCE(p.is_confirmed,false) = false)),
 agg AS (
   SELECT ac.bucket,
          COUNT(*) agendados,
@@ -62,4 +63,4 @@ SELECT jsonb_build_object(
     'carencia','nao se aplica',
     'aviso','paciente em mais de um bucket conta nos dois; nao somar receitas cegamente')
 ) FROM agg LEFT JOIN rev ON rev.bucket = agg.bucket;
-$function$
+$function$;

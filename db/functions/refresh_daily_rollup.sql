@@ -56,7 +56,9 @@ BEGIN
     SELECT DISTINCT ON (p.id) p.id, p.clinic_id, (p.date AT TIME ZONE 'UTC')::date AS day, p.amount, p.specialty_id, p.specialty_name,
       CASE WHEN m.patient_id IS NOT NULL THEN 'MC' ELSE 'HUM' END AS attribution_agent
     FROM "BI Payments" p LEFT JOIN mc_eval m ON m.clinic_id=p.clinic_id AND m.patient_id=p.patient_id AND m.attended_at<=p.date AND m.attended_at>=p.date - INTERVAL '30 days'
-    WHERE p.date >= v_lo AND p.date < v_hi AND p.deleted_at IS NULL AND (p_clinic_ids IS NULL OR p.clinic_id = ANY(p_clinic_ids))
+    WHERE p.date >= v_lo AND p.date < v_hi AND p.deleted_at IS NULL
+      -- receita = valor VENDIDO (Thauany 19/10/26): boleto da clinica conta inteiro; boleto programado so quando pago (date = dia do pagamento)
+      AND NOT (btrim(COALESCE(p.payment_type_name,'')) ILIKE 'boleto programado' AND COALESCE(p.is_confirmed,false) = false) AND (p_clinic_ids IS NULL OR p.clinic_id = ANY(p_clinic_ids))
     ORDER BY p.id, m.attended_at DESC NULLS LAST
   ),
   pay_scalar AS (
@@ -97,4 +99,4 @@ BEGIN
   WHERE start_time >= v_lo AND start_time < v_hi AND patient_id IS NOT NULL AND (p_clinic_ids IS NULL OR clinic_id = ANY(p_clinic_ids))
   ON CONFLICT (patient_id) DO UPDATE SET dob=EXCLUDED.dob;
   RETURN n;
-END $function$
+END $function$;
