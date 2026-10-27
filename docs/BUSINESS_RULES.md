@@ -24,8 +24,11 @@ cadastradas em 19/10 com `Dash=false` (52 mil logs, 11,9 mil agendamentos, 7,7 m
 Unidade que passar a `Dash=true` precisa de um bootstrap do sync (janela 20h–08h) para trazer o mês.
 
 ### Funil de marketing (v6, em produção)
-- **Campanha** = consulta com subcanal `Lead Campanha` no Ecuro **ou** consulta cujo telefone
-  bate com um contato do Chatwoot etiquetado `campanha` (criada depois do lead).
+- **Campanha** = consulta com subcanal `Lead Campanha` no Ecuro **ou** consulta ligada a um contato
+  do Chatwoot etiquetado `campanha` (criada depois do lead), pelo telefone **ou pela ficha do Ecuro**
+  (atributo `ficha_ecuro` do contato → `chatwoot_leads.ficha_patient_id`, desde 27/10/2026). A ligação
+  pela ficha existe porque o Ecuro foi parando de mandar telefone nas consultas (1,6% vazias em maio,
+  96% em outubro/2026); os agendamentos da Maria Clara ficavam fora do funil.
 - **Telefone compartilhado** (19/10/2026): se o telefone do lead aparece em mais de um paciente
   (família que usa o mesmo número), só conta como campanha quem tem nome compatível com o do lead:
   o primeiro nome de um aparece no nome do outro (`public.nome_compativel`). Paciente sozinho no
