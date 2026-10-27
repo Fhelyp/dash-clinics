@@ -19,21 +19,26 @@
 --   6. Lead que foi direto à clínica (canal que não é CRC nem Maria Clara): só é campanha se a
 --      consulta foi criada até 30 dias depois da data do lead.
 --   7. Família no mesmo telefone: já tratada na atribuição (nome compatível, 19/10).
---   8. Receita: valores lançados como pagamento; boleto programado só quando pago.
+--   8. Receita: valores lançados como pagamento; boleto programado só quando pago. Pagamento cuja
+--      última consulta atendida antes dele foi de Follow-Up/Resgate é do funil de resgate, não daqui.
 --   9. Confirmados: informativo.
 -- Filtro de operador (p_creators): mesmos nomes do filtro "Operador" do dash; Maria Clara = 'maria clara'.
 -- p_agent_mode: 'ALL' | 'MC' (só Maria Clara) | 'HUM' (só operadores), igual ao botão do dash.
 
 CREATE OR REPLACE FUNCTION public.funnel_v7_rows(p_start timestamp with time zone, p_end timestamp with time zone, p_clinic_ids text[] DEFAULT NULL::text[], p_view text DEFAULT 'comissao'::text, p_creators text[] DEFAULT NULL::text[], p_agent_mode text DEFAULT 'ALL'::text)
  RETURNS TABLE(clinic_id text, patient_id uuid, patient_name text, phone_norm text, cw_contact_id integer, account_id integer, lead_name text, lead_dt timestamp with time zone, agendou boolean, confirmou boolean, compareceu boolean, total_pago numeric, n_pgto integer, canais text[], atendentes text[])
- LANGUAGE sql
+ LANGUAGE plpgsql
  STABLE
  SET statement_timeout TO '60s'
 AS $function$
+-- EXECUTE: plano feito com os valores da chamada (a versão LANGUAGE sql era planejada genérica,
+-- errava as estimativas e levava ~25 s em vez de ~9 s)
+BEGIN
+RETURN QUERY EXECUTE $q$
 WITH
 cr AS (
   SELECT array_agg(lower(public.immutable_unaccent(btrim(regexp_replace(c, '\s+', ' ', 'g'))))) AS list
-  FROM unnest(COALESCE(p_creators, ARRAY[]::text[])) c),
+  FROM unnest(COALESCE($5, ARRAY[]::text[])) c),
 -- data em que o lead "caiu": a mais recente entre a criação do contato e o anúncio registrado
 -- (anuncio_dt vem como meia-noite UTC do dia; vira meia-noite de Brasília do mesmo dia)
 lead_att AS MATERIALIZED (
@@ -43,7 +48,7 @@ lead_att AS MATERIALIZED (
                            att.lead_created_at)) AS lead_dt
   FROM campaign_appt_attribution att
   LEFT JOIN chatwoot_leads cl ON cl.id = att.cw_contact_id AND cl.account_id = att.account_id
-  WHERE (p_clinic_ids IS NULL OR att.clinic_id = ANY(p_clinic_ids))),
+  WHERE ($3 IS NULL OR att.clinic_id = ANY($3))),
 camp AS MATERIALIZED (
   SELECT a.id AS appt_id, a.clinic_id, a.patient_id, a.patient_name, a.phone_norm, a.created_at,
          a.attended_time, a.confirmed_time, a.status, a.channel_name, a.subchannel_name,
@@ -56,10 +61,10 @@ camp AS MATERIALIZED (
   FROM "BI Appointments" a
   LEFT JOIN lead_att la ON la.appt_id = a.id
   WHERE a.patient_id IS NOT NULL
-    AND a.created_at < p_end
+    AND a.created_at < $2
     AND a.speciality_id = '8409c08e-f3fa-43a0-b9bd-53128cecdbdc'::uuid        -- regra 4: Avaliação
     AND COALESCE(a.subchannel_name,'') !~* '^(follow|resgate)'                 -- funil de resgate/follow
-    AND (p_clinic_ids IS NULL OR a.clinic_id = ANY(p_clinic_ids))
+    AND ($3 IS NULL OR a.clinic_id = ANY($3))
     AND (a.subchannel_name = 'Lead Campanha'
          OR (la.appt_id IS NOT NULL
              AND (a.channel_name IN ('CRC','Maria Clara IA')                    -- regra 2: sem prazo
@@ -79,10 +84,10 @@ camp_seq AS MATERIALIZED (
   FROM camp_ok c),
 camp_f AS MATERIALIZED (
   SELECT s.* FROM camp_seq s
-  WHERE (p_creators IS NULL OR s.creator_key IN (SELECT unnest(list) FROM cr))
-    AND (COALESCE(p_agent_mode,'ALL') IN ('ALL','')
-         OR (p_agent_mode = 'MC' AND s.creator_key = 'maria clara')
-         OR (p_agent_mode = 'HUM' AND s.creator_key <> 'maria clara'))),
+  WHERE ($5 IS NULL OR s.creator_key IN (SELECT unnest(list) FROM cr))
+    AND (COALESCE($6,'ALL') IN ('ALL','')
+         OR ($6 = 'MC' AND s.creator_key = 'maria clara')
+         OR ($6 = 'HUM' AND s.creator_key <> 'maria clara'))),
 -- início do "ciclo" de cada consulta = data do novo agendamento que a abriu (para a safra)
 ciclo AS MATERIALIZED (
   SELECT f.*, COALESCE(f.lead_dt, f.created_at) AS ref_dt FROM camp_f f),
@@ -90,30 +95,38 @@ pac_tot AS (SELECT c.patient_id, MIN(c.created_at) AS primeira FROM ciclo c GROU
 alvo AS MATERIALIZED (
   -- pacientes que aparecem em alguma etapa do período, com as etapas já marcadas
   SELECT c.patient_id,
-    CASE WHEN p_view = 'safra'
-         THEN bool_or(c.novo AND c.ref_dt >= p_start AND c.ref_dt < p_end)
-         ELSE bool_or(c.novo AND c.created_at >= p_start AND c.created_at < p_end) END AS agendou,
-    CASE WHEN p_view = 'safra'
+    CASE WHEN $4 = 'safra'
+         THEN bool_or(c.novo AND c.ref_dt >= $1 AND c.ref_dt < $2)
+         ELSE bool_or(c.novo AND c.created_at >= $1 AND c.created_at < $2) END AS agendou,
+    CASE WHEN $4 = 'safra'
          THEN bool_or(c.confirmed_time IS NOT NULL OR c.attended_time IS NOT NULL)
-         ELSE bool_or((c.confirmed_time >= p_start AND c.confirmed_time < p_end)
-                      OR (c.attended_time >= p_start AND c.attended_time < p_end)) END AS confirmou,
-    CASE WHEN p_view = 'safra'
+         ELSE bool_or((c.confirmed_time >= $1 AND c.confirmed_time < $2)
+                      OR (c.attended_time >= $1 AND c.attended_time < $2)) END AS confirmou,
+    CASE WHEN $4 = 'safra'
          THEN bool_or(c.attended_time IS NOT NULL)
-         ELSE bool_or(c.attended_time >= p_start AND c.attended_time < p_end) END AS compareceu,
+         ELSE bool_or(c.attended_time >= $1 AND c.attended_time < $2) END AS compareceu,
     MIN(c.ref_dt) FILTER (WHERE c.novo) AS ref_dt
   FROM ciclo c GROUP BY 1),
 safra AS (SELECT a.patient_id FROM alvo a WHERE a.agendou),
-pg AS (
-  SELECT p.patient_id, SUM(p.amount)::numeric AS total, COUNT(*)::int AS n
+pg0 AS MATERIALIZED (
+  SELECT p.id, p.patient_id, p.amount, p.date
   FROM "BI Payments" p
   JOIN pac_tot t ON t.patient_id = p.patient_id
   WHERE p.deleted_at IS NULL
     AND NOT (btrim(COALESCE(p.payment_type_name,'')) ILIKE 'boleto programado' AND COALESCE(p.is_confirmed,false) = false)
-    AND (p_clinic_ids IS NULL OR p.clinic_id = ANY(p_clinic_ids))
+    AND ($3 IS NULL OR p.clinic_id = ANY($3))
     AND p.date >= date_trunc('day', t.primeira)
-    AND CASE WHEN p_view = 'safra'
+    AND CASE WHEN $4 = 'safra'
              THEN p.patient_id IN (SELECT patient_id FROM safra)
-             ELSE p.date >= p_start AND p.date < p_end END
+             ELSE p.date >= $1 AND p.date < $2 END),
+pg AS (
+  SELECT p.patient_id, SUM(p.amount)::numeric AS total, COUNT(*)::int AS n
+  FROM pg0 p
+  -- venda que vem depois de consulta de Follow-Up/Resgate é do funil de resgate, não da campanha
+  -- (caso da Thauany, 27/10): olha a última consulta atendida do paciente antes do pagamento
+  WHERE COALESCE((SELECT x.subchannel_name FROM "BI Appointments" x
+                  WHERE x.patient_id = p.patient_id AND x.attended_time IS NOT NULL AND x.start_time <= p.date
+                  ORDER BY x.start_time DESC LIMIT 1), '') !~* '^(follow|resgate)'
   GROUP BY 1),
 info AS (
   SELECT c.patient_id, MAX(c.clinic_id) AS clinic_id, MAX(c.patient_name) AS patient_name,
@@ -125,14 +138,17 @@ info AS (
 SELECT i.clinic_id, i.patient_id, i.patient_name, i.phone_norm, i.cw_contact_id, i.account_id, i.lead_name,
        COALESCE(a.ref_dt, i.lead_dt) AS lead_dt,
        a.agendou,
-       CASE WHEN p_view = 'safra' THEN a.agendou AND a.confirmou ELSE a.confirmou END,
-       CASE WHEN p_view = 'safra' THEN a.agendou AND a.compareceu ELSE a.compareceu END,
+       CASE WHEN $4 = 'safra' THEN a.agendou AND a.confirmou ELSE a.confirmou END,
+       CASE WHEN $4 = 'safra' THEN a.agendou AND a.compareceu ELSE a.compareceu END,
        COALESCE(g.total, 0), COALESCE(g.n, 0), i.canais, COALESCE(i.atendentes, ARRAY[]::text[])
 FROM alvo a
 JOIN info i ON i.patient_id = a.patient_id
 LEFT JOIN pg g ON g.patient_id = a.patient_id
-WHERE CASE WHEN p_view = 'safra' THEN a.agendou
-           ELSE a.agendou OR a.confirmou OR a.compareceu OR COALESCE(g.total, 0) > 0 END;
+WHERE CASE WHEN $4 = 'safra' THEN a.agendou
+           ELSE a.agendou OR a.confirmou OR a.compareceu OR COALESCE(g.total, 0) > 0 END
+$q$
+USING p_start, p_end, p_clinic_ids, p_view, p_creators, p_agent_mode;
+END;
 $function$;
 
 -- Leads do período: contato do Chatwoot com etiqueta de campanha ou anúncio, contado na data em

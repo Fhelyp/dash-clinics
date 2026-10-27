@@ -45,6 +45,23 @@ export async function onRequestGet({ request, env, data }) {
     p_agent_mode: agentMode === 'MC' || agentMode === 'HUM' ? agentMode : 'ALL'
   };
 
+  // Cache de 180s (mesmo esquema do stats.js). A chave é o corpo inteiro da RPC, que já leva as
+  // clínicas permitidas do usuário — isola por RBAC e qualquer filtro novo entra sozinho na chave.
+  const cacheKeyHash = await sha256Short(JSON.stringify(body));
+  const cacheUrl = new URL(url);
+  cacheUrl.pathname = '/__funnel_cache__';
+  cacheUrl.search = '?k=' + cacheKeyHash;
+  const cacheKey = new Request(cacheUrl.toString(), { method: 'GET' });
+  const cache = caches.default;
+  let cached = null;
+  try { cached = await cache.match(cacheKey); } catch (_) {}
+  if (cached) {
+    return new Response(await cached.text(), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'X-Cache': 'HIT' }
+    });
+  }
+
   try {
     const res = await fetch(rpcUrl, {
       method: 'POST',
@@ -53,9 +70,14 @@ export async function onRequestGet({ request, env, data }) {
     });
     const txt = await res.text();
     if (!res.ok) return j(res.status, { error: 'rpc_error', message: txt.slice(0,300) });
+    const toCache = new Response(txt, {
+      status: 200,
+      headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=180, s-maxage=180' }
+    });
+    try { await cache.put(cacheKey, toCache); } catch (_) {}
     return new Response(txt, {
       status: 200,
-      headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store, must-revalidate' }
+      headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store, must-revalidate', 'X-Cache': 'MISS' }
     });
   } catch (e) {
     return j(500, { error: 'rpc_exception', message: String(e?.message||e) });
@@ -64,4 +86,9 @@ export async function onRequestGet({ request, env, data }) {
 
 function j(status, body) {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+}
+
+async function sha256Short(s) {
+  const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
+  return Array.from(new Uint8Array(hash)).slice(0, 12).map(b => b.toString(16).padStart(2, '0')).join('');
 }
