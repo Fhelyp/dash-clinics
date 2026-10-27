@@ -898,7 +898,7 @@
   <div class="mktpad">
 
     <!-- ═══ NOVA LINHA: 4 KPIs de Campanha ═══ -->
-    <div id="cmpKpis" style="display:grid;grid-template-columns:repeat(4,1fr);gap:var(--gap);margin-bottom:var(--gap);">
+    <div id="cmpKpis" class="cmp-busy cmp-first" style="display:grid;grid-template-columns:repeat(4,1fr);gap:var(--gap);margin-bottom:var(--gap);">
       <div class="bn">
         <div class="bnl">Leads de Campanha</div>
         <div class="bnv" id="cmpLeads">0</div>
@@ -922,7 +922,7 @@
     </div>
 
     <!-- ═══ Funil de Vendas (5 estágios) — CLICÁVEL pra drill-down ═══ -->
-    <div class="card" id="fnlCard" style="margin-bottom:var(--gap);padding:18px 22px;">
+    <div class="card fnl-busy fnl-first" id="fnlCard" style="margin-bottom:var(--gap);padding:18px 22px;">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:8px;">
         <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--gray-l);">Funil de Vendas — Campanha</div>
         <div id="fnlViewToggle" role="group" aria-label="Visão do funil" style="display:flex;gap:2px;padding:2px;border:1px solid var(--border);border-radius:8px;">
@@ -930,7 +930,7 @@
           <button type="button" class="fnl-view-opt" data-view="safra" onclick="setFunnelView('safra')" title="Só os leads que caíram no período; deles, quem agendou, compareceu e pagou, em qualquer data. É o resultado do mês.">Safra de leads</button>
         </div>
         <div style="display:flex;align-items:center;gap:12px;">
-          <span class="fnl-status" id="fnlStatus" role="status" aria-live="polite"></span>
+          <span class="fnl-status" id="fnlStatus" role="status" aria-live="polite">Carregando funil…</span>
           <div style="font-size:9.5px;color:var(--gray);">💡 clica numa barra pra ver os contatos</div>
         </div>
       </div>
@@ -1024,7 +1024,14 @@
       #fnlBars,#cmpKpis .bnv{transition:opacity .2s}
       .fnl-busy #fnlBars,#cmpKpis.cmp-busy .bnv{opacity:.3}
       .fnl-busy #fnlBars{pointer-events:none}
-      @media (prefers-reduced-motion: reduce){.fnl-status::before{animation:none}}
+      /* primeira carga: esqueleto no lugar dos números (antes aparecia 0 e parecia quebrado) */
+      @keyframes fnlSkel{0%,100%{opacity:.45}50%{opacity:1}}
+      .fnl-first .fnl-val,.fnl-first .fnl-conv,#cmpKpis.cmp-first .bnv{color:transparent!important;background:rgba(148,163,184,.22);border-radius:6px;min-width:64px;animation:fnlSkel 1.2s ease-in-out infinite}
+      .fnl-first .fnl-conv{min-width:40px}
+      #cmpKpis.cmp-first .bnv{min-width:90px;margin:0 auto}
+      .fnl-first .fnl-bar{height:56px!important;animation:fnlSkel 1.2s ease-in-out infinite}
+      .fnl-busy.fnl-first #fnlBars,#cmpKpis.cmp-busy.cmp-first .bnv{opacity:1}
+      @media (prefers-reduced-motion: reduce){.fnl-status::before,.fnl-first .fnl-val,.fnl-first .fnl-conv,.fnl-first .fnl-bar,#cmpKpis.cmp-first .bnv{animation:none}}
       /* Modal drill-down — z-index máximo (max signed 32-bit), evita conflito
          com sidebar/topbar que têm position:fixed. JS move ele pra direct
          child do <body> em runtime pra escapar de stacking contexts criados
@@ -1741,6 +1748,7 @@ function _runUpdate(){
   showBanner('Atualizando dados…', 'info');
   // Re-render chips imediatamente pra UX (botões já mudam de cor)
   renderActiveFilterChips();
+  try { setFunnelBusy(); } catch(_) {}
   fetchStats().then(stats => {
     STATS = stats;
     try { applyStatsToUI(stats); } catch(e){ console.error('[applyStatsToUI]', e); }
@@ -1749,6 +1757,7 @@ function _runUpdate(){
   }).catch(e => {
     if(e.message === 'unauthorized') return;
     console.error('[updateDashboard]', e);
+    try { setFunnelFailed(); } catch(_) {}
     showBanner('Erro ao atualizar: ' + e.message, 'error');
     setTimeout(hideBanner, 3000);
   }).finally(() => {
@@ -2442,6 +2451,7 @@ async function loadFromSupabase(){
     [lookups, stats] = await Promise.all([fetchLookups(), fetchStats()]);
   } catch(e){
     if(e.message === 'unauthorized') { hideBanner(); return; }
+    try { setFunnelFailed(); } catch(_) {}
     showBanner('Erro: ' + e.message, 'error');
     setTimeout(hideBanner, 3000); // fecha o erro após 3s
     return;
@@ -2965,18 +2975,40 @@ function setFunnelView(v){
   loadFunnelMarketing();
 }
 let _fnlSeq = 0;  // só a chamada mais recente pinta a tela (troca rápida de visão/filtro)
+// Esmaece funil + KPIs de campanha e mostra o spinner. Chamado também no começo de uma troca de
+// filtro, porque o funil só carrega depois do dashboard_stats.
+function setFunnelBusy(){
+  const st = document.getElementById('fnlStatus');
+  document.getElementById('fnlCard')?.classList.add('fnl-busy');
+  document.getElementById('cmpKpis')?.classList.add('cmp-busy');
+  if (st) {
+    st.classList.remove('err');
+    const first = document.getElementById('fnlCard')?.classList.contains('fnl-first');
+    st.textContent = first ? 'Carregando funil…'
+      : FUNNEL_VIEW === 'safra' ? 'Atualizando safra de leads…' : 'Atualizando comissão…';
+  }
+}
+function setFunnelFailed(){
+  const card = document.getElementById('fnlCard');
+  const kpis = document.getElementById('cmpKpis');
+  const st = document.getElementById('fnlStatus');
+  if (card?.classList.contains('fnl-first')) {
+    ['fnlLeads','fnlAgend','fnlConf','fnlComp','fnlVend','cmpLeads','cmpAgend','cmpComp','cmpVendas'].forEach(id => setTxt(id, '—'));
+    setTxt('fnlConvVR', '—');
+  }
+  card?.classList.remove('fnl-busy', 'fnl-first');
+  kpis?.classList.remove('cmp-busy', 'cmp-first');
+  if (st) {
+    st.textContent = 'Não foi possível carregar o funil. Tente de novo.';
+    st.classList.add('err');
+  }
+}
 async function loadFunnelMarketing(){
   renderFunnelViewToggle();
   const seq = ++_fnlSeq;
   const card = document.getElementById('fnlCard');
   const kpis = document.getElementById('cmpKpis');
-  const st = document.getElementById('fnlStatus');
-  card?.classList.add('fnl-busy');
-  kpis?.classList.add('cmp-busy');
-  if (st) {
-    st.classList.remove('err');
-    st.textContent = FUNNEL_VIEW === 'safra' ? 'Atualizando safra de leads…' : 'Atualizando comissão…';
-  }
+  setFunnelBusy();
   let ok = false;
   try {
     const fparams = buildStatsParams();
@@ -3030,11 +3062,11 @@ async function loadFunnelMarketing(){
   } catch(e) { console.warn('[funnel]', e.message); }
   finally {
     if (seq === _fnlSeq) {
-      card?.classList.remove('fnl-busy');
-      kpis?.classList.remove('cmp-busy');
-      if (!ok && st) {
-        st.textContent = 'Não foi possível atualizar o funil. Tente de novo.';
-        st.classList.add('err');
+      if (ok) {
+        card?.classList.remove('fnl-busy', 'fnl-first');
+        kpis?.classList.remove('cmp-busy', 'cmp-first');
+      } else {
+        setFunnelFailed();
       }
     }
   }
