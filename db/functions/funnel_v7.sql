@@ -10,14 +10,16 @@
 --   3. Duas visões (p_view):
 --        'comissao' → cada etapa no período em que aconteceu, não importa quando o lead caiu
 --                     (agendamento criado, confirmação, comparecimento e pagamento no período);
---        'safra'    → só os leads que caíram no período; deles, quem agendou, compareceu e
---                     pagou, em qualquer data.
+--        'safra'    → só os leads que caíram no período; deles, quem agendou no período e,
+--                     desse agendamento em diante, quem compareceu e pagou (em qualquer data).
+--      Data do lead de uma consulta = sinal de lead mais recente ANTES dela (criação do contato
+--      ou anúncio). Anúncio clicado depois do agendamento é outro lead.
 --   4. Campanha = consulta de Avaliação, de lead que veio de anúncio (Chatwoot) ou marcada
 --      "Lead Campanha" no Ecuro. Follow-up e resgate ficam no funil próprio.
 --   5. Remarcação não conta como novo agendamento: outra consulta de campanha do mesmo
 --      paciente nos 60 dias anteriores = remarcação. O comparecimento dela conta.
 --   6. Lead que foi direto à clínica (canal que não é CRC nem Maria Clara): só é campanha se a
---      consulta foi criada até 30 dias depois da data do lead.
+--      consulta foi criada depois do lead e até 30 dias dele.
 --   7. Família no mesmo telefone: já tratada na atribuição (nome compatível, 19/10).
 --   8. Receita: valores lançados como pagamento; boleto programado só quando pago. Pagamento cuja
 --      última consulta atendida antes dele foi de Follow-Up/Resgate é do funil de resgate, não daqui.
@@ -39,13 +41,12 @@ WITH
 cr AS (
   SELECT array_agg(lower(public.immutable_unaccent(btrim(regexp_replace(c, '\s+', ' ', 'g'))))) AS list
   FROM unnest(COALESCE($5, ARRAY[]::text[])) c),
--- data em que o lead "caiu": a mais recente entre a criação do contato e o anúncio registrado
+-- sinais de lead do contato: criação no Chatwoot e anúncio registrado
 -- (anuncio_dt vem como meia-noite UTC do dia; vira meia-noite de Brasília do mesmo dia)
 lead_att AS MATERIALIZED (
   SELECT att.appt_id, att.cw_contact_id, att.account_id, att.lead_name,
-         GREATEST(COALESCE(cl.created_at_cw, att.lead_created_at),
-                  COALESCE((cl.anuncio_dt AT TIME ZONE 'UTC')::date::timestamp AT TIME ZONE 'America/Sao_Paulo',
-                           att.lead_created_at)) AS lead_dt
+         COALESCE(cl.created_at_cw, att.lead_created_at) AS cw_dt,
+         (cl.anuncio_dt AT TIME ZONE 'UTC')::date::timestamp AT TIME ZONE 'America/Sao_Paulo' AS an_dt
   FROM campaign_appt_attribution att
   LEFT JOIN chatwoot_leads cl ON cl.id = att.cw_contact_id AND cl.account_id = att.account_id
   WHERE ($3 IS NULL OR att.clinic_id = ANY($3))),
@@ -57,9 +58,14 @@ camp AS MATERIALIZED (
          CASE WHEN a.channel_name = 'Maria Clara IA' THEN 'maria clara'
               WHEN COALESCE(btrim(a.created_by_name),'') = '' THEN 'sem criador'
               ELSE a.created_by_name_norm END AS creator_key,
-         la.cw_contact_id, la.account_id, la.lead_name, la.lead_dt
+         la.cw_contact_id, la.account_id, la.lead_name,
+         -- lead não pode ter "caído" depois do agendamento que ele gerou
+         CASE WHEN la.appt_id IS NOT NULL THEN LEAST(a.created_at, lr.lead_raw) END AS lead_dt
   FROM "BI Appointments" a
   LEFT JOIN lead_att la ON la.appt_id = a.id
+  -- sinal de lead mais recente que veio ANTES da consulta (um anúncio clicado depois do
+  -- agendamento é outro lead, não o que gerou este agendamento — caso dos 99 da safra, 27/10)
+  CROSS JOIN LATERAL (SELECT GREATEST(la.cw_dt, CASE WHEN la.an_dt <= a.created_at THEN la.an_dt END) AS lead_raw) lr
   WHERE a.patient_id IS NOT NULL
     AND a.created_at < $2
     AND a.speciality_id = '8409c08e-f3fa-43a0-b9bd-53128cecdbdc'::uuid        -- regra 4: Avaliação
@@ -68,7 +74,8 @@ camp AS MATERIALIZED (
     AND (a.subchannel_name = 'Lead Campanha'
          OR (la.appt_id IS NOT NULL
              AND (a.channel_name IN ('CRC','Maria Clara IA')                    -- regra 2: sem prazo
-                  OR a.created_at <= la.lead_dt + interval '30 days')))),       -- regra 6
+                  OR (a.created_at >= lr.lead_raw                                -- regra 6: consulta depois
+                      AND a.created_at <= lr.lead_raw + interval '30 days'))))),  --   do lead, até 30 dias
 -- regra 1: fora quem concluiu consulta nos 6 meses antes do agendamento
 camp_ok AS MATERIALIZED (
   SELECT c.* FROM camp c
@@ -88,10 +95,16 @@ camp_f AS MATERIALIZED (
     AND (COALESCE($6,'ALL') IN ('ALL','')
          OR ($6 = 'MC' AND s.creator_key = 'maria clara')
          OR ($6 = 'HUM' AND s.creator_key <> 'maria clara'))),
--- início do "ciclo" de cada consulta = data do novo agendamento que a abriu (para a safra)
-ciclo AS MATERIALIZED (
+-- ref_dt = data do lead da consulta (sem contato no Chatwoot: a do agendamento).
+-- safra_ini = criação do novo agendamento de lead do período: na safra, só o que vem dele em
+-- diante conta (comparecimento/venda de ciclo anterior do paciente não é desta safra).
+ciclo0 AS MATERIALIZED (
   SELECT f.*, COALESCE(f.lead_dt, f.created_at) AS ref_dt FROM camp_f f),
-pac_tot AS (SELECT c.patient_id, MIN(c.created_at) AS primeira FROM ciclo c GROUP BY 1),
+ciclo AS MATERIALIZED (
+  SELECT c.*, MIN(c.created_at) FILTER (WHERE c.novo AND c.ref_dt >= $1 AND c.ref_dt < $2)
+                OVER (PARTITION BY c.patient_id) AS safra_ini
+  FROM ciclo0 c),
+pac_tot AS (SELECT c.patient_id, MIN(c.created_at) AS primeira, MIN(c.safra_ini) AS safra_ini FROM ciclo c GROUP BY 1),
 alvo AS MATERIALIZED (
   -- pacientes que aparecem em alguma etapa do período, com as etapas já marcadas
   SELECT c.patient_id,
@@ -99,15 +112,14 @@ alvo AS MATERIALIZED (
          THEN bool_or(c.novo AND c.ref_dt >= $1 AND c.ref_dt < $2)
          ELSE bool_or(c.novo AND c.created_at >= $1 AND c.created_at < $2) END AS agendou,
     CASE WHEN $4 = 'safra'
-         THEN bool_or(c.confirmed_time IS NOT NULL OR c.attended_time IS NOT NULL)
+         THEN bool_or(c.created_at >= c.safra_ini AND (c.confirmed_time IS NOT NULL OR c.attended_time IS NOT NULL))
          ELSE bool_or((c.confirmed_time >= $1 AND c.confirmed_time < $2)
                       OR (c.attended_time >= $1 AND c.attended_time < $2)) END AS confirmou,
     CASE WHEN $4 = 'safra'
-         THEN bool_or(c.attended_time IS NOT NULL)
+         THEN bool_or(c.created_at >= c.safra_ini AND c.attended_time IS NOT NULL)
          ELSE bool_or(c.attended_time >= $1 AND c.attended_time < $2) END AS compareceu,
     MIN(c.ref_dt) FILTER (WHERE c.novo) AS ref_dt
   FROM ciclo c GROUP BY 1),
-safra AS (SELECT a.patient_id FROM alvo a WHERE a.agendou),
 pg0 AS MATERIALIZED (
   SELECT p.id, p.patient_id, p.amount, p.date
   FROM "BI Payments" p
@@ -115,10 +127,9 @@ pg0 AS MATERIALIZED (
   WHERE p.deleted_at IS NULL
     AND NOT (btrim(COALESCE(p.payment_type_name,'')) ILIKE 'boleto programado' AND COALESCE(p.is_confirmed,false) = false)
     AND ($3 IS NULL OR p.clinic_id = ANY($3))
-    AND p.date >= date_trunc('day', t.primeira)
     AND CASE WHEN $4 = 'safra'
-             THEN p.patient_id IN (SELECT patient_id FROM safra)
-             ELSE p.date >= $1 AND p.date < $2 END),
+             THEN t.safra_ini IS NOT NULL AND p.date >= date_trunc('day', t.safra_ini)
+             ELSE p.date >= date_trunc('day', t.primeira) AND p.date >= $1 AND p.date < $2 END),
 pg AS (
   SELECT p.patient_id, SUM(p.amount)::numeric AS total, COUNT(*)::int AS n
   FROM pg0 p

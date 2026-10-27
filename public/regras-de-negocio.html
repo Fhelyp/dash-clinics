@@ -69,7 +69,8 @@
       <tr><td>Família no mesmo telefone</td><td>Só a pessoa do lead conta como campanha; os demais são indicação.</td></tr>
       <tr><td>Receita</td><td>Valores lançados como pagamento no Ecuro. Boleto da clínica pelo valor lançado; boleto programado só quando pago. Venda que vem depois de consulta de Follow-Up ou Resgate é do resgate, não da campanha.</td></tr>
       <tr><td>Confirmados</td><td>Informativo, fora da meta.</td></tr>
-      <tr><td>Visões</td><td><strong>Comissão</strong>: cada etapa no período em que aconteceu, não importa quando o lead caiu. <strong>Safra de leads</strong>: só os leads que caíram no período e o que fizeram depois, em qualquer data.</td></tr>
+      <tr><td>Visões</td><td><strong>Comissão</strong>: cada etapa no período em que aconteceu, não importa quando o lead caiu. <strong>Safra de leads</strong>: só os leads que caíram no período e agendaram no período; comparecimento e venda contam desse agendamento em diante, mesmo depois do período.</td></tr>
+      <tr><td>Data do lead de um agendamento</td><td>O sinal de lead mais recente <strong>antes</strong> do agendamento (criação do contato no Chatwoot ou anúncio). Anúncio clicado depois de agendar é outro lead e não muda a data daquele agendamento.</td></tr>
     </table>
     <div class="note"><strong>Follow-up e resgate</strong> não entram no funil de campanha: ficam no bloco "Resgate &amp; Follow-up".</div>
   </div>
@@ -94,7 +95,9 @@
   <details class="faq"><summary>O que entra na receita?</summary>
     <p>Os valores lançados como pagamento no Ecuro. Boleto da clínica entra pelo valor lançado; boleto programado só quando é pago. Estorno ainda não é descontado.</p></details>
   <details class="faq"><summary>Qual a diferença entre as visões Comissão e Safra de leads?</summary>
-    <p>Comissão mostra o que aconteceu no período (agendou, compareceu, pagou), não importa quando o lead caiu: é a base da comissão. Safra mostra só os leads que caíram no período e tudo que eles fizeram depois: é o resultado do mês e a base da análise trimestral.</p></details>
+    <p>Comissão mostra o que aconteceu no período (agendou, compareceu, pagou), não importa quando o lead caiu: é a base da comissão. Safra mostra só os leads que caíram no período que agendaram no período, e o comparecimento e a venda deles desse agendamento em diante: é o resultado do mês e a base da análise trimestral.</p></details>
+  <details class="faq"><summary>A Safra pode ter mais agendados que a Comissão?</summary>
+    <p>Não. Todo agendado da Safra agendou no período, então também está na Comissão; a Comissão tem a mais quem agendou no período mas virou lead antes dele. Em mês fechado, a Safra pode ter mais comparecimentos e vendas que a Comissão daquele mês: são leads do mês que compareceram ou pagaram no mês seguinte.</p></details>
   <details class="faq"><summary>Por que, na visão Comissão, pode haver mais comparecimentos que agendamentos?</summary>
     <p>Porque cada etapa é contada no período em que aconteceu. Quem agendou no mês passado e compareceu neste mês entra nos comparecimentos deste mês.</p></details>
   <details class="faq"><summary>Confirmados entram na meta?</summary>
