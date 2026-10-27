@@ -23,7 +23,7 @@ export async function onRequestGet({ env, data }) {
   const allowed = data?.user?.allowed_clinic_ids;
 
   // 1. Clínicas: lê unitConfigs (read-only) — Ecuro_clinicId + Unidade + regional (pra agrupar)
-  let clinicsUrl = `${env.SUPABASE_URL}/rest/v1/unitConfigs?select=Ecuro_clinicId,Unidade,regional&Ecuro_clinicId=not.is.null&order=regional.asc,Unidade.asc`;
+  let clinicsUrl = `${env.SUPABASE_URL}/rest/v1/unitConfigs?select=Ecuro_clinicId,Unidade,regional&Ecuro_clinicId=not.is.null&Dash=is.true&order=regional.asc,Unidade.asc`;
   if (Array.isArray(allowed) && allowed.length > 0) {
     clinicsUrl += `&Ecuro_clinicId=in.(${allowed.join(',')})`;
   }

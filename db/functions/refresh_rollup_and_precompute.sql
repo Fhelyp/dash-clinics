@@ -17,7 +17,7 @@ BEGIN
   -- 1 chamada por MES EXATO -> start_time+changeDate no mesmo mes, sem vazar log entre meses,
   -- e bate com o dashboard_stats_live (que usa < p_end exclusivo). NAO passar 1o dia do mes
   -- seguinte como p_to (incluiria 1 dia extra = o drift de reagendamento).
-  SELECT array_agg("Ecuro_clinicId" ORDER BY "Ecuro_clinicId") INTO ids FROM "unitConfigs" WHERE "Ecuro_clinicId" IS NOT NULL;
+  SELECT array_agg("Ecuro_clinicId" ORDER BY "Ecuro_clinicId") INTO ids FROM "unitConfigs" WHERE "Ecuro_clinicId" IS NOT NULL AND "Dash" IS TRUE;
   n := array_length(ids,1);
   WHILE i <= n LOOP
     BEGIN

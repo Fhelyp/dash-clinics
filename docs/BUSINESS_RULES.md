@@ -15,6 +15,14 @@ Vale para a receita do dash principal, o funil de marketing ("venderam") e o fun
 - **Demais formas** (cartão, Pix, dinheiro etc.): contam como vendido, confirmadas ou não.
 - Lançamento **excluído** (`deleted_at` preenchido) nunca conta.
 
+### Unidades no dash: só `"Dash" = true` (27/10/2026)
+`unitConfigs."Dash" = false` significa que a unidade **não pode ter dado puxado nem guardado** para o
+dash. O filtro `Dash=is.true` está no sync da VPS (`listClinics`), nas funções do rollup
+(`refresh_rollup_and_precompute`, `refresh_rollup_old_months`), no `clinics_sync_status` e no
+front (`lookups.js`, escopo do `login.js`/`sso.js`). Em 27/10 foram apagados os dados das 22 unidades
+cadastradas em 19/10 com `Dash=false` (52 mil logs, 11,9 mil agendamentos, 7,7 mil pagamentos).
+Unidade que passar a `Dash=true` precisa de um bootstrap do sync (janela 20h–08h) para trazer o mês.
+
 ### Funil de marketing (v6, em produção)
 - **Campanha** = consulta com subcanal `Lead Campanha` no Ecuro **ou** consulta cujo telefone
   bate com um contato do Chatwoot etiquetado `campanha` (criada depois do lead).
