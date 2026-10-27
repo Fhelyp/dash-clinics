@@ -1,5 +1,7 @@
-// Endpoint do Funil de Vendas. Chama funnel_stats(start, end, clinic_ids).
-// Cruza chatwoot_leads (label=campanha) × BI Appointments × BI Payments.
+// Endpoint do Funil de Vendas. Chama funnel_stats_v7 (regras de 27/10/2026, docs/DECISOES_2026-10-27.md).
+// Cruza chatwoot_leads (campanha/anúncio) × BI Appointments × BI Payments.
+// view = 'comissao' (cada etapa no período em que aconteceu) | 'safra' (leads que caíram no período).
+// creators (nomes separados por |) e agent_mode (MC|HUM) seguem os filtros de operador do dash.
 import { supaHeaders } from '../../_lib/supabase.js';
 
 export async function onRequestGet({ request, env, data }) {
@@ -29,11 +31,18 @@ export async function onRequestGet({ request, env, data }) {
     if (clinicIdsParam.length === 0) clinicIdsParam = null;
   }
 
-  const rpcUrl = `${env.SUPABASE_URL}/rest/v1/rpc/funnel_stats`;
+  const view = url.searchParams.get('view') === 'safra' ? 'safra' : 'comissao';
+  const creators = url.searchParams.get('creators');
+  const agentMode = url.searchParams.get('agent_mode');
+
+  const rpcUrl = `${env.SUPABASE_URL}/rest/v1/rpc/funnel_stats_v7`;
   const body = {
     p_start: start + 'T00:00:00-03:00',
     p_end:   end   + 'T00:00:00-03:00',
-    p_clinic_ids: clinicIdsParam
+    p_clinic_ids: clinicIdsParam,
+    p_view: view,
+    p_creators: creators ? creators.split('|').filter(Boolean) : null,  // nomes podem ter vírgula → |
+    p_agent_mode: agentMode === 'MC' || agentMode === 'HUM' ? agentMode : 'ALL'
   };
 
   try {

@@ -39,17 +39,70 @@
   .note strong{color:var(--purple);}
   .warn{font-size:12px;background:rgba(249,115,22,.08);border:1px solid rgba(249,115,22,.25);padding:12px 14px;border-radius:8px;color:var(--gray-l);margin:10px 0;}
   .warn strong{color:var(--orange);}
+  details.faq{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 18px;margin:8px 0;}
+  details.faq summary{cursor:pointer;font-size:13px;font-weight:600;color:var(--white);}
+  details.faq summary:focus-visible{outline:2px solid var(--purple);outline-offset:2px;border-radius:4px;}
+  details.faq p{margin-top:8px;}
   .formula{background:var(--card2);border-left:3px solid var(--purple);padding:10px 14px;border-radius:0 6px 6px 0;font-family:'JetBrains Mono',monospace;font-size:11.5px;color:var(--white);margin:10px 0;overflow-x:auto;}
 </style>
 </head>
 <body class="light">
 <div class="top">
   <a href="/">← Voltar ao dashboard</a>
-  <span style="font-size:11px;color:var(--gray);">Atualizado em <strong style="color:var(--gray-l);">2026-04-29</strong></span>
+  <span style="font-size:11px;color:var(--gray);">Atualizado em <strong style="color:var(--gray-l);">2026-10-27</strong></span>
 </div>
 <div class="wrap">
   <h1>Regras de Negócio</h1>
   <p class="lead">Como cada métrica do dashboard é calculada. Esta página existe para que decisões financeiras (comissionamento, atribuição de receita, performance de campanhas) sejam <strong style="color:var(--white);">auditáveis e questionáveis</strong>.</p>
+
+  <h2>Funil de marketing · regras em vigor (27/10/2026)</h2>
+  <div class="card">
+    <p>Regras decididas com a gerência em 27/10/2026. Mudança de regra só entra no dash por decisão da gerência, por escrito e com data de início.</p>
+    <table>
+      <tr><th>Tema</th><th>Regra</th></tr>
+      <tr><td>Lead</td><td>Contato do Chatwoot com etiqueta <code>campanha</code> ou anúncio de origem, contado na data em que caiu (criação do contato ou anúncio mais recente). Sem duplicados de telefone.</td></tr>
+      <tr><td>Campanha</td><td>Consulta de <strong>Avaliação</strong> de lead que veio de anúncio, ou marcada <code>Lead Campanha</code> no Ecuro. Vale igual para operador e Maria Clara.</td></tr>
+      <tr><td>Validade do lead</td><td>Sem prazo: uma vez campanha, sempre campanha.</td></tr>
+      <tr><td>Paciente da casa</td><td>Quem teve consulta concluída nos 6 meses antes do agendamento não conta como campanha. Ficha sem consulta concluída não tira.</td></tr>
+      <tr><td>Remarcação</td><td>Conta como agendado uma vez só, no primeiro agendamento (outra consulta de campanha do paciente nos 60 dias anteriores é remarcação). O comparecimento depois conta.</td></tr>
+      <tr><td>Lead que foi direto à clínica</td><td>Consulta criada pela recepção (fachada e outros canais) conta como campanha até 30 dias depois do lead. Depois, é orgânico.</td></tr>
+      <tr><td>Família no mesmo telefone</td><td>Só a pessoa do lead conta como campanha; os demais são indicação.</td></tr>
+      <tr><td>Receita</td><td>Valores lançados como pagamento no Ecuro. Boleto da clínica pelo valor lançado; boleto programado só quando pago.</td></tr>
+      <tr><td>Confirmados</td><td>Informativo, fora da meta.</td></tr>
+      <tr><td>Visões</td><td><strong>Comissão</strong>: cada etapa no período em que aconteceu, não importa quando o lead caiu. <strong>Safra de leads</strong>: só os leads que caíram no período e o que fizeram depois, em qualquer data.</td></tr>
+    </table>
+    <div class="note"><strong>Follow-up e resgate</strong> não entram no funil de campanha: ficam no bloco "Resgate &amp; Follow-up".</div>
+  </div>
+
+  <h2>Perguntas frequentes</h2>
+  <details class="faq"><summary>Lead que clicou num anúncio há meses e só agora agendou conta como campanha?</summary>
+    <p>Sim. Lead não tem prazo de validade: uma vez campanha, sempre campanha, desde que não seja paciente da casa (consulta concluída nos 6 meses antes do agendamento).</p></details>
+  <details class="faq"><summary>Quem já é paciente e clicou num anúncio conta?</summary>
+    <p>Não, se teve consulta concluída nos 6 meses antes do agendamento. Quem tem ficha mas nunca concluiu consulta (faltou ou cancelou) conta como campanha.</p></details>
+  <details class="faq"><summary>Por que o dash mostra menos leads que o filtro do Chatwoot?</summary>
+    <p>O dash tira telefones duplicados e conta o lead na data em que ele caiu. Contatos da carga antiga (antes de 06/04/2026) só contam se clicarem num anúncio novo. A diferença para o gerenciador de anúncios é normal: clique que não envia mensagem não vira conversa.</p></details>
+  <details class="faq"><summary>Agendamento feito pela Maria Clara conta?</summary>
+    <p>Sim, se o lead veio de anúncio. A regra é a mesma do operador. Para separar, use o botão Maria Clara / Operadores ou o filtro de operador.</p></details>
+  <details class="faq"><summary>A recepção marcou "Lead Campanha" por engano. Conta?</summary>
+    <p>Conta, porque o dash lê o Ecuro. Para ver só o que o CRC agendou, filtre pelos operadores do CRC. O certo é corrigir a marcação no Ecuro.</p></details>
+  <details class="faq"><summary>O paciente faltou e foi remarcado para o mês seguinte. Conta duas vezes?</summary>
+    <p>Não. Conta como agendado só no primeiro agendamento. Se comparecer depois, o comparecimento conta.</p></details>
+  <details class="faq"><summary>O lead não fechou com o CRC e foi direto à clínica. Conta?</summary>
+    <p>Conta como campanha se a consulta foi criada até 30 dias depois do lead. Depois disso, é orgânico.</p></details>
+  <details class="faq"><summary>Veio uma família usando o mesmo telefone. Quantos contam?</summary>
+    <p>Só a pessoa do lead conta como campanha. Os demais são indicação.</p></details>
+  <details class="faq"><summary>O que entra na receita?</summary>
+    <p>Os valores lançados como pagamento no Ecuro. Boleto da clínica entra pelo valor lançado; boleto programado só quando é pago. Estorno ainda não é descontado.</p></details>
+  <details class="faq"><summary>Qual a diferença entre as visões Comissão e Safra de leads?</summary>
+    <p>Comissão mostra o que aconteceu no período (agendou, compareceu, pagou), não importa quando o lead caiu: é a base da comissão. Safra mostra só os leads que caíram no período e tudo que eles fizeram depois: é o resultado do mês e a base da análise trimestral.</p></details>
+  <details class="faq"><summary>Por que, na visão Comissão, pode haver mais comparecimentos que agendamentos?</summary>
+    <p>Porque cada etapa é contada no período em que aconteceu. Quem agendou no mês passado e compareceu neste mês entra nos comparecimentos deste mês.</p></details>
+  <details class="faq"><summary>Confirmados entram na meta?</summary>
+    <p>Não. A coluna é informativa.</p></details>
+  <details class="faq"><summary>Follow-up de campanha aparece no funil?</summary>
+    <p>Não. Consultas marcadas como Follow-Up ou Resgate ficam no bloco "Resgate &amp; Follow-up".</p></details>
+  <details class="faq"><summary>Quem muda uma regra?</summary>
+    <p>A gerência. Dúvida ou exceção nova vai para a gerência, que decide; a regra entra no dash por escrito, com data de início.</p></details>
 
   <h2>1 · Origem dos dados</h2>
   <div class="card">
@@ -116,7 +169,7 @@
 
   <h2>6 · Receita do Período</h2>
   <div class="card">
-    <div class="formula">Receita = SUM(amount) em BI Payments WHERE is_confirmed = true AND deleted_at IS NULL AND date BETWEEN d1 AND d2 AND clinic_id IN unidades_filtradas</div>
+    <div class="formula">Receita = SUM(amount) em BI Payments WHERE deleted_at IS NULL AND date BETWEEN d1 AND d2 AND clinic_id IN unidades_filtradas AND NOT (boleto programado ainda não pago)</div>
     <p>"Melhor Mês" exibe o mês com maior receita confirmada no dataset completo (não respeita filtro de período, por design).</p>
   </div>
 
@@ -144,6 +197,7 @@
 
   <h2>9 · Leads de Campanha (Chatwoot)</h2>
   <div class="card">
+    <p>Regra em vigor: ver "Funil de marketing · regras em vigor" no topo desta página. O texto abaixo descreve a contagem antiga do card de leads.</p>
     <p>Conta contatos únicos cujas conversas têm a tag <code>campanha</code>, no mês corrente.</p>
     <div class="formula">Leads campanha (mês) = COUNT(DISTINCT conversation.contact_id) em /api/v1/accounts/{id}/conversations?labels[]=campanha onde conversation.created_at &ge; primeiro dia do mês</div>
     <p>Cada uma das 32 unidades tem seu próprio Chatwoot account. O agregador roda com throttle pesado (8s/unidade, 2,5s/página) para não comprometer o atendimento em produção.</p>

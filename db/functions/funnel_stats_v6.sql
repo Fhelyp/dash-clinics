@@ -17,6 +17,9 @@ WITH base AS MATERIALIZED (
   FROM campaign_appt_attribution att
   JOIN "BI Appointments" a ON a.id = att.appt_id
   WHERE att.created_at >= p_start AND att.created_at < p_end
+    -- a atribuicao passou a guardar leads de qualquer data (regra 27/10: lead sem prazo, so na v7);
+    -- a v6 mantem o piso antigo para nao mudar seus numeros ate a troca
+    AND att.lead_created_at >= p_min_lead_created_at
     AND (p_clinic_ids IS NULL OR att.clinic_id = ANY(p_clinic_ids))
 ),
 -- 1a consulta de campanha de cada paciente no periodo

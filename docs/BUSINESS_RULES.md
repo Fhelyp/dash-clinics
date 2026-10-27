@@ -1,9 +1,9 @@
 # Regras de Negócio — Dashboard Ecuro
 
 Documento atualizado em **24/06/2026** (refactor do funil por lead + receita por pessoa).
-Seção 0 atualizada em **19/10/2026** — ela prevalece sobre as seções abaixo quando houver conflito.
+Seção 0 atualizada em **27/10/2026** — ela prevalece sobre as seções abaixo quando houver conflito.
 
-## 0. Regras em vigor (19/10/2026)
+## 0. Regras em vigor (27/10/2026)
 
 ### Receita = valor VENDIDO (definição da Thauany, 19/10/2026)
 Vale para a receita do dash principal, o funil de marketing ("venderam") e o funil de resgate.
@@ -23,19 +23,21 @@ front (`lookups.js`, escopo do `login.js`/`sso.js`). Em 27/10 foram apagados os 
 cadastradas em 19/10 com `Dash=false` (52 mil logs, 11,9 mil agendamentos, 7,7 mil pagamentos).
 Unidade que passar a `Dash=true` precisa de um bootstrap do sync (janela 20h–08h) para trazer o mês.
 
-### Funil de marketing (v6, em produção)
-- **Campanha** = consulta com subcanal `Lead Campanha` no Ecuro **ou** consulta ligada a um contato
-  do Chatwoot etiquetado `campanha` (criada depois do lead), pelo telefone **ou pela ficha do Ecuro**
-  (atributo `ficha_ecuro` do contato → `chatwoot_leads.ficha_patient_id`, desde 27/10/2026). A ligação
-  pela ficha existe porque o Ecuro foi parando de mandar telefone nas consultas (1,6% vazias em maio,
-  96% em outubro/2026); os agendamentos da Maria Clara ficavam fora do funil.
-- **Telefone compartilhado** (19/10/2026): se o telefone do lead aparece em mais de um paciente
-  (família que usa o mesmo número), só conta como campanha quem tem nome compatível com o do lead:
-  o primeiro nome de um aparece no nome do outro (`public.nome_compativel`). Paciente sozinho no
-  número continua contando mesmo com apelido no Chatwoot. Ex.: Maisa e Marília Sena Cunha
-  (recepção) deixaram de contar pelo lead da mãe, Maria do Socorro.
-- **Janela** = data em que a consulta foi criada. **Exclui** quem já tinha sido atendido antes da
-  primeira consulta de campanha (paciente antigo). Detalhe em `db/functions/funnel_stats_v6.sql`.
+### Funil de marketing (v7, regras decididas com a gerência em 27/10/2026)
+Decisões, premissas e casos validados em `docs/DECISOES_2026-10-27.md`; código em
+`db/functions/funnel_v7.sql` (`funnel_stats_v7`, `funnel_detail_v7`, `funnel_v7_rows`, `funnel_v7_leads`).
+- **Campanha** = consulta de **Avaliação** de lead que veio de anúncio (contato do Chatwoot com
+  etiqueta `campanha` ou anúncio de origem, ligado à consulta pelo telefone **ou pela ficha do Ecuro** —
+  `chatwoot_leads.ficha_patient_id`, porque o Ecuro foi parando de mandar telefone nas consultas) ou
+  consulta marcada `Lead Campanha` no Ecuro. Follow-up e resgate ficam no funil próprio.
+- **Lead sem prazo**; **paciente da casa** (consulta concluída nos 6 meses antes do agendamento) não conta;
+  **remarcação** (outra consulta de campanha do paciente nos 60 dias anteriores) não conta como novo
+  agendamento; consulta da **recepção** (canal fora do CRC e da Maria Clara) só é campanha até 30 dias
+  depois do lead; **família** no mesmo telefone: só quem tem nome compatível com o lead (19/10).
+- **Duas visões** (botão no funil): **Comissão** (cada etapa no período em que aconteceu) e
+  **Safra de leads** (leads que caíram no período e o que fizeram depois).
+- **Lead** = contado na data em que caiu (criação do contato ou anúncio mais recente), piso 06/04/2026.
+- A v6 (`funnel_stats_v6`/`funnel_detail`) segue no banco como rollback; lê só leads a partir de 06/04/2026.
 
 ## 1. Atribuição de Receita à Maria Clara (MC)
 

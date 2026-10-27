@@ -1,13 +1,13 @@
-// Drill-down do Funil v2: lista contatos com filtros, busca e paginação.
+// Drill-down do Funil (v7, regras de 27/10/2026): lista contatos com filtros, busca e paginação.
+// Mesmos filtros do funil: view (comissao|safra), creators (|) e agent_mode (MC|HUM).
 // Params:
 //   stage   = leads|agendados|confirmados|compareceram|venderam
 //   start, end (obrigatórios)
-//   min_lead_created_at (default 2026-04-06)
 //   clinic_ids (CSV)
 //   limit (default 100, max 500)
 //   offset (default 0)
 //   search (nome ou telefone)
-//   origem (CSV de patient_channel_name pra filtrar)
+//   origem (CSV de canais da consulta de campanha, ex.: CRC, Maria Clara IA, Fachada)
 import { supaHeaders } from '../../_lib/supabase.js';
 
 export async function onRequestGet({ request, env, data }) {
@@ -16,7 +16,6 @@ export async function onRequestGet({ request, env, data }) {
   const start = url.searchParams.get('start');
   const end   = url.searchParams.get('end');
   if (!start || !end) return j(400, { error: 'missing_params' });
-  const minLead = url.searchParams.get('min_lead_created_at') || '2026-04-06';
   const limit = Math.min(500, Math.max(10, parseInt(url.searchParams.get('limit') || '100', 10)));
   const offset = Math.max(0, parseInt(url.searchParams.get('offset') || '0', 10));
   const search = url.searchParams.get('search') || null;
@@ -40,13 +39,19 @@ export async function onRequestGet({ request, env, data }) {
     if (clinicIdsParam.length === 0) clinicIdsParam = null;
   }
 
-  const rpcUrl = `${env.SUPABASE_URL}/rest/v1/rpc/funnel_detail`;
+  const view = url.searchParams.get('view') === 'safra' ? 'safra' : 'comissao';
+  const creators = url.searchParams.get('creators');
+  const agentMode = url.searchParams.get('agent_mode');
+
+  const rpcUrl = `${env.SUPABASE_URL}/rest/v1/rpc/funnel_detail_v7`;
   const body = {
     p_stage: stage,
     p_start: start + 'T00:00:00-03:00',
     p_end:   end   + 'T00:00:00-03:00',
     p_clinic_ids: clinicIdsParam,
-    p_min_lead_created_at: minLead + 'T00:00:00-03:00',
+    p_view: view,
+    p_creators: creators ? creators.split('|').filter(Boolean) : null,
+    p_agent_mode: agentMode === 'MC' || agentMode === 'HUM' ? agentMode : 'ALL',
     p_limit: limit,
     p_offset: offset,
     p_search: search,
