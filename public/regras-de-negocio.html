@@ -55,7 +55,7 @@
   <h1>Regras de Negócio</h1>
   <p class="lead">Como cada métrica do dashboard é calculada. Esta página existe para que decisões financeiras (comissionamento, atribuição de receita, performance de campanhas) sejam <strong style="color:var(--white);">auditáveis e questionáveis</strong>.</p>
 
-  <h2>Funil de marketing · regras em vigor (27/10/2026)</h2>
+  <h2 id="funil">Funil de marketing · regras em vigor (27/10/2026)</h2>
   <div class="card">
     <p>Regras decididas com a gerência em 27/10/2026. Mudança de regra só entra no dash por decisão da gerência, por escrito e com data de início.</p>
     <table>
@@ -67,14 +67,14 @@
       <tr><td>Remarcação</td><td>Conta como agendado uma vez só, no primeiro agendamento (outra consulta de campanha do paciente nos 60 dias anteriores é remarcação). O comparecimento depois conta.</td></tr>
       <tr><td>Lead que foi direto à clínica</td><td>Consulta criada pela recepção (fachada e outros canais) conta como campanha até 30 dias depois do lead. Depois, é orgânico.</td></tr>
       <tr><td>Família no mesmo telefone</td><td>Só a pessoa do lead conta como campanha; os demais são indicação.</td></tr>
-      <tr><td>Receita</td><td>Valores lançados como pagamento no Ecuro. Boleto da clínica pelo valor lançado; boleto programado só quando pago.</td></tr>
+      <tr><td>Receita</td><td>Valores lançados como pagamento no Ecuro. Boleto da clínica pelo valor lançado; boleto programado só quando pago. Venda que vem depois de consulta de Follow-Up ou Resgate é do resgate, não da campanha.</td></tr>
       <tr><td>Confirmados</td><td>Informativo, fora da meta.</td></tr>
       <tr><td>Visões</td><td><strong>Comissão</strong>: cada etapa no período em que aconteceu, não importa quando o lead caiu. <strong>Safra de leads</strong>: só os leads que caíram no período e o que fizeram depois, em qualquer data.</td></tr>
     </table>
     <div class="note"><strong>Follow-up e resgate</strong> não entram no funil de campanha: ficam no bloco "Resgate &amp; Follow-up".</div>
   </div>
 
-  <h2>Perguntas frequentes</h2>
+  <h2 id="faq">Perguntas frequentes</h2>
   <details class="faq"><summary>Lead que clicou num anúncio há meses e só agora agendou conta como campanha?</summary>
     <p>Sim. Lead não tem prazo de validade: uma vez campanha, sempre campanha, desde que não seja paciente da casa (consulta concluída nos 6 meses antes do agendamento).</p></details>
   <details class="faq"><summary>Quem já é paciente e clicou num anúncio conta?</summary>
@@ -101,6 +101,8 @@
     <p>Não. A coluna é informativa.</p></details>
   <details class="faq"><summary>Follow-up de campanha aparece no funil?</summary>
     <p>Não. Consultas marcadas como Follow-Up ou Resgate ficam no bloco "Resgate &amp; Follow-up". O mesmo vale para a venda: se a última consulta atendida antes do pagamento foi de Follow-Up ou Resgate, a venda é do resgate, mesmo que o paciente tenha vindo de campanha.</p></details>
+  <details class="faq"><summary>Agendamento de evento (consulta "Outros") conta como campanha?</summary>
+    <p>Hoje não: pela regra de 27/10, campanha é consulta de <strong>Avaliação</strong>. Agendamentos de evento ficam fora mesmo quando o paciente veio de anúncio. Se a gerência decidir contar eventos, a regra muda aqui primeiro.</p></details>
   <details class="faq"><summary>Quem muda uma regra?</summary>
     <p>A gerência. Dúvida ou exceção nova vai para a gerência, que decide; a regra entra no dash por escrito, com data de início.</p></details>
 
