@@ -19,7 +19,7 @@ BEGIN
   IF m_ini IS NULL OR m_ini > m_fim THEN
     RETURN jsonb_build_object('at', now(), 'skipped', 'nenhum mes antigo no rollup');
   END IF;
-  SELECT array_agg("Ecuro_clinicId" ORDER BY "Ecuro_clinicId") INTO ids FROM "unitConfigs" WHERE "Ecuro_clinicId" IS NOT NULL;
+  SELECT array_agg("Ecuro_clinicId" ORDER BY "Ecuro_clinicId") INTO ids FROM "unitConfigs" WHERE "Ecuro_clinicId" IS NOT NULL AND "Dash" IS TRUE;
   n := array_length(ids, 1);
   m := m_ini;
   WHILE m <= m_fim LOOP

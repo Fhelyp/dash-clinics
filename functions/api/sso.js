@@ -153,7 +153,7 @@ async function handle({ request, env }) {
     try {
       const ucRows = await supaSelect(
         env, 'unitConfigs',
-        `select=Ecuro_clinicId,chatwoot_account_id&chatwoot_account_id=in.(${cwAccountIds.join(',')})`
+        `select=Ecuro_clinicId,chatwoot_account_id&chatwoot_account_id=in.(${cwAccountIds.join(',')})&Dash=is.true`
       );
       allowedClinicIds = ucRows.map(r => r.Ecuro_clinicId).filter(Boolean);
       if (allowedClinicIds.length === 0) {
@@ -170,7 +170,7 @@ async function handle({ request, env }) {
     try {
       const ucRows = await supaSelect(
         env, 'unitConfigs',
-        `select=Ecuro_clinicId&regional=eq.${encodeURIComponent(regionalOverride)}&Ecuro_clinicId=not.is.null`
+        `select=Ecuro_clinicId&regional=eq.${encodeURIComponent(regionalOverride)}&Ecuro_clinicId=not.is.null&Dash=is.true`
       );
       allowedClinicIds = ucRows.map(r => r.Ecuro_clinicId).filter(Boolean);
       if (allowedClinicIds.length === 0) {

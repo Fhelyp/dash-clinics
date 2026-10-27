@@ -20,7 +20,9 @@
 4. **O SYNC roda na VPS (EasyPanel), NÃO na Cloudflare.** Não recrie/religue workers de sync na
    Cloudflare. Fonte autoritativa = repo `Forux-Digital/dash-sync-jobs`.
 5. **Tabelas READ-ONLY no Supabase:** `unitConfigs`, `actions_mc`, `workflows_and_machines` — só
-   `SELECT`, nunca escrever.
+   `SELECT`, nunca escrever. **`unitConfigs."Dash" = false` = unidade fora do dash: não puxar nem
+   guardar dado dela.** Toda leitura de `unitConfigs` para o dash filtra `Dash=is.true`
+   (ver `docs/BUSINESS_RULES.md` §0).
 6. **`public/login.html` PRECISA da linha `<script src="/gci-sso.js"></script>`** no `<head>` —
    é o que faz o SSO do embed no hub GCI funcionar. Sem ela, quem entra pelo GCI cai na tela de
    login. (Foi o bug de 10–14/09.)
