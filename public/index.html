@@ -898,38 +898,41 @@
   <div class="mktpad">
 
     <!-- ═══ NOVA LINHA: 4 KPIs de Campanha ═══ -->
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:var(--gap);margin-bottom:var(--gap);">
+    <div id="cmpKpis" style="display:grid;grid-template-columns:repeat(4,1fr);gap:var(--gap);margin-bottom:var(--gap);">
       <div class="bn">
         <div class="bnl">Leads de Campanha</div>
         <div class="bnv" id="cmpLeads">0</div>
-        <div class="bns">contatos com tag campanha (Chatwoot)</div>
+        <div class="bns">etiqueta campanha ou anúncio (Chatwoot)<span class="cmp-view"></span></div>
       </div>
       <div class="bn">
         <div class="bnl">Agendamentos Campanha</div>
         <div class="bnv" id="cmpAgend" style="color:var(--blue)">0</div>
-        <div class="bns">campaign_token preenchido</div>
+        <div class="bns">consulta de Avaliação de campanha<span class="cmp-view"></span></div>
       </div>
       <div class="bn">
         <div class="bnl">Comparecimentos Campanha</div>
         <div class="bnv" id="cmpComp" style="color:var(--teal)">0</div>
-        <div class="bns">status atendido/concluído</div>
+        <div class="bns">comparecimento registrado no Ecuro<span class="cmp-view"></span></div>
       </div>
       <div class="bn">
         <div class="bnl">Vendas Campanha</div>
         <div class="bnv" id="cmpVendas" style="color:var(--green);font-size:24px">R$ 0</div>
-        <div class="bns">pagamentos confirmados</div>
+        <div class="bns">pagamentos lançados<span class="cmp-view"></span></div>
       </div>
     </div>
 
     <!-- ═══ Funil de Vendas (5 estágios) — CLICÁVEL pra drill-down ═══ -->
-    <div class="card" style="margin-bottom:var(--gap);padding:18px 22px;">
+    <div class="card" id="fnlCard" style="margin-bottom:var(--gap);padding:18px 22px;">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:8px;">
         <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--gray-l);">Funil de Vendas — Campanha</div>
         <div id="fnlViewToggle" role="group" aria-label="Visão do funil" style="display:flex;gap:2px;padding:2px;border:1px solid var(--border);border-radius:8px;">
           <button type="button" class="fnl-view-opt" data-view="comissao" onclick="setFunnelView('comissao')" title="Cada etapa conta no período em que aconteceu, não importa quando o lead caiu. É a visão da comissão.">Comissão</button>
           <button type="button" class="fnl-view-opt" data-view="safra" onclick="setFunnelView('safra')" title="Só os leads que caíram no período; deles, quem agendou, compareceu e pagou, em qualquer data. É o resultado do mês.">Safra de leads</button>
         </div>
-        <div style="font-size:9.5px;color:var(--gray);">💡 clica numa barra pra ver os contatos</div>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <span class="fnl-status" id="fnlStatus" role="status" aria-live="polite"></span>
+          <div style="font-size:9.5px;color:var(--gray);">💡 clica numa barra pra ver os contatos</div>
+        </div>
       </div>
       <div id="fnlViewDesc" style="font-size:10px;color:var(--gray-l);margin-bottom:12px;"></div>
       <div id="fnlBars" style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;align-items:end;min-height:170px;">
@@ -1012,6 +1015,16 @@
       .fnl-view-opt{background:transparent;border:none;color:var(--gray-l);font-size:10.5px;font-weight:600;padding:5px 12px;border-radius:6px;cursor:pointer}
       .fnl-view-opt:focus-visible{outline:2px solid var(--purple);outline-offset:1px}
       .fnl-view-opt.on{background:var(--purple);color:#fff}
+      /* "Atualizando…" do funil: troca de visão/filtro leva até ~10 s sem cache */
+      .fnl-status{display:none;align-items:center;gap:6px;font-size:10.5px;font-weight:600;color:var(--purple)}
+      .fnl-status::before{content:'';width:10px;height:10px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin .7s linear infinite}
+      .fnl-busy .fnl-status,.fnl-status.err{display:inline-flex}
+      .fnl-status.err{color:#ef4444}
+      .fnl-status.err::before{display:none}
+      #fnlBars,#cmpKpis .bnv{transition:opacity .2s}
+      .fnl-busy #fnlBars,#cmpKpis.cmp-busy .bnv{opacity:.3}
+      .fnl-busy #fnlBars{pointer-events:none}
+      @media (prefers-reduced-motion: reduce){.fnl-status::before{animation:none}}
       /* Modal drill-down — z-index máximo (max signed 32-bit), evita conflito
          com sidebar/topbar que têm position:fixed. JS move ele pra direct
          child do <body> em runtime pra escapar de stacking contexts criados
@@ -2877,29 +2890,7 @@ async function computeThauanyMetrics(){
     .filter(p => p.is_confirmed && originOf(p.patient_id) === 'campanha')
     .reduce((s,p) => s + parseFloat(p.amount || 0), 0);
 
-  // ── 3. Tentativa de pegar contagem real de leads via cache Chatwoot (mês corrente) ──
-  let leadsFromCampaign = campPatientIds.size; // fallback: pacientes que agendaram com campaign_token
-  try {
-    const ym = new Date().toISOString().slice(0,7);
-    let cacheUrl = `/api/data/campaign_contacts_cache?select=contacts_count,clinic_id&year_month=eq.${ym}`;
-    // Aplica filtro de unidade usando clinic_ids extraídos diretamente dos agendamentos filtrados
-    // (mais confiável que reverse-lookup pelo nome — evita divergências de nomenclatura)
-    if(APPLIED.units && APPLIED.units.size > 0){
-      const filteredClinicIds = [...new Set(appointments.map(a => a.clinic_id).filter(Boolean))];
-      if(filteredClinicIds.length) cacheUrl += `&clinic_id=in.(${filteredClinicIds.join(',')})`;
-    }
-    const r = await fetch(cacheUrl, { credentials:'same-origin' });
-    if(r.ok){
-      const rows = await r.json();
-      const sum = rows.reduce((s,x) => s + (x.contacts_count || 0), 0);
-      if(sum > 0) leadsFromCampaign = sum;
-    }
-  } catch(_) {}
-
-  setTxt('cmpLeads', leadsFromCampaign.toLocaleString('pt-BR'));
-  setTxt('cmpAgend', (stats.campaign_count || 0).toLocaleString('pt-BR'));
-  setTxt('cmpComp',  campAttended.length.toLocaleString('pt-BR'));
-  setTxt('cmpVendas', fmtMoney(campSales));
+  // KPIs de campanha (cmpLeads/cmpAgend/cmpComp/cmpVendas) vêm do funil v7 — ver loadFunnelMarketing()
 
   // ── Funil de Vendas (5 estágios) — ver loadFunnelMarketing() ──
   await loadFunnelMarketing();
@@ -2963,6 +2954,9 @@ function renderFunnelViewToggle(){
   });
   const d = document.getElementById('fnlViewDesc');
   if (d) d.textContent = FUNNEL_VIEW_DESC[FUNNEL_VIEW];
+  document.querySelectorAll('#cmpKpis .cmp-view').forEach(e => {
+    e.textContent = FUNNEL_VIEW === 'safra' ? ' · safra de leads' : ' · comissão';
+  });
 }
 function setFunnelView(v){
   FUNNEL_VIEW = v === 'safra' ? 'safra' : 'comissao';
@@ -2970,14 +2964,28 @@ function setFunnelView(v){
   renderFunnelViewToggle();
   loadFunnelMarketing();
 }
+let _fnlSeq = 0;  // só a chamada mais recente pinta a tela (troca rápida de visão/filtro)
 async function loadFunnelMarketing(){
   renderFunnelViewToggle();
+  const seq = ++_fnlSeq;
+  const card = document.getElementById('fnlCard');
+  const kpis = document.getElementById('cmpKpis');
+  const st = document.getElementById('fnlStatus');
+  card?.classList.add('fnl-busy');
+  kpis?.classList.add('cmp-busy');
+  if (st) {
+    st.classList.remove('err');
+    st.textContent = FUNNEL_VIEW === 'safra' ? 'Atualizando safra de leads…' : 'Atualizando comissão…';
+  }
+  let ok = false;
   try {
     const fparams = buildStatsParams();
     fparams.set('view', FUNNEL_VIEW);
     const fr = await fetch('/api/dashboard/funnel?' + fparams.toString(), { credentials: 'same-origin' });
+    if (seq !== _fnlSeq) return;
     if (fr.ok) {
       const fj = await fr.json();
+      if (seq !== _fnlSeq) return;
       const fn = fj.funnel || {};
       const cv = fj.conversoes || {};
       const fnlLeads = fn.leads || 0;
@@ -3017,8 +3025,19 @@ async function loadFunnelMarketing(){
       });
       // Cache pro drill-down (período + clinic_ids dos filtros)
       window.__lastFnlParams = fparams.toString();
+      ok = true;
     }
   } catch(e) { console.warn('[funnel]', e.message); }
+  finally {
+    if (seq === _fnlSeq) {
+      card?.classList.remove('fnl-busy');
+      kpis?.classList.remove('cmp-busy');
+      if (!ok && st) {
+        st.textContent = 'Não foi possível atualizar o funil. Tente de novo.';
+        st.classList.add('err');
+      }
+    }
+  }
 }
 function setTxt(id, v){ const e = document.getElementById(id); if(e) e.textContent = v; }
 
