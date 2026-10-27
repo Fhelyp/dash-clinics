@@ -17,6 +17,7 @@ BEGIN
     UNION
     SELECT att.appt_id FROM campaign_appt_attribution att
     WHERE att.created_at >= p_start AND att.created_at < p_end
+      AND att.lead_created_at >= p_min_lead_created_at   -- piso antigo so na v6 (ver funnel_stats_v6)
       AND (p_clinic_ids IS NULL OR att.clinic_id = ANY(p_clinic_ids))
   ),
   -- 1a consulta de campanha de cada paciente (base da elegibilidade v6)

@@ -923,26 +923,32 @@
 
     <!-- ═══ Funil de Vendas (5 estágios) — CLICÁVEL pra drill-down ═══ -->
     <div class="card" style="margin-bottom:var(--gap);padding:18px 22px;">
-      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:8px;">
         <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--gray-l);">Funil de Vendas — Campanha</div>
+        <div id="fnlViewToggle" role="group" aria-label="Visão do funil" style="display:flex;gap:2px;padding:2px;border:1px solid var(--border);border-radius:8px;">
+          <button type="button" class="fnl-view-opt" data-view="comissao" onclick="setFunnelView('comissao')" title="Cada etapa conta no período em que aconteceu, não importa quando o lead caiu. É a visão da comissão.">Comissão</button>
+          <button type="button" class="fnl-view-opt" data-view="safra" onclick="setFunnelView('safra')" title="Só os leads que caíram no período; deles, quem agendou, compareceu e pagou, em qualquer data. É o resultado do mês.">Safra de leads</button>
+        </div>
         <div style="font-size:9.5px;color:var(--gray);">💡 clica numa barra pra ver os contatos</div>
       </div>
+      <div id="fnlViewDesc" style="font-size:10px;color:var(--gray-l);margin-bottom:12px;"></div>
       <div id="fnlBars" style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;align-items:end;min-height:170px;">
-        <div class="fnl-stage" data-stage="leads" onclick="openFunnelDrill('leads')"><div class="fnl-bar" style="background:linear-gradient(180deg,var(--purple),rgba(168,85,247,.4))"></div><div class="fnl-lbl">Leads</div><div class="fnl-val" id="fnlLeads">0</div><div class="fnl-conv" id="fnlConvLA">—</div></div>
-        <div class="fnl-stage" data-stage="agendados" onclick="openFunnelDrill('agendados')"><div class="fnl-bar" style="background:linear-gradient(180deg,var(--blue),rgba(59,130,246,.4))"></div><div class="fnl-lbl">Agend.</div><div class="fnl-val" id="fnlAgend">0</div><div class="fnl-conv" id="fnlConvAC">—</div></div>
-        <div class="fnl-stage" data-stage="confirmados" onclick="openFunnelDrill('confirmados')" title="A confirmação conta a TOTALIDADE das confirmações do período. Operador e Maria Clara confirmam qualquer paciente (de campanha ou não), então esta barra pode ficar MAIOR que a de agendados — isso é esperado, não é erro do gráfico."><div class="fnl-bar" style="background:linear-gradient(180deg,var(--teal),rgba(45,212,191,.4))"></div><div class="fnl-lbl">Confirmados <span style="opacity:.6;cursor:help">ⓘ</span></div><div class="fnl-val" id="fnlConf">0</div><div class="fnl-conv" id="fnlConvCC">—</div></div>
-        <div class="fnl-stage" data-stage="compareceram" onclick="openFunnelDrill('compareceram')"><div class="fnl-bar" style="background:linear-gradient(180deg,var(--orange),rgba(251,146,60,.4))"></div><div class="fnl-lbl">Compar.</div><div class="fnl-val" id="fnlComp">0</div><div class="fnl-conv" id="fnlConvCV">—</div></div>
-        <div class="fnl-stage" data-stage="venderam" onclick="openFunnelDrill('venderam')"><div class="fnl-bar" style="background:linear-gradient(180deg,var(--green),rgba(34,197,94,.4))"></div><div class="fnl-lbl">Venderam</div><div class="fnl-val" id="fnlVend">0</div><div class="fnl-conv" id="fnlConvVR" style="font-weight:700;color:var(--green)">R$ 0</div></div>
+        <div class="fnl-stage" data-stage="leads" onclick="openFunnelDrill('leads')" title="Contatos do Chatwoot com etiqueta campanha ou anúncio de origem, contados na data em que o lead caiu (criação do contato ou anúncio mais recente). Um por telefone."><div class="fnl-bar" style="background:linear-gradient(180deg,var(--purple),rgba(168,85,247,.4))"></div><div class="fnl-lbl">Leads <span style="opacity:.6;cursor:help">ⓘ</span></div><div class="fnl-val" id="fnlLeads">0</div><div class="fnl-conv" id="fnlConvLA">—</div></div>
+        <div class="fnl-stage" data-stage="agendados" onclick="openFunnelDrill('agendados')" title="Pacientes com consulta de Avaliação de campanha. Comissão: agendamento criado no período. Safra: leads do período que agendaram. Remarcação (até 60 dias da anterior) não conta de novo. Fora quem concluiu consulta nos 6 meses antes."><div class="fnl-bar" style="background:linear-gradient(180deg,var(--blue),rgba(59,130,246,.4))"></div><div class="fnl-lbl">Agend. <span style="opacity:.6;cursor:help">ⓘ</span></div><div class="fnl-val" id="fnlAgend">0</div><div class="fnl-conv" id="fnlConvAC">—</div></div>
+        <div class="fnl-stage" data-stage="confirmados" onclick="openFunnelDrill('confirmados')" title="Informativo, fora da meta (decisão de 27/10). Pacientes de campanha com confirmação registrada no Ecuro. Na visão Comissão, confirmações do período."><div class="fnl-bar" style="background:linear-gradient(180deg,var(--teal),rgba(45,212,191,.4))"></div><div class="fnl-lbl">Confirmados <span style="opacity:.6;cursor:help">ⓘ</span></div><div class="fnl-val" id="fnlConf">0</div><div class="fnl-conv" id="fnlConvCC">—</div></div>
+        <div class="fnl-stage" data-stage="compareceram" onclick="openFunnelDrill('compareceram')" title="Pacientes de campanha com comparecimento registrado no Ecuro. Comissão: comparecimentos no período (pode passar dos agendados, quem agendou antes e veio agora). Safra: leads do período que compareceram, em qualquer data."><div class="fnl-bar" style="background:linear-gradient(180deg,var(--orange),rgba(251,146,60,.4))"></div><div class="fnl-lbl">Compar. <span style="opacity:.6;cursor:help">ⓘ</span></div><div class="fnl-val" id="fnlComp">0</div><div class="fnl-conv" id="fnlConvCV">—</div></div>
+        <div class="fnl-stage" data-stage="venderam" onclick="openFunnelDrill('venderam')" title="Pacientes de campanha com pagamento lançado no Ecuro. Comissão: pagamentos no período, mesmo sem novo agendamento. Safra: leads do período, em qualquer data. Boleto programado só quando pago. Venda depois de consulta de Follow-Up/Resgate é do resgate."><div class="fnl-bar" style="background:linear-gradient(180deg,var(--green),rgba(34,197,94,.4))"></div><div class="fnl-lbl">Venderam <span style="opacity:.6;cursor:help">ⓘ</span></div><div class="fnl-val" id="fnlVend">0</div><div class="fnl-conv" id="fnlConvVR" style="font-weight:700;color:var(--green)">R$ 0</div></div>
       </div>
       <div style="font-size:9.5px;color:var(--gray);margin-top:12px;line-height:1.5;border-top:1px solid var(--border);padding-top:10px;">
-        <strong>Definições (regras acordadas na reunião de 10/07):</strong>
-        <strong>Campanha</strong> = contato com tag <code>campanha</code> no Chatwoot <em>OU</em> agendamento marcado como <code>Lead Campanha</code> no Ecuro (o operador marca no Ecuro — o manual pede assim).
-        <strong>Período</strong> = conta pela <em>data em que o operador agendou</em> (não pela data da consulta), alinhado com a operação e o comissionamento.
-        <strong>Lead</strong> = contato Chatwoot com tag <code>campanha</code> (criado a partir de 06/04 — antes disso houve bulk import excluído). Só do Chatwoot.
-        <strong>Agendou</strong> = paciente de campanha com agendamento no período. Exclui <em>cliente passante</em> (quem já tem consulta concluída anterior — é da casa, não campanha nova).
-        <strong>Confirmou</strong> = <em>totalidade</em> das confirmações do período (log <code>to_status=4</code> ou concluído), <em>sem</em> o filtro de passante — por isso pode passar os agendados.
-        <strong>Compareceu</strong> = appt status <code>atendido</code> ou <code>concluído</code>.
-        <strong>Vendeu</strong> = paciente de campanha pagou <em>pelo menos uma vez</em> no período.
+        <strong>Regras decididas com a gerência em 27/10/2026</strong> — <a href="/regras-de-negocio.html#funil" style="color:var(--blue);">ver regras e perguntas frequentes</a>. Passe o mouse no ⓘ de cada etapa.
+        <strong>Lead</strong> = contato do Chatwoot com etiqueta <code>campanha</code> ou anúncio de origem, contado na data em que caiu (criação do contato ou anúncio mais recente).
+        <strong>Campanha</strong> = consulta de <em>Avaliação</em> de lead que veio de anúncio, ou marcada <code>Lead Campanha</code> no Ecuro. Vale para operador e Maria Clara; use o filtro de operador para separar CRC e recepção. Lead não tem prazo de validade.
+        <strong>Paciente da casa</strong> = quem teve consulta concluída nos 6 meses antes do agendamento não conta como campanha.
+        <strong>Remarcação</strong> não conta como novo agendamento (outra consulta de campanha do paciente nos 60 dias anteriores); o comparecimento dela conta.
+        <strong>Lead que foi direto à clínica</strong> (fachada e outros canais) conta como campanha só até 30 dias depois do lead.
+        <strong>Família</strong> no mesmo telefone: só a pessoa do lead conta; os demais são indicação.
+        <strong>Receita</strong> = valores lançados como pagamento; boleto programado só quando pago; venda depois de consulta de Follow-Up/Resgate é do resgate. <strong>Confirmados</strong> são informativos.
+        <strong>Comissão</strong>: cada etapa no período em que aconteceu. <strong>Safra</strong>: leads que caíram no período e o que fizeram depois, em qualquer data.
       </div>
     </div>
 
@@ -1003,6 +1009,9 @@
       .fnl-lbl{font-size:10px;color:var(--gray-l);text-transform:uppercase;letter-spacing:.06em}
       .fnl-val{font-size:22px;font-weight:800;color:var(--white);font-family:'JetBrains Mono',monospace}
       .fnl-conv{font-size:10px;color:var(--gray);font-family:'JetBrains Mono',monospace}
+      .fnl-view-opt{background:transparent;border:none;color:var(--gray-l);font-size:10.5px;font-weight:600;padding:5px 12px;border-radius:6px;cursor:pointer}
+      .fnl-view-opt:focus-visible{outline:2px solid var(--purple);outline-offset:1px}
+      .fnl-view-opt.on{background:var(--purple);color:#fff}
       /* Modal drill-down — z-index máximo (max signed 32-bit), evita conflito
          com sidebar/topbar que têm position:fixed. JS move ele pra direct
          child do <body> em runtime pra escapar de stacking contexts criados
@@ -2694,6 +2703,7 @@ async function openFunnelDrill(stage){
 async function loadDrillPage(){
   const usp = new URLSearchParams(buildStatsParams().toString());
   usp.set('stage', DRILL_STATE.stage);
+  usp.set('view', FUNNEL_VIEW);
   usp.set('limit', DRILL_STATE.pp);
   usp.set('offset', (DRILL_STATE.page - 1) * DRILL_STATE.pp);
   if (DRILL_STATE.search) usp.set('search', DRILL_STATE.search);
@@ -2726,7 +2736,7 @@ function renderDrillTable(stage, data){
   document.getElementById('drillSub').textContent = `${cnt.toLocaleString('pt-BR')} contatos · pg ${DRILL_STATE.page}/${totalPages} (${pageStart}–${pageEnd})`;
   const _d1 = (typeof APPLIED !== 'undefined' && APPLIED.d1) || '?';
   const _d2 = (typeof APPLIED !== 'undefined' && APPLIED.d2) || '?';
-  document.getElementById('drillFootInfo').textContent = `Período: ${_d1} → ${_d2} | Filtro min_lead_created_at: 2026-04-06`;
+  document.getElementById('drillFootInfo').textContent = `Período: ${_d1} → ${_d2} | Visão: ${FUNNEL_VIEW === 'safra' ? 'Safra de leads' : 'Comissão'}`;
 
   // Toolbar (busca + filtros origem + pp + paginação)
   const origemChips = ORIGEM_PRESETS.map(o => {
@@ -2736,7 +2746,7 @@ function renderDrillTable(stage, data){
   const ppOpts = [10,25,50,100,200].map(n => `<option value="${n}"${n===pp?' selected':''}>${n}</option>`).join('');
   const toolbar = `<div class="drill-toolbar">
     <input type="text" id="drillSearch" placeholder="Buscar nome ou telefone…" value="${(DRILL_STATE.search||'').replace(/"/g,'&quot;')}" oninput="drillSearchChange(this.value)" />
-    <div class="drill-origem-row"><span class="drill-origem-lbl">Origem:</span>${origemChips}${DRILL_STATE.origem.size?'<span class="drill-chip-clear" onclick="drillClearOrigem()">limpar</span>':''}</div>
+    <div class="drill-origem-row"><span class="drill-origem-lbl">Canal:</span>${origemChips}${DRILL_STATE.origem.size?'<span class="drill-chip-clear" onclick="drillClearOrigem()">limpar</span>':''}</div>
     <div class="drill-paging">
       <select onchange="drillChangePP(this.value)">${ppOpts}</select> por página
       <button onclick="drillGoPage(1)" ${DRILL_STATE.page===1?'disabled':''}>« 1</button>
@@ -2759,8 +2769,9 @@ function renderDrillTable(stage, data){
     <th>Lead (Chatwoot)</th>
     <th>Telefone</th>
     <th>Unidade</th>
-    <th>Origem</th>
-    <th>Chegou em</th>
+    <th>Canal da consulta</th>
+    <th>Atendente</th>
+    <th>Lead em</th>
     <th>Status</th>
     ${showVendas ? '<th style="text-align:right">Pago</th><th style="text-align:right">#Pgto</th>' : ''}
     <th>Ecuro</th>
@@ -2787,6 +2798,7 @@ function renderDrillTable(stage, data){
       <td style="font-family:'JetBrains Mono',monospace;font-size:11px">${r.phone_norm || '—'}</td>
       <td style="font-size:10.5px">${unit}</td>
       <td style="font-size:10.5px;color:var(--gray-l)">${origens}</td>
+      <td style="font-size:10.5px;color:var(--gray-l)">${(r.atendentes||[]).filter(Boolean).slice(0,2).join(', ') || '—'}</td>
       <td style="font-size:10.5px;color:var(--gray-l)">${fmtBR(r.lead_created_at)}</td>
       <td>${statusBadge}</td>
       ${showVendas ? `<td style="text-align:right;color:var(--green);font-weight:700">${fmtMoney(r.total_pago||0)}</td><td style="text-align:right;color:var(--gray-l)">${r.n_pgto||0}</td>` : ''}
@@ -2889,11 +2901,80 @@ async function computeThauanyMetrics(){
   setTxt('cmpComp',  campAttended.length.toLocaleString('pt-BR'));
   setTxt('cmpVendas', fmtMoney(campSales));
 
-  // ── Funil de Vendas (5 estágios) — consome /api/dashboard/funnel ──
-  // Backend cruza chatwoot_leads (label=campanha, created_at >= 2026-04-06) × BI Appointments × BI Payments
-  // via phone_norm com 4 variantes BR. Per-lead cutoff (appt/payment >= lead.created_at).
+  // ── Funil de Vendas (5 estágios) — ver loadFunnelMarketing() ──
+  await loadFunnelMarketing();
+
+  // Funil de Resgate/Follow-up (visão apartada). Fire-and-forget: nunca bloqueia nem quebra o resto.
+  loadFunnelResgate(buildStatsParams());
+
+  // Blocos antigos (Origem por campaign_token / Vendas 1ª vs Follow-up) removidos.
+  // Os números reais de campanha são populados pelo bloco do funil acima.
+  return; // skip código antigo abaixo
+
+  // ── 4. Tabela "Origem dos Pacientes" ──
+  const buckets = { campanha:{q:new Set(),r:0}, organico:{q:new Set(),r:0}, indicacao:{q:new Set(),r:0}, resgate:{q:new Set(),r:0} };
+  for(const a of appointments){
+    if(!a.patient_id) continue;
+    const o = originOf(a.patient_id);
+    buckets[o].q.add(a.patient_id);
+  }
+  for(const p of payments){
+    if(!p.is_confirmed || !p.patient_id) continue;
+    const o = originOf(p.patient_id);
+    buckets[o].r += parseFloat(p.amount || 0);
+  }
+  setTxt('origCmpQt', buckets.campanha.q.size);  setTxt('origCmpRv', fmtMoney(buckets.campanha.r));
+  setTxt('origOrgQt', buckets.organico.q.size);  setTxt('origOrgRv', fmtMoney(buckets.organico.r));
+  setTxt('origIndQt', buckets.indicacao.q.size); setTxt('origIndRv', fmtMoney(buckets.indicacao.r));
+  setTxt('origResQt', buckets.resgate.q.size);   setTxt('origResRv', fmtMoney(buckets.resgate.r));
+
+  // ── 5. Vendas: 1ª Consulta vs Follow-Up ──
+  let v1 = 0, v1Q = 0, vF = 0, vFQ = 0, vFCmp = 0, vFOrg = 0;
+  for(const p of payments){
+    if(!p.is_confirmed) continue;
+    const amt = parseFloat(p.amount || 0);
+    const isAval = SPEC_AVALIACAO_NAMES.has((p.specialty_name||'').trim());
+    if(isAval){ v1 += amt; v1Q++; }
+    else {
+      vF += amt; vFQ++;
+      const o = originOf(p.patient_id);
+      if(o === 'campanha') vFCmp += amt; else vFOrg += amt;
+    }
+  }
+  setTxt('vd1Cons', fmtMoney(v1));   setTxt('vd1ConsQt', v1Q);
+  setTxt('vdFollow', fmtMoney(vF));  setTxt('vdFollowQt', vFQ);
+  setTxt('vdFollowCmp', fmtMoney(vFCmp));
+  setTxt('vdFollowOrg', fmtMoney(vFOrg));
+}
+// ── Funil de Vendas (5 estágios) — consome /api/dashboard/funnel (funnel_stats_v7) ──
+// Duas visões (decisão de 27/10/2026): 'comissao' = cada etapa no período em que aconteceu;
+// 'safra' = leads que caíram no período e o que fizeram depois. Respeita filtros de unidade e operador.
+let FUNNEL_VIEW = 'comissao';
+try { if (localStorage.getItem('fnlView') === 'safra') FUNNEL_VIEW = 'safra'; } catch(_) {}
+const FUNNEL_VIEW_DESC = {
+  comissao: 'Comissão: agendamentos, confirmações, comparecimentos e pagamentos que aconteceram no período, não importa quando o lead caiu.',
+  safra: 'Safra de leads: só os leads que caíram no período; deles, quem agendou, compareceu e pagou, em qualquer data.'
+};
+function renderFunnelViewToggle(){
+  document.querySelectorAll('#fnlViewToggle .fnl-view-opt').forEach(b => {
+    const on = b.dataset.view === FUNNEL_VIEW;
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
+  const d = document.getElementById('fnlViewDesc');
+  if (d) d.textContent = FUNNEL_VIEW_DESC[FUNNEL_VIEW];
+}
+function setFunnelView(v){
+  FUNNEL_VIEW = v === 'safra' ? 'safra' : 'comissao';
+  try { localStorage.setItem('fnlView', FUNNEL_VIEW); } catch(_) {}
+  renderFunnelViewToggle();
+  loadFunnelMarketing();
+}
+async function loadFunnelMarketing(){
+  renderFunnelViewToggle();
   try {
     const fparams = buildStatsParams();
+    fparams.set('view', FUNNEL_VIEW);
     const fr = await fetch('/api/dashboard/funnel?' + fparams.toString(), { credentials: 'same-origin' });
     if (fr.ok) {
       const fj = await fr.json();
@@ -2938,48 +3019,6 @@ async function computeThauanyMetrics(){
       window.__lastFnlParams = fparams.toString();
     }
   } catch(e) { console.warn('[funnel]', e.message); }
-
-  // Funil de Resgate/Follow-up (visão apartada). Fire-and-forget: nunca bloqueia nem quebra o resto.
-  loadFunnelResgate(buildStatsParams());
-
-  // Blocos antigos (Origem por campaign_token / Vendas 1ª vs Follow-up) removidos.
-  // Os números reais de campanha são populados pelo bloco do funil acima.
-  return; // skip código antigo abaixo
-
-  // ── 4. Tabela "Origem dos Pacientes" ──
-  const buckets = { campanha:{q:new Set(),r:0}, organico:{q:new Set(),r:0}, indicacao:{q:new Set(),r:0}, resgate:{q:new Set(),r:0} };
-  for(const a of appointments){
-    if(!a.patient_id) continue;
-    const o = originOf(a.patient_id);
-    buckets[o].q.add(a.patient_id);
-  }
-  for(const p of payments){
-    if(!p.is_confirmed || !p.patient_id) continue;
-    const o = originOf(p.patient_id);
-    buckets[o].r += parseFloat(p.amount || 0);
-  }
-  setTxt('origCmpQt', buckets.campanha.q.size);  setTxt('origCmpRv', fmtMoney(buckets.campanha.r));
-  setTxt('origOrgQt', buckets.organico.q.size);  setTxt('origOrgRv', fmtMoney(buckets.organico.r));
-  setTxt('origIndQt', buckets.indicacao.q.size); setTxt('origIndRv', fmtMoney(buckets.indicacao.r));
-  setTxt('origResQt', buckets.resgate.q.size);   setTxt('origResRv', fmtMoney(buckets.resgate.r));
-
-  // ── 5. Vendas: 1ª Consulta vs Follow-Up ──
-  let v1 = 0, v1Q = 0, vF = 0, vFQ = 0, vFCmp = 0, vFOrg = 0;
-  for(const p of payments){
-    if(!p.is_confirmed) continue;
-    const amt = parseFloat(p.amount || 0);
-    const isAval = SPEC_AVALIACAO_NAMES.has((p.specialty_name||'').trim());
-    if(isAval){ v1 += amt; v1Q++; }
-    else {
-      vF += amt; vFQ++;
-      const o = originOf(p.patient_id);
-      if(o === 'campanha') vFCmp += amt; else vFOrg += amt;
-    }
-  }
-  setTxt('vd1Cons', fmtMoney(v1));   setTxt('vd1ConsQt', v1Q);
-  setTxt('vdFollow', fmtMoney(vF));  setTxt('vdFollowQt', vFQ);
-  setTxt('vdFollowCmp', fmtMoney(vFCmp));
-  setTxt('vdFollowOrg', fmtMoney(vFOrg));
 }
 function setTxt(id, v){ const e = document.getElementById(id); if(e) e.textContent = v; }
 

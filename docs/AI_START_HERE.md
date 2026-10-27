@@ -62,7 +62,7 @@ financeiro e auditoria das ~37 clínicas. É acessado de 2 formas:
                           ├─ auth_users / auth_sessions
                           ├─ dashboard_daily_rollup   (pré-cálculo p/ o caminho rápido)
                           ├─ unitConfigs / actions_mc / workflows  (READ-ONLY)
-                          └─ RPCs: funnel_stats(→v6), dashboard_stats(→precomputed→fast→live),
+                          └─ RPCs: funnel_stats_v7 (v6 = rollback), dashboard_stats(→precomputed→fast→live),
                                    refresh_rollup_and_precompute (cron noturno pg_cron)
                                    ▲
                                    │  upsert incremental (service_role)
@@ -116,12 +116,14 @@ financeiro e auditoria das ~37 clínicas. É acessado de 2 formas:
   (`rollup-precompute-nightly`, 0 9 UTC) refaz o rollup. **Gotcha:** `SET statement_timeout` DENTRO
   de função é no-op (o timer é armado antes de entrar) — cron pesado tem que pôr o `SET` no COMANDO
   do cron. Se o dash "carrega pra sempre" em datas recentes, cheque se o rollup congelou.
-- **Funil** → `db/functions/funnel_stats_v6.sql` (em prod). Conta pela data do agendamento; exclui
-  passante por PACIENTE; Confirmados usa a base ELEGÍVEL (mesma de agendados/compareceram).
+- **Funil** → `db/functions/funnel_v7.sql` (regras da gerência de 27/10/2026, ver
+  `docs/DECISOES_2026-10-27.md`). Endpoints `funnel.js`/`funnel-detail.js` chamam `funnel_stats_v7` /
+  `funnel_detail_v7` com `view` (comissao|safra), `creators` e `agent_mode`. A v6 fica como rollback.
+  **Regra nova só entra por decisão da gerência, por escrito, com data de início.**
 - **Receita = valor vendido** → `docs/BUSINESS_RULES.md` §0. Boleto da clínica conta inteiro;
   **boleto programado só quando pago** (`is_confirmed`). A regra está repetida em 6 funções
   (`dashboard_stats_live`, `refresh_daily_rollup`, `funnel_stats_v6`, `funnel_detail`,
-  `funnel_resgate_followup`, `funnel_resgate_detail`). Mudou a regra? Mude nas 6, reprocesse o rollup
+  `funnel_resgate_followup`, `funnel_resgate_detail`) e na `funnel_v7_rows`. Mudou a regra? Mude em todas, reprocesse o rollup
   dos meses afetados e confira `fast == live`.
 - **Atribuição por telefone** → `refresh_campaign_attribution` + `nome_compativel`. Telefone com
   vários pacientes (família) só atribui quem tem nome compatível com o lead. Roda todo dia na VPS

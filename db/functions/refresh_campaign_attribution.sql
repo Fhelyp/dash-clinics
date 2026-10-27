@@ -4,8 +4,10 @@ CREATE OR REPLACE FUNCTION public.refresh_campaign_attribution(p_clinic_ids text
  SECURITY DEFINER
  SET statement_timeout TO '280s'
 AS $function$
-DECLARE n int; np int; v_min_lead constant timestamptz := '2026-04-06 00:00:00+00';
+DECLARE n int; np int;
 BEGIN
+  -- Sem piso de data do lead (27/10/26, regra "uma vez campanha, sempre campanha"). Antes havia
+  -- created_at_cw >= 2026-04-06 para tirar a carga antiga da Cloudia; a v6 aplica esse piso na leitura.
   DROP TABLE IF EXISTS _camp_phones;
   CREATE TEMP TABLE _camp_phones AS
     SELECT DISTINCT ON (t.v) t.v AS phone, cl.created_at_cw AS lead_created_at,
@@ -16,7 +18,7 @@ BEGIN
       (CASE WHEN length(cl.phone_norm)=13 AND substring(cl.phone_norm,5,1)='9' THEN substring(cl.phone_norm,1,4)||substring(cl.phone_norm,6) END),
       (CASE WHEN length(cl.phone_norm)=12 AND substring(cl.phone_norm,1,2)='55' THEN substring(cl.phone_norm,1,4)||'9'||substring(cl.phone_norm,5) END)
     ) AS t(v)
-    WHERE 'campanha' = ANY(cl.labels) AND cl.created_at_cw >= v_min_lead
+    WHERE 'campanha' = ANY(cl.labels)
       AND cl.phone_norm IS NOT NULL AND length(cl.phone_norm) >= 10
       AND (p_clinic_ids IS NULL OR cl.ecuro_clinic_id = ANY(p_clinic_ids))
       AND t.v IS NOT NULL AND length(t.v) >= 10
@@ -32,7 +34,7 @@ BEGIN
     SELECT DISTINCT ON (cl.ficha_patient_id) cl.ficha_patient_id AS patient_id, cl.created_at_cw AS lead_created_at,
            cl.name AS lead_name, cl.account_id, cl.id AS cw_contact_id, cl.phone_norm AS lead_phone
     FROM chatwoot_leads cl
-    WHERE 'campanha' = ANY(cl.labels) AND cl.created_at_cw >= v_min_lead AND cl.ficha_patient_id IS NOT NULL
+    WHERE 'campanha' = ANY(cl.labels) AND cl.ficha_patient_id IS NOT NULL
       AND (p_clinic_ids IS NULL OR cl.ecuro_clinic_id = ANY(p_clinic_ids))
     ORDER BY cl.ficha_patient_id, cl.created_at_cw ASC;
   CREATE INDEX ON _camp_fichas(patient_id);
