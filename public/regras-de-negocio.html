@@ -67,7 +67,7 @@
       <tr><td>Remarcação</td><td>Conta como agendado uma vez só, no primeiro agendamento (outra consulta de campanha do paciente nos 60 dias anteriores é remarcação). O comparecimento depois conta.</td></tr>
       <tr><td>Lead que foi direto à clínica</td><td>Consulta criada pela recepção (fachada e outros canais) conta como campanha até 30 dias depois do lead. Depois, é orgânico.</td></tr>
       <tr><td>Família no mesmo telefone</td><td>Só a pessoa do lead conta como campanha; os demais são indicação.</td></tr>
-      <tr><td>Receita</td><td>Valores lançados como pagamento no Ecuro. Boleto da clínica pelo valor lançado; boleto programado só quando pago. Venda que vem depois de consulta de Follow-Up ou Resgate é do resgate, não da campanha.</td></tr>
+      <tr><td>Receita</td><td>Valores lançados como pagamento no Ecuro. Boleto da clínica pelo valor lançado; boleto programado só quando pago. Venda que vem depois de consulta de Follow-Up ou Resgate não é da campanha: entra no bloco Resgate &amp; Follow-up — depois de Follow-Up conta no Follow-Up, depois de Resgate no Resgate. Cada pagamento conta num lugar só.</td></tr>
       <tr><td>Confirmados</td><td>Informativo, fora da meta.</td></tr>
       <tr><td>Visões</td><td><strong>Comissão</strong>: cada etapa no período em que aconteceu, não importa quando o lead caiu. <strong>Safra de leads</strong>: só os leads que caíram no período e agendaram no período; comparecimento e venda contam desse agendamento em diante, mesmo depois do período.</td></tr>
       <tr><td>Data do lead de um agendamento</td><td>O sinal de lead mais recente <strong>antes</strong> do agendamento (criação do contato no Chatwoot ou anúncio). Anúncio clicado depois de agendar é outro lead e não muda a data daquele agendamento.</td></tr>
@@ -103,7 +103,7 @@
   <details class="faq"><summary>Confirmados entram na meta?</summary>
     <p>Não. A coluna é informativa.</p></details>
   <details class="faq"><summary>Follow-up de campanha aparece no funil?</summary>
-    <p>Não. Consultas marcadas como Follow-Up ou Resgate ficam no bloco "Resgate &amp; Follow-up". O mesmo vale para a venda: se a última consulta atendida antes do pagamento foi de Follow-Up ou Resgate, a venda é do resgate, mesmo que o paciente tenha vindo de campanha.</p></details>
+    <p>Não. Consultas marcadas como Follow-Up ou Resgate ficam no bloco "Resgate &amp; Follow-up". O mesmo vale para a venda: se a última consulta atendida antes do pagamento foi de Follow-Up, a venda conta no Follow-Up; se foi de Resgate, no Resgate — mesmo que o paciente tenha vindo de campanha. Cada pagamento conta num lugar só.</p></details>
   <details class="faq"><summary>Agendamento de evento (consulta "Outros") conta como campanha?</summary>
     <p>Hoje não: pela regra de 27/10, campanha é consulta de <strong>Avaliação</strong>. Agendamentos de evento ficam fora mesmo quando o paciente veio de anúncio. Se a gerência decidir contar eventos, a regra muda aqui primeiro.</p></details>
   <details class="faq"><summary>Quem muda uma regra?</summary>
