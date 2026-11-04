@@ -1,23 +1,29 @@
 CREATE OR REPLACE FUNCTION public.dashboard_stats_live(p_start timestamp with time zone, p_end timestamp with time zone, p_clinic_ids text[] DEFAULT NULL::text[], p_specialty_ids uuid[] DEFAULT NULL::uuid[], p_status_codes integer[] DEFAULT NULL::integer[], p_creators text[] DEFAULT NULL::text[], p_agent_mode text DEFAULT 'ALL'::text, p_origem text[] DEFAULT NULL::text[])
  RETURNS jsonb
- LANGUAGE sql
+ LANGUAGE plpgsql
  STABLE
  SET statement_timeout TO '60s'
 AS $function$
+-- EXECUTE: plano feito com os valores da chamada. Como LANGUAGE sql o plano era genérico e um
+-- filtro de Maria Clara/Operadores em 4 dias levava 36 s (1,4 s com plano específico), um mês
+-- passava de minutos e o Overview dava timeout (04/11/2026).
+DECLARE v jsonb;
+BEGIN
+EXECUTE $q$
 WITH
 creators_norm AS (
   SELECT array_agg(lower(public.immutable_unaccent(TRIM(REGEXP_REPLACE(c, '\s+', ' ', 'g'))))) AS list
-  FROM unnest(COALESCE(p_creators, ARRAY[]::text[])) c
+  FROM unnest(COALESCE($6, ARRAY[]::text[])) c
 ),
 appts AS MATERIALIZED (
   SELECT id, patient_id, clinic_id, status, start_time, channel_id, channel_name, speciality_id, patient_date_of_birth, campaign_token,
     TRIM(REGEXP_REPLACE(COALESCE(created_by_name,''), '\s+', ' ', 'g')) AS creator_name, created_by_name_norm
   FROM "BI Appointments"
-  WHERE start_time >= p_start AND start_time < p_end
-  AND (p_clinic_ids IS NULL OR clinic_id = ANY(p_clinic_ids))
-  AND (p_specialty_ids IS NULL OR speciality_id = ANY(p_specialty_ids))
-  AND (p_status_codes IS NULL OR status = ANY(p_status_codes))
-  AND (p_origem IS NULL OR patient_channel_name = ANY(p_origem))
+  WHERE start_time >= $1 AND start_time < $2
+  AND ($3 IS NULL OR clinic_id = ANY($3))
+  AND ($4 IS NULL OR speciality_id = ANY($4))
+  AND ($5 IS NULL OR status = ANY($5))
+  AND ($8 IS NULL OR patient_channel_name = ANY($8))
 ),
 mc_apt_logged AS MATERIALIZED (SELECT DISTINCT appointment_id FROM "BI Appointment Logs" WHERE user_id='fs22aka-7860-431d-b312-a9a72eb7d27a' AND appointment_id IN (SELECT id FROM appts)),
 appts_typed AS MATERIALIZED (
@@ -34,24 +40,24 @@ appts_typed AS MATERIALIZED (
 ),
 appts_f AS MATERIALIZED (
   SELECT * FROM appts_typed
-  WHERE (p_creators IS NULL OR creator_norm IN (SELECT unnest(list) FROM creators_norm))
-  AND (p_agent_mode='ALL' OR p_agent_mode='' OR agent=p_agent_mode)
+  WHERE ($6 IS NULL OR creator_norm IN (SELECT unnest(list) FROM creators_norm))
+  AND ($7='ALL' OR $7='' OR agent=$7)
 ),
 patient_set AS MATERIALIZED (SELECT DISTINCT patient_id FROM appts_f WHERE patient_id IS NOT NULL),
 pays_all AS MATERIALIZED (
   SELECT id, patient_id, clinic_id, date, amount, specialty_name, specialty_id FROM "BI Payments"
-  WHERE date >= p_start AND date < p_end AND deleted_at IS NULL
+  WHERE date >= $1 AND date < $2 AND deleted_at IS NULL
     -- receita = valor VENDIDO (Thauany 19/10/26): boleto da clinica conta inteiro; boleto programado so quando pago (date = dia do pagamento)
     AND NOT (btrim(COALESCE(payment_type_name,'')) ILIKE 'boleto programado' AND COALESCE(is_confirmed,false) = false)
-  AND (p_clinic_ids IS NULL OR clinic_id = ANY(p_clinic_ids))
+  AND ($3 IS NULL OR clinic_id = ANY($3))
 ),
 mc_eval_attended AS MATERIALIZED (
   SELECT DISTINCT a.patient_id, a.start_time AS attended_at
   FROM "BI Appointments" a
   WHERE a.patient_id IS NOT NULL
     AND a.status IN (7,8) AND a.speciality_id = '8409c08e-f3fa-43a0-b9bd-53128cecdbdc'
-    AND (p_clinic_ids IS NULL OR a.clinic_id = ANY(p_clinic_ids))
-    AND a.start_time >= p_start - INTERVAL '31 days' AND a.start_time < p_end
+    AND ($3 IS NULL OR a.clinic_id = ANY($3))
+    AND a.start_time >= $1 - INTERVAL '31 days' AND a.start_time < $2
     AND (a.channel_id IN ('fs22aka-7860-431d-b312-a9a72eb7d27a','hs22aka-7860-434d-b312-a9a72eb7d27a')
          OR a.channel_name='Maria Clara IA'
          OR EXISTS(SELECT 1 FROM "BI Appointment Logs" lg WHERE lg.appointment_id=a.id AND lg.user_id='fs22aka-7860-431d-b312-a9a72eb7d27a'))
@@ -67,20 +73,20 @@ pays AS MATERIALIZED (
   SELECT pa.id, pa.patient_id, pa.clinic_id, pa.date, pa.amount, pa.specialty_name, pa.specialty_id
   FROM pays_all pa LEFT JOIN pay_attribution_v4 v ON v.id = pa.id
   WHERE 
-    (p_specialty_ids IS NULL AND p_status_codes IS NULL AND p_creators IS NULL AND p_origem IS NULL AND (p_agent_mode='ALL' OR p_agent_mode=''))
-    OR (p_agent_mode='MC' AND v.attribution_agent='MC')
-    OR (p_agent_mode='HUM' AND v.attribution_agent='HUM')
-    OR ((p_agent_mode='ALL' OR p_agent_mode='') AND pa.patient_id IN (SELECT patient_id FROM patient_set))
+    ($4 IS NULL AND $5 IS NULL AND $6 IS NULL AND $8 IS NULL AND ($7='ALL' OR $7=''))
+    OR ($7='MC' AND v.attribution_agent='MC')
+    OR ($7='HUM' AND v.attribution_agent='HUM')
+    OR (($7='ALL' OR $7='') AND pa.patient_id IN (SELECT patient_id FROM patient_set))
 ),
 logs AS MATERIALIZED (
   SELECT l.id, l.appointment_id, l.user_id, l.from_status, l.to_status, COALESCE(l.is_reschedule, false) AS is_reschedule FROM "BI Appointment Logs" l
-  WHERE l."changeDate" >= p_start AND l."changeDate" < p_end
+  WHERE l."changeDate" >= $1 AND l."changeDate" < $2
   AND (COALESCE(l.is_reschedule,false) = true OR l.to_status = 4)
-  AND l.appointment_id IN (SELECT id FROM appts_typed WHERE (p_creators IS NULL OR creator_norm IN (SELECT unnest(list) FROM creators_norm)))
+  AND l.appointment_id IN (SELECT id FROM appts_typed WHERE ($6 IS NULL OR creator_norm IN (SELECT unnest(list) FROM creators_norm)))
 ),
 fin_mensal_data AS (SELECT TO_CHAR(date_trunc('month', date),'YYYY-MM') mes, COALESCE(SUM(amount),0)::numeric valor FROM pays GROUP BY 1)
 SELECT jsonb_build_object(
-  'period', jsonb_build_object('start', p_start, 'end', p_end, 'agent_mode', p_agent_mode),
+  'period', jsonb_build_object('start', $1, 'end', $2, 'agent_mode', $7),
   'kpis', (SELECT jsonb_build_object(
     'pacientes_unicos', COUNT(DISTINCT patient_id) FILTER (WHERE patient_id IS NOT NULL),
     'agendamentos', COUNT(*), 'concluidos', COUNT(*) FILTER (WHERE status=8),
@@ -125,5 +131,9 @@ SELECT jsonb_build_object(
     'reag_hum', (SELECT COUNT(*) FROM logs WHERE is_reschedule=true AND user_id IS DISTINCT FROM 'fs22aka-7860-431d-b312-a9a72eb7d27a')
   ),
   'campaign_count', (SELECT COUNT(*) FILTER (WHERE campaign_token IS NOT NULL AND TRIM(campaign_token) != '') FROM appts_f)
-);
+)
+$q$ INTO v
+USING p_start, p_end, p_clinic_ids, p_specialty_ids, p_status_codes, p_creators, p_agent_mode, p_origem;
+RETURN v;
+END;
 $function$;
