@@ -1757,7 +1757,8 @@ function _runUpdate(){
   }).catch(e => {
     if(e.message === 'unauthorized') return;
     console.error('[updateDashboard]', e);
-    try { setFunnelFailed(); } catch(_) {}
+    // o funil não depende do dashboard_stats: se o Overview falhar, carrega o funil assim mesmo
+    try { loadFunnelMarketing(); } catch(_) {}
     showBanner('Erro ao atualizar: ' + e.message, 'error');
     setTimeout(hideBanner, 3000);
   }).finally(() => {
@@ -2451,7 +2452,8 @@ async function loadFromSupabase(){
     [lookups, stats] = await Promise.all([fetchLookups(), fetchStats()]);
   } catch(e){
     if(e.message === 'unauthorized') { hideBanner(); return; }
-    try { setFunnelFailed(); } catch(_) {}
+    // o funil não depende do dashboard_stats: se o Overview falhar, carrega o funil assim mesmo
+    try { loadFunnelMarketing(); } catch(_) {}
     showBanner('Erro: ' + e.message, 'error');
     setTimeout(hideBanner, 3000); // fecha o erro após 3s
     return;
