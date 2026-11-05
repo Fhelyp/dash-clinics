@@ -75,6 +75,29 @@
     <div class="note"><strong>Follow-up e resgate</strong> não entram no funil de campanha: ficam no bloco "Resgate &amp; Follow-up".</div>
   </div>
 
+  <h2 id="crc">Ações do CRC fora da campanha · Resgate, Follow-up, Orgânico e Indicação (05/11/2026)</h2>
+  <div class="card">
+    <p>O que o operador do CRC agenda no Ecuro e <strong>não</strong> é lead de anúncio fica em dois blocos abaixo do funil: <strong>Resgate &amp; Follow-up</strong> e <strong>Orgânico &amp; Indicação</strong>. A vertente vem do subcanal "como chegou ao CRC" do agendamento. Definições do manual de auditoria do funil CRC (GCI 2026).</p>
+    <table>
+      <tr><th>Vertente</th><th>Como o dash identifica</th></tr>
+      <tr><td>Resgate</td><td><code>CRC · Resgate</code>, especialidade que não é Ortodontia.</td></tr>
+      <tr><td>Resgate Orto</td><td><code>CRC · Resgate</code> com especialidade <strong>Ortodontia</strong> (resgate de orto). A etiqueta <code>resgate</code> do Chatwoot não separa orto, então a coluna Contatos mostra o total na linha Resgate.</td></tr>
+      <tr><td>Follow-Up Campanha / Orgânico</td><td><code>CRC · Follow-Up - Campanha</code> e <code>CRC · Follow-Up - Orgânico</code>.</td></tr>
+      <tr><td>Lead Orgânico</td><td><code>CRC · Lead Orgânico</code>: paciente que procurou a clínica por conta própria (WhatsApp, ligação, presencial), sem origem em anúncio.</td></tr>
+      <tr><td>Indicação</td><td><code>CRC · Indicação</code>: paciente que chegou por recomendação de terceiros, inclusive a família de um paciente de campanha.</td></tr>
+    </table>
+    <table style="margin-top:12px;">
+      <tr><th>Indicador</th><th>Regra</th></tr>
+      <tr><td>Agendados</td><td>Agendamentos criados no período (data do agendamento), uma linha por agendamento, todas as especialidades. Só o que o CRC agendou: a recepção não entra.</td></tr>
+      <tr><td>Confirmados</td><td>Informativo: confirmado, atendido ou com confirmação registrada.</td></tr>
+      <tr><td>Compareceram</td><td>Agendamentos do período com comparecimento registrado no Ecuro.</td></tr>
+      <tr><td>Receita</td><td>Pagamento do período vai para a vertente da <strong>última consulta atendida antes dele</strong> (mesma regra do Resgate &amp; Follow-up). Boleto programado só quando pago. Cada pagamento conta num lugar só: o que vem depois de Follow-Up/Resgate não entra no funil de campanha, e o pagamento de um paciente de campanha continua no funil de campanha mesmo que a última consulta tenha sido marcada como Orgânico ou Indicação.</td></tr>
+      <tr><td>Venderam</td><td>Pacientes com receita na vertente no período.</td></tr>
+      <tr><td>Filtro de operador</td><td>Vale nos dois blocos: conta o que o operador agendou (na receita, a consulta que levou ao pagamento foi criada por ele). Maria Clara não agenda nesses subcanais.</td></tr>
+    </table>
+    <div class="note">Clique em qualquer número para ver a lista, com o atendente e o link da ficha no Ecuro.</div>
+  </div>
+
   <h2 id="faq">Perguntas frequentes</h2>
   <details class="faq"><summary>Lead que clicou num anúncio há meses e só agora agendou conta como campanha?</summary>
     <p>Sim. Lead não tem prazo de validade: uma vez campanha, sempre campanha, desde que não seja paciente da casa (consulta concluída nos 6 meses antes do agendamento).</p></details>
@@ -91,7 +114,7 @@
   <details class="faq"><summary>O lead não agendou com o CRC e foi direto à clínica. Conta?</summary>
     <p>Conta como campanha se a consulta foi criada <strong>depois</strong> do lead e em até 30 dias dele. Depois disso, é orgânico. Consulta criada antes do lead não conta: o lead não foi o que trouxe o paciente.</p></details>
   <details class="faq"><summary>Veio uma família usando o mesmo telefone. Quantos contam?</summary>
-    <p>Só a pessoa do lead conta como campanha. Os demais são indicação.</p></details>
+    <p>Só a pessoa do lead conta como campanha. Os demais são indicação: quando o CRC agenda o familiar como <code>Indicação</code>, ele aparece no bloco Orgânico &amp; Indicação, com a venda dele.</p></details>
   <details class="faq"><summary>O que entra na receita?</summary>
     <p>Os valores lançados como pagamento no Ecuro. Boleto da clínica entra pelo valor lançado; boleto programado só quando é pago. Estorno ainda não é descontado.</p></details>
   <details class="faq"><summary>Qual a diferença entre as visões Comissão e Safra de leads?</summary>
@@ -104,6 +127,12 @@
     <p>Não. A coluna é informativa.</p></details>
   <details class="faq"><summary>Follow-up de campanha aparece no funil?</summary>
     <p>Não. Consultas marcadas como Follow-Up ou Resgate ficam no bloco "Resgate &amp; Follow-up". O mesmo vale para a venda: se a última consulta atendida antes do pagamento foi de Follow-Up, a venda conta no Follow-Up; se foi de Resgate, no Resgate — mesmo que o paciente tenha vindo de campanha. Cada pagamento conta num lugar só.</p></details>
+  <details class="faq"><summary>Onde vejo o resultado de orgânico e de indicação?</summary>
+    <p>No bloco "Orgânico &amp; Indicação", abaixo do Resgate &amp; Follow-up: agendados, confirmados, compareceram, venderam e receita do que o CRC agendou como <code>Lead Orgânico</code> e <code>Indicação</code>. Clique no número para ver os pacientes e o atendente.</p></details>
+  <details class="faq"><summary>O que é Resgate Orto?</summary>
+    <p>É o resgate de paciente de ortodontia: agendamento <code>CRC · Resgate</code> com especialidade Ortodontia. Fica numa linha própria, separada do resgate clínico.</p></details>
+  <details class="faq"><summary>Paciente de campanha que depois foi agendado como orgânico: de quem é a venda?</summary>
+    <p>Da campanha. Uma vez campanha, sempre campanha: o pagamento continua no funil de campanha e não entra no bloco Orgânico &amp; Indicação. Cada pagamento conta num lugar só.</p></details>
   <details class="faq"><summary>Agendamento de evento (consulta "Outros") conta como campanha?</summary>
     <p>Hoje não: pela regra de 27/10, campanha é consulta de <strong>Avaliação</strong>. Agendamentos de evento ficam fora mesmo quando o paciente veio de anúncio. Se a gerência decidir contar eventos, a regra muda aqui primeiro.</p></details>
   <details class="faq"><summary>Quem muda uma regra?</summary>
@@ -166,10 +195,9 @@
     <ul>
       <li><strong style="color:var(--purple);">Campanha:</strong> paciente cujo <strong>primeiro</strong> agendamento (mais antigo) tem <code>campaign_token</code> preenchido</li>
       <li><strong style="color:var(--blue);">Orgânico:</strong> paciente cujo primeiro agendamento NÃO tem <code>campaign_token</code></li>
-      <li><strong style="color:#06b6d4;">Indicação:</strong> a definir — Ecuro tem categoria <code>indicacao</code> em <code>/orto-patients</code>, mas é específica de ortodontia. Precisa de tag/regra dedicada</li>
-      <li><strong style="color:var(--orange);">Resgate:</strong> a definir — sugestão: paciente cujo agendamento mais recente foi precedido por outro com status 5 (Cancelado) ou 11 (Aguardando Retorno) há mais de N dias</li>
+      <li><strong style="color:#06b6d4;">Indicação / Resgate:</strong> ver <a href="#crc" style="color:var(--blue);">Ações do CRC fora da campanha</a> (subcanal do agendamento no Ecuro).</li>
     </ul>
-    <div class="note">A definição de Indicação/Resgate impacta diretamente comissionamento. Quando alinharmos as regras, atualizar este documento e o código.</div>
+    <div class="note">Critério antigo (por <code>campaign_token</code>), mantido como referência histórica. Para comissão valem o <a href="#funil" style="color:var(--blue);">funil de marketing</a> e as <a href="#crc" style="color:var(--blue);">ações do CRC</a> acima.</div>
   </div>
 
   <h2>6 · Receita do Período</h2>
@@ -223,7 +251,8 @@
   <h2>11 · O que ainda não é coberto</h2>
   <div class="card">
     <ul>
-      <li><strong>Indicações / Resgates</strong> — categoria de origem ainda sem regra definida</li>
+      <li><strong>Visão de evento</strong> — agendamentos "Outros" quase nunca são marcados como atendidos; falta definir como medir</li>
+      <li><strong>Estornos</strong> — ainda não são descontados da receita</li>
       <li><strong>Atribuição WhatsApp → Ecuro</strong> — clique em ad de campanha vira agendamento? depende de match por telefone (a fazer)</li>
       <li><strong>Meta Marketing API</strong> — performance de campanhas, gasto, CTR, leads gerados (planejado)</li>
       <li><strong>Pré-cálculo noturno</strong> — atualmente recalcula no client; previsto cron 02:00 BRT em <code>dashboard_snapshots</code></li>

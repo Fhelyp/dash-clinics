@@ -1,6 +1,7 @@
-// Endpoint do Funil de Resgate/Follow-up. Chama funnel_resgate_followup(start, end, clinic_ids).
-// Visao APARTADA da campanha: acao do operador (CRC Resgate/Follow-Up no Ecuro) +
-// 1a coluna = contatos Chatwoot com tag resgate/follow_1..4. Mesmo RBAC do funnel.js.
+// Endpoint do bloco "Ações do CRC" (Resgate, Resgate Orto, Follow-Ups, Lead Orgânico, Indicação).
+// Chama crc_acoes_stats (db/functions/crc_acoes.sql, 05/11/2026) — antes era funnel_resgate_followup.
+// Visão APARTADA da campanha: ação do operador do CRC no Ecuro + coluna de contatos do Chatwoot
+// (tag resgate/follow_1..4). Mesmo RBAC e mesmos filtros de operador do funnel.js.
 import { supaHeaders } from '../../_lib/supabase.js';
 
 export async function onRequestGet({ request, env, data }) {
@@ -12,7 +13,7 @@ export async function onRequestGet({ request, env, data }) {
   const reDate = /^\d{4}-\d{2}-\d{2}$/;
   if (!reDate.test(start) || !reDate.test(end)) return j(400, { error: 'invalid_date_format' });
 
-  // RBAC (identico ao funnel.js): intersecta o filtro do cliente com o escopo do usuario
+  // RBAC (idêntico ao funnel.js): intersecta o filtro do cliente com o escopo do usuário
   const allowed = data?.user?.allowed_clinic_ids;
   const clientClinicsRaw = url.searchParams.get('clinic_ids') || '';
   let clinicIdsParam = null;
@@ -30,12 +31,32 @@ export async function onRequestGet({ request, env, data }) {
     if (clinicIdsParam.length === 0) clinicIdsParam = null;
   }
 
-  const rpcUrl = `${env.SUPABASE_URL}/rest/v1/rpc/funnel_resgate_followup`;
+  const creators = url.searchParams.get('creators');
+  const agentMode = url.searchParams.get('agent_mode');
+  const rpcUrl = `${env.SUPABASE_URL}/rest/v1/rpc/crc_acoes_stats`;
   const body = {
     p_start: start + 'T00:00:00-03:00',
     p_end:   end   + 'T00:00:00-03:00',
-    p_clinic_ids: clinicIdsParam
+    p_clinic_ids: clinicIdsParam,
+    p_creators: creators ? creators.split('|').filter(Boolean) : null,  // nomes podem ter vírgula → |
+    p_agent_mode: agentMode === 'MC' || agentMode === 'HUM' ? agentMode : 'ALL'
   };
+
+  // Cache de 180s (mesmo esquema do funnel.js): a chave é o corpo da RPC, que já leva as
+  // clínicas permitidas do usuário — isola por RBAC.
+  const cacheUrl = new URL(url);
+  cacheUrl.pathname = '/__crc_acoes_cache__';
+  cacheUrl.search = '?k=' + await sha256Short(JSON.stringify(body));
+  const cacheKey = new Request(cacheUrl.toString(), { method: 'GET' });
+  const cache = caches.default;
+  let cached = null;
+  try { cached = await cache.match(cacheKey); } catch (_) {}
+  if (cached) {
+    return new Response(await cached.text(), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'X-Cache': 'HIT' }
+    });
+  }
 
   try {
     const res = await fetch(rpcUrl, {
@@ -45,9 +66,15 @@ export async function onRequestGet({ request, env, data }) {
     });
     const txt = await res.text();
     if (!res.ok) return j(res.status, { error: 'rpc_error', message: txt.slice(0,300) });
+    try {
+      await cache.put(cacheKey, new Response(txt, {
+        status: 200,
+        headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=180, s-maxage=180' }
+      }));
+    } catch (_) {}
     return new Response(txt, {
       status: 200,
-      headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store, must-revalidate' }
+      headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store, must-revalidate', 'X-Cache': 'MISS' }
     });
   } catch (e) {
     return j(500, { error: 'rpc_exception', message: String(e?.message||e) });
@@ -56,4 +83,9 @@ export async function onRequestGet({ request, env, data }) {
 
 function j(status, body) {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+}
+
+async function sha256Short(s) {
+  const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
+  return Array.from(new Uint8Array(hash)).slice(0, 12).map(b => b.toString(16).padStart(2, '0')).join('');
 }
