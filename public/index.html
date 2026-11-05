@@ -2689,10 +2689,10 @@ async function openResgateDrill(bucket, stage){
     let html = '<table style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr style="text-align:left;color:var(--gray-l);font-size:10px;text-transform:uppercase;letter-spacing:.05em;">'+cabecalho+'</tr></thead><tbody>';
     for(const x of rows){
       if(stage==='contatos'){
-        html += '<tr style="border-top:1px solid var(--border);"><td style="padding:7px 8px;font-weight:600;">'+esc(x.nome)+'</td><td style="padding:7px 8px;">'+esc(x.telefone)+'</td><td style="padding:7px 8px;">'+esc(x.data)+'</td></tr>';
+        html += '<tr style="border-top:1px solid var(--border);"><td style="padding:7px 8px;font-weight:600;">'+nomeLimpo(x.nome)+'</td><td style="padding:7px 8px;">'+esc(x.telefone)+'</td><td style="padding:7px 8px;">'+esc(x.data)+'</td></tr>';
       } else {
         const ficha = x.patient_id ? '<a href="https://ecuro.com.br/dashboard/patient-profile/'+x.patient_id+'?activeTab=appointments" target="_blank" rel="noopener" style="color:var(--blue);text-decoration:none">↗ ficha</a>' : '—';
-        html += '<tr style="border-top:1px solid var(--border);"><td style="padding:7px 8px;font-weight:600;">'+esc(x.nome)+'</td><td style="padding:7px 8px;">'+esc(x.telefone)+'</td><td style="padding:7px 8px;">'+esc(x.data)+'</td><td style="padding:7px 8px;">'+esc(x.status||'—')+'</td><td style="padding:7px 8px;text-align:right;">'+(Number(x.pago)>0?fmtMoney(x.pago):'—')+'</td><td style="padding:7px 8px;">'+ficha+'</td></tr>';
+        html += '<tr style="border-top:1px solid var(--border);"><td style="padding:7px 8px;font-weight:600;">'+nomeLimpo(x.nome)+'</td><td style="padding:7px 8px;">'+esc(x.telefone)+'</td><td style="padding:7px 8px;">'+esc(x.data)+'</td><td style="padding:7px 8px;">'+esc(x.status||'—')+'</td><td style="padding:7px 8px;text-align:right;">'+(Number(x.pago)>0?fmtMoney(x.pago):'—')+'</td><td style="padding:7px 8px;">'+ficha+'</td></tr>';
       }
     }
     html += '</tbody></table>';
@@ -2814,8 +2814,8 @@ function renderDrillTable(stage, data){
     // Link Chatwoot no nome do contato
     const cwUrl = (r.account_id && r.cw_contact_id) ? `${CHATWOOT_BASE}/app/accounts/${r.account_id}/contacts/${r.cw_contact_id}` : null;
     const nameCell = cwUrl
-      ? `<a href="${cwUrl}" target="_blank" rel="noopener" title="Abrir contato no Chatwoot" style="color:var(--white);text-decoration:none;border-bottom:1px dotted var(--gray)">${(r.lead_name||'sem nome').trim().slice(0,40)}</a>`
-      : `<strong>${(r.lead_name||'sem nome').trim().slice(0,40)}</strong>`;
+      ? `<a href="${cwUrl}" target="_blank" rel="noopener" title="Abrir contato no Chatwoot" style="color:var(--white);text-decoration:none;border-bottom:1px dotted var(--gray)">${nomeLimpo(r.lead_name||'sem nome').slice(0,40)}</a>`
+      : `<strong>${nomeLimpo(r.lead_name||'sem nome').slice(0,40)}</strong>`;
     let statusBadge = '<span style="color:var(--gray)">só lead</span>';
     if (r.compareceu) statusBadge = '<span style="color:var(--orange);font-weight:700">✓ compareceu</span>';
     else if (r.confirmou) statusBadge = '<span style="color:var(--teal)">✓ confirmou</span>';
@@ -3078,6 +3078,8 @@ async function loadFunnelMarketing(){
   }
 }
 function setTxt(id, v){ const e = document.getElementById(id); if(e) e.textContent = v; }
+// Nome do paciente sem o histórico que o Ecuro anexa ("Fulano (era Ciclano, mudou 03/11/2026 por X)")
+function nomeLimpo(s){ return String(s == null ? '' : s).replace(/\s*\(era\s.*$/i, '').trim().replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c])); }
 
 // ─────────────────────────────────────────────────────────────────
 // Chips de filtros aplicados (UX: mostrar o que está ativo)
