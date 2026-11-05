@@ -3,6 +3,7 @@
 // view = 'comissao' (cada etapa no período em que aconteceu) | 'safra' (leads que caíram no período).
 // creators (nomes separados por |) e agent_mode (MC|HUM) seguem os filtros de operador do dash.
 import { supaHeaders } from '../../_lib/supabase.js';
+import { paraUsuario } from '../../_lib/acesso.js';
 
 export async function onRequestGet({ request, env, data }) {
   const url = new URL(request.url);
@@ -56,7 +57,7 @@ export async function onRequestGet({ request, env, data }) {
   let cached = null;
   try { cached = await cache.match(cacheKey); } catch (_) {}
   if (cached) {
-    return new Response(await cached.text(), {
+    return new Response(paraUsuario(await cached.text(), data?.user), {
       status: 200,
       headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'X-Cache': 'HIT' }
     });
@@ -75,7 +76,7 @@ export async function onRequestGet({ request, env, data }) {
       headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=180, s-maxage=180' }
     });
     try { await cache.put(cacheKey, toCache); } catch (_) {}
-    return new Response(txt, {
+    return new Response(paraUsuario(txt, data?.user), {
       status: 200,
       headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store, must-revalidate', 'X-Cache': 'MISS' }
     });

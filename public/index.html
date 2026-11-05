@@ -495,6 +495,14 @@
   body.light::after { opacity:0; }
   body.light #stars { opacity:0; }
 </style>
+<style>
+  /* Visão do operador (05/11/2026): o servidor já não manda Overview/Financeiro nem valores em R$;
+     aqui só some o que ficaria vazio. .so-admin = só líder/admin · .so-valor = valor em R$ */
+  body.modo-operador .so-admin, body.modo-operador .so-valor { display:none !important; }
+  body.modo-operador #cmpKpis { grid-template-columns:repeat(3,1fr) !important; }
+  #opBadge { display:none; }
+  body.modo-operador #opBadge { display:inline-flex; }
+</style>
 </head>
 <body class="light">
 
@@ -509,7 +517,7 @@
     <div style="font-size:9.5px;color:var(--gray-l);font-weight:600;letter-spacing:.1em;text-transform:uppercase;margin-top:2px;">de Clínicas</div>
   </div>
   <div class="snav" style="display:flex;flex-direction:column;gap:3px;flex:1;">
-    <a href="#overview" class="snav-item on" id="nl0" title="Overview">
+    <a href="#overview" class="snav-item on so-admin" id="nl0" title="Overview">
       <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
       <span class="sb-label">Overview</span>
     </a>
@@ -517,7 +525,7 @@
       <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 12l4-4 4 4 5-5"/></svg>
       <span class="sb-label">Marketing</span>
     </a>
-    <a href="#financeiro" class="snav-item" id="nl2" title="Financeiro">
+    <a href="#financeiro" class="snav-item so-admin" id="nl2" title="Financeiro">
       <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
       <span class="sb-label">Financeiro</span>
     </a>
@@ -534,6 +542,7 @@
     <div id="userBadge" class="sb-userbadge" style="display:none;">
       <div class="sb-avatar" id="userInitial">·</div>
       <span id="userEmail" class="sb-label" style="font-size:11px;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;"></span>
+      <span id="opBadge" class="sb-label" title="Você vê Marketing e Auditoria das unidades que atende, só com quantidades" style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:8px;background:rgba(6,182,212,.15);color:var(--teal);border:1px solid rgba(6,182,212,.35);letter-spacing:.05em;text-transform:uppercase;">Operador</span>
       <span id="userRegional" class="sb-label" style="display:none;font-size:9px;font-weight:700;padding:2px 6px;border-radius:8px;background:rgba(168,85,247,.18);color:rgba(168,85,247,.95);border:1px solid rgba(168,85,247,.3);letter-spacing:.05em;text-transform:uppercase;"></span>
     </div>
     <div class="sb-actions">
@@ -651,7 +660,7 @@
         <div class="ddi" onclick="tdi(this)"><span class="dck"></span>Radiologia</div>
       </div>
     </div>
-    <div class="fw">
+    <div class="fw so-admin">
       <button class="fbtn" onclick="tdd('ddo')">
         <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
         <span class="fbtn-label">Operador</span> <svg width="9" height="9" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
@@ -749,7 +758,7 @@
 <div id="main-scale" style="zoom:1.1;">
 
 <!-- ╔══ OVERVIEW ══╗ -->
-<div id="overview" class="sec-anchor">
+<div id="overview" class="sec-anchor so-admin">
   <div class="ovg">
 
     <!-- Q1: Welcome -->
@@ -826,7 +835,7 @@
 <div class="sdiv"></div>
 
 <!-- MC Comparativo Bar (hidden by default, shown when MC toggle active) -->
-<div id="mcComparBar" style="display:none;max-width:var(--mw);margin:0 auto;padding:0 36px;">
+<div id="mcComparBar" class="so-admin" style="display:none;max-width:var(--mw);margin:0 auto;padding:0 36px;">
   <div style="background:linear-gradient(90deg,rgba(168,85,247,.08) 0%,rgba(59,130,246,.05) 100%);border:1px solid rgba(168,85,247,.2);border-radius:10px;padding:12px 22px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
     <div style="display:flex;align-items:center;gap:7px;flex-shrink:0;">
       <div style="width:8px;height:8px;border-radius:50%;background:linear-gradient(90deg,#a855f7,#3b82f6);"></div>
@@ -852,7 +861,7 @@
 </div>
 
 <!-- ═══ Ações por Agente: Confirmações + Reagendamentos (MC vs Humano) ═══ -->
-<div style="max-width:1400px;margin:0 auto var(--gap);padding:0 24px;">
+<div class="so-admin" style="max-width:1400px;margin:0 auto var(--gap);padding:0 24px;">
   <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:var(--gap);">
     <div class="card" style="padding:18px 22px;">
       <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--gray-l);margin-bottom:12px;">Confirmações por Agente</div>
@@ -914,7 +923,7 @@
         <div class="bnv" id="cmpComp" style="color:var(--teal)">0</div>
         <div class="bns">comparecimento registrado no Ecuro<span class="cmp-view"></span></div>
       </div>
-      <div class="bn">
+      <div class="bn so-valor">
         <div class="bnl">Vendas Campanha</div>
         <div class="bnv" id="cmpVendas" style="color:var(--green);font-size:24px">R$ 0</div>
         <div class="bns">pagamentos lançados<span class="cmp-view"></span></div>
@@ -940,7 +949,7 @@
         <div class="fnl-stage" data-stage="agendados" onclick="openFunnelDrill('agendados')" title="Pacientes com consulta de Avaliação de campanha. Comissão: agendamento criado no período. Safra: leads do período que agendaram. Remarcação (até 60 dias da anterior) não conta de novo. Fora quem concluiu consulta nos 6 meses antes."><div class="fnl-bar" style="background:linear-gradient(180deg,var(--blue),rgba(59,130,246,.4))"></div><div class="fnl-lbl">Agend. <span style="opacity:.6;cursor:help">ⓘ</span></div><div class="fnl-val" id="fnlAgend">0</div><div class="fnl-conv" id="fnlConvAC">—</div></div>
         <div class="fnl-stage" data-stage="confirmados" onclick="openFunnelDrill('confirmados')" title="Informativo, fora da meta (decisão de 27/10). Pacientes de campanha com confirmação registrada no Ecuro. Na visão Comissão, confirmações do período."><div class="fnl-bar" style="background:linear-gradient(180deg,var(--teal),rgba(45,212,191,.4))"></div><div class="fnl-lbl">Confirmados <span style="opacity:.6;cursor:help">ⓘ</span></div><div class="fnl-val" id="fnlConf">0</div><div class="fnl-conv" id="fnlConvCC">—</div></div>
         <div class="fnl-stage" data-stage="compareceram" onclick="openFunnelDrill('compareceram')" title="Pacientes de campanha com comparecimento registrado no Ecuro. Comissão: comparecimentos no período (pode passar dos agendados, quem agendou antes e veio agora). Safra: leads do período que agendaram no período e compareceram desse agendamento em diante (mesmo depois do período)."><div class="fnl-bar" style="background:linear-gradient(180deg,var(--orange),rgba(251,146,60,.4))"></div><div class="fnl-lbl">Compar. <span style="opacity:.6;cursor:help">ⓘ</span></div><div class="fnl-val" id="fnlComp">0</div><div class="fnl-conv" id="fnlConvCV">—</div></div>
-        <div class="fnl-stage" data-stage="venderam" onclick="openFunnelDrill('venderam')" title="Pacientes de campanha com pagamento lançado no Ecuro. Comissão: pagamentos no período, mesmo sem novo agendamento. Safra: leads do período, pagamentos desde o agendamento (mesmo depois do período). Boleto programado só quando pago. Venda depois de consulta de Follow-Up conta no Follow-Up e depois de Resgate no Resgate (bloco abaixo)."><div class="fnl-bar" style="background:linear-gradient(180deg,var(--green),rgba(34,197,94,.4))"></div><div class="fnl-lbl">Venderam <span style="opacity:.6;cursor:help">ⓘ</span></div><div class="fnl-val" id="fnlVend">0</div><div class="fnl-conv" id="fnlConvVR" style="font-weight:700;color:var(--green)">R$ 0</div></div>
+        <div class="fnl-stage" data-stage="venderam" onclick="openFunnelDrill('venderam')" title="Pacientes de campanha com pagamento lançado no Ecuro. Comissão: pagamentos no período, mesmo sem novo agendamento. Safra: leads do período, pagamentos desde o agendamento (mesmo depois do período). Boleto programado só quando pago. Venda depois de consulta de Follow-Up conta no Follow-Up e depois de Resgate no Resgate (bloco abaixo)."><div class="fnl-bar" style="background:linear-gradient(180deg,var(--green),rgba(34,197,94,.4))"></div><div class="fnl-lbl">Venderam <span style="opacity:.6;cursor:help">ⓘ</span></div><div class="fnl-val" id="fnlVend">0</div><div class="fnl-conv so-valor" id="fnlConvVR" style="font-weight:700;color:var(--green)">R$ 0</div></div>
       </div>
       <div style="font-size:9.5px;color:var(--gray);margin-top:12px;line-height:1.5;border-top:1px solid var(--border);padding-top:10px;">
         <strong>Regras decididas com a gerência em 27/10/2026</strong> — <a href="/regras-de-negocio.html#funil" style="color:var(--blue);">ver regras e perguntas frequentes</a>. Passe o mouse no ⓘ de cada etapa.
@@ -970,7 +979,7 @@
             <th style="padding:7px 8px;" title="Agendamentos marcados no Ecuro, pela data do agendamento">Agendados</th>
             <th style="padding:7px 8px;">Confirmados</th>
             <th style="padding:7px 8px;" title="Agendamentos do período com comparecimento registrado no Ecuro">Compareceram</th>
-            <th style="padding:7px 8px;" title="Pagamentos do período cuja última consulta atendida antes foi desta ação: depois de Follow-Up conta no Follow-Up, depois de Resgate no Resgate. Essa venda não entra no funil de campanha.">Receita</th>
+            <th class="so-valor" style="padding:7px 8px;" title="Pagamentos do período cuja última consulta atendida antes foi desta ação: depois de Follow-Up conta no Follow-Up, depois de Resgate no Resgate. Essa venda não entra no funil de campanha.">Receita</th>
           </tr>
         </thead>
         <tbody style="font-variant-numeric:tabular-nums;">
@@ -980,7 +989,7 @@
             <td id="rgAg"   onclick="openResgateDrill('resgate','agendados')"   style="padding:9px 8px;text-align:right;cursor:pointer;">–</td>
             <td id="rgConf" onclick="openResgateDrill('resgate','confirmados')" style="padding:9px 8px;text-align:right;cursor:pointer;">–</td>
             <td id="rgComp" onclick="openResgateDrill('resgate','compareceram')" style="padding:9px 8px;text-align:right;cursor:pointer;">–</td>
-            <td id="rgRec"  onclick="openResgateDrill('resgate','receita')" style="cursor:pointer;padding:9px 8px;text-align:right;font-weight:600;color:var(--green);">–</td>
+            <td id="rgRec" class="so-valor"  onclick="openResgateDrill('resgate','receita')" style="cursor:pointer;padding:9px 8px;text-align:right;font-weight:600;color:var(--green);">–</td>
           </tr>
           <tr style="border-top:1px solid var(--border);">
             <td style="padding:9px 8px;font-weight:600;color:var(--orange);" title="Resgate de orto: CRC · Resgate no Ecuro com especialidade Ortodontia">Resgate Orto</td>
@@ -988,7 +997,7 @@
             <td id="roAg"   onclick="openResgateDrill('resgate_orto','agendados')"   style="padding:9px 8px;text-align:right;cursor:pointer;">–</td>
             <td id="roConf" onclick="openResgateDrill('resgate_orto','confirmados')" style="padding:9px 8px;text-align:right;cursor:pointer;">–</td>
             <td id="roComp" onclick="openResgateDrill('resgate_orto','compareceram')" style="padding:9px 8px;text-align:right;cursor:pointer;">–</td>
-            <td id="roRec"  onclick="openResgateDrill('resgate_orto','receita')" style="cursor:pointer;padding:9px 8px;text-align:right;font-weight:600;color:var(--green);">–</td>
+            <td id="roRec" class="so-valor"  onclick="openResgateDrill('resgate_orto','receita')" style="cursor:pointer;padding:9px 8px;text-align:right;font-weight:600;color:var(--green);">–</td>
           </tr>
           <tr style="border-top:1px solid var(--border);">
             <td style="padding:9px 8px;font-weight:600;color:var(--blue);">Follow-Up Campanha</td>
@@ -996,7 +1005,7 @@
             <td id="fcAg"   onclick="openResgateDrill('follow_campanha','agendados')"   style="padding:9px 8px;text-align:right;cursor:pointer;">–</td>
             <td id="fcConf" onclick="openResgateDrill('follow_campanha','confirmados')" style="padding:9px 8px;text-align:right;cursor:pointer;">–</td>
             <td id="fcComp" onclick="openResgateDrill('follow_campanha','compareceram')" style="padding:9px 8px;text-align:right;cursor:pointer;">–</td>
-            <td id="fcRec"  onclick="openResgateDrill('follow_campanha','receita')" style="cursor:pointer;padding:9px 8px;text-align:right;font-weight:600;color:var(--green);">–</td>
+            <td id="fcRec" class="so-valor"  onclick="openResgateDrill('follow_campanha','receita')" style="cursor:pointer;padding:9px 8px;text-align:right;font-weight:600;color:var(--green);">–</td>
           </tr>
           <tr style="border-top:1px solid var(--border);">
             <td style="padding:9px 8px;font-weight:600;color:var(--blue);">Follow-Up Orgânico</td>
@@ -1004,7 +1013,7 @@
             <td id="foAg"   onclick="openResgateDrill('follow_organico','agendados')"   style="padding:9px 8px;text-align:right;cursor:pointer;">–</td>
             <td id="foConf" onclick="openResgateDrill('follow_organico','confirmados')" style="padding:9px 8px;text-align:right;cursor:pointer;">–</td>
             <td id="foComp" onclick="openResgateDrill('follow_organico','compareceram')" style="padding:9px 8px;text-align:right;cursor:pointer;">–</td>
-            <td id="foRec"  onclick="openResgateDrill('follow_organico','receita')" style="cursor:pointer;padding:9px 8px;text-align:right;font-weight:600;color:var(--green);">–</td>
+            <td id="foRec" class="so-valor"  onclick="openResgateDrill('follow_organico','receita')" style="cursor:pointer;padding:9px 8px;text-align:right;font-weight:600;color:var(--green);">–</td>
           </tr>
         </tbody>
       </table>
@@ -1029,7 +1038,7 @@
             <th style="padding:7px 8px;" title="Informativo: confirmado, atendido ou com confirmação registrada">Confirmados</th>
             <th style="padding:7px 8px;" title="Agendamentos do período com comparecimento registrado no Ecuro">Compareceram</th>
             <th style="padding:7px 8px;" title="Pacientes com receita nesta vertente no período">Venderam</th>
-            <th style="padding:7px 8px;" title="Pagamentos do período cuja última consulta atendida antes foi desta vertente. Pagamento de paciente de campanha continua no funil de campanha (cada pagamento conta num lugar só).">Receita</th>
+            <th class="so-valor" style="padding:7px 8px;" title="Pagamentos do período cuja última consulta atendida antes foi desta vertente. Pagamento de paciente de campanha continua no funil de campanha (cada pagamento conta num lugar só).">Receita</th>
           </tr>
         </thead>
         <tbody style="font-variant-numeric:tabular-nums;">
@@ -1039,7 +1048,7 @@
             <td id="loConf" onclick="openResgateDrill('lead_organico','confirmados')"  style="padding:9px 8px;text-align:right;cursor:pointer;">–</td>
             <td id="loComp" onclick="openResgateDrill('lead_organico','compareceram')" style="padding:9px 8px;text-align:right;cursor:pointer;">–</td>
             <td id="loVend" onclick="openResgateDrill('lead_organico','receita')"      style="padding:9px 8px;text-align:right;cursor:pointer;">–</td>
-            <td id="loRec"  onclick="openResgateDrill('lead_organico','receita')"      style="cursor:pointer;padding:9px 8px;text-align:right;font-weight:600;color:var(--green);">–</td>
+            <td id="loRec" class="so-valor"  onclick="openResgateDrill('lead_organico','receita')"      style="cursor:pointer;padding:9px 8px;text-align:right;font-weight:600;color:var(--green);">–</td>
           </tr>
           <tr style="border-top:1px solid var(--border);">
             <td style="padding:9px 8px;font-weight:600;color:var(--purple);" title="CRC · Indicação no Ecuro: recomendação de terceiros, inclusive a família de paciente de campanha (manual de auditoria)">Indicação</td>
@@ -1047,7 +1056,7 @@
             <td id="inConf" onclick="openResgateDrill('indicacao','confirmados')"  style="padding:9px 8px;text-align:right;cursor:pointer;">–</td>
             <td id="inComp" onclick="openResgateDrill('indicacao','compareceram')" style="padding:9px 8px;text-align:right;cursor:pointer;">–</td>
             <td id="inVend" onclick="openResgateDrill('indicacao','receita')"      style="padding:9px 8px;text-align:right;cursor:pointer;">–</td>
-            <td id="inRec"  onclick="openResgateDrill('indicacao','receita')"      style="cursor:pointer;padding:9px 8px;text-align:right;font-weight:600;color:var(--green);">–</td>
+            <td id="inRec" class="so-valor"  onclick="openResgateDrill('indicacao','receita')"      style="cursor:pointer;padding:9px 8px;text-align:right;font-weight:600;color:var(--green);">–</td>
           </tr>
         </tbody>
       </table>
@@ -1141,7 +1150,7 @@
          (cruza chatwoot_leads × BI Appointments × BI Payments via phone_norm).
     -->
 
-    <div class="mktgrid" style="display:grid;grid-template-columns:1fr auto 1fr;gap:var(--gap);">
+    <div class="mktgrid so-admin" style="display:grid;grid-template-columns:1fr auto 1fr;gap:var(--gap);">
 
       <!-- Agendamentos por Criador (created_by_name) -->
       <div class="card" style="display:flex;flex-direction:column;">
@@ -1193,7 +1202,7 @@
 </div>
 
 
-<div id="financeiro" class="sec-anchor">
+<div id="financeiro" class="sec-anchor so-admin">
   <div class="sintro">
     <span class="stag">Financeiro</span>
     <span class="stit">Receitas &amp; <span>Rankings</span></span>
@@ -1800,9 +1809,11 @@ function _runUpdate(){
   // Re-render chips imediatamente pra UX (botões já mudam de cor)
   renderActiveFilterChips();
   try { setFunnelBusy(); } catch(_) {}
-  fetchStats().then(stats => {
-    STATS = stats;
-    try { applyStatsToUI(stats); } catch(e){ console.error('[applyStatsToUI]', e); }
+  (IS_OPERADOR ? Promise.resolve(null) : fetchStats()).then(stats => {
+    if (stats) {
+      STATS = stats;
+      try { applyStatsToUI(stats); } catch(e){ console.error('[applyStatsToUI]', e); }
+    }
     try { if(typeof loadTablePage === 'function') ['mn','cf','rg'].forEach(k => loadTablePage(k)); } catch(e){ console.warn('[tables]', e); }
     try { if(typeof computeThauanyMetrics === 'function') computeThauanyMetrics().catch(err => console.warn('[thauany]', err)); } catch(e){ console.warn('[thauany sync]', e); }
   }).catch(e => {
@@ -2437,22 +2448,34 @@ async function fetchLookups(){
 }
 
 // ── Main loader ───────────────────────────────────────────────────
+// Visão do operador (05/11/2026): agente do Chatwoot vê só Marketing e Auditoria, sem R$.
+// O servidor decide (role 'operador' no token) e já não manda Overview/Financeiro nem valores;
+// aqui o front só deixa de pedir o que ia dar 403 e esconde o que ficaria vazio.
+// ?ver=operador = prévia para líder/gerência ver a tela da operadora (só esconde, não libera nada).
+let IS_OPERADOR = false;
+const PREVIA_OPERADOR = new URLSearchParams(location.search).get('ver') === 'operador';
+function aplicarModoOperador(){
+  document.body.classList.toggle('modo-operador', IS_OPERADOR);
+  if (IS_OPERADOR && location.hash === '#overview') location.hash = '#marketing';
+}
+
 async function loadFromSupabase(){
   showBanner('Carregando dados\u2026', 'info');
 
-  // Atualiza badge do usuario
-  fetch('/api/me', { credentials: 'same-origin' })
-    .then(r => r.ok ? r.json() : null)
-    .then(u => {
-      if(!u) return;
-      const badge = document.getElementById('userBadge');
-      const eml = document.getElementById('userEmail');
-      const ini = document.getElementById('userInitial');
-      if(badge && eml){ eml.textContent = u.name || u.email; badge.style.display = 'flex'; }
-      if(ini){ ini.textContent = (u.name || u.email || '?').slice(0,1).toUpperCase(); }
-      const reg = document.getElementById('userRegional');
-      if(reg && u.regional){ reg.textContent = u.regional; reg.style.display = 'inline-flex'; }
-    }).catch(() => {});
+  // Usuário (e o papel: decide se é a visão do operador antes de pedir os dados)
+  let me = null;
+  try { const r = await fetch('/api/me', { credentials: 'same-origin' }); if (r.ok) me = await r.json(); } catch(_) {}
+  if (me) {
+    const badge = document.getElementById('userBadge');
+    const eml = document.getElementById('userEmail');
+    const ini = document.getElementById('userInitial');
+    if(badge && eml){ eml.textContent = me.name || me.email; badge.style.display = 'flex'; }
+    if(ini){ ini.textContent = (me.name || me.email || '?').slice(0,1).toUpperCase(); }
+    const reg = document.getElementById('userRegional');
+    if(reg && me.regional){ reg.textContent = me.regional; reg.style.display = 'inline-flex'; }
+  }
+  IS_OPERADOR = (me && me.role === 'operador') || PREVIA_OPERADOR;
+  aplicarModoOperador();
 
   // Default period = mes atual
   if(!APPLIED.d1 && !APPLIED.d2){
@@ -2468,7 +2491,7 @@ async function loadFromSupabase(){
   // Fetch lookups + stats em paralelo
   let lookups, stats;
   try {
-    [lookups, stats] = await Promise.all([fetchLookups(), fetchStats()]);
+    [lookups, stats] = await Promise.all([fetchLookups(), IS_OPERADOR ? Promise.resolve({}) : fetchStats()]);
   } catch(e){
     if(e.message === 'unauthorized') { hideBanner(); return; }
     // o funil não depende do dashboard_stats: se o Overview falhar, carrega o funil assim mesmo
@@ -2482,15 +2505,17 @@ async function loadFromSupabase(){
   // Bloco render: cada step protegido pra não bloquear hideBanner final
   try { if(typeof rebuildUnitDropdown === 'function') rebuildUnitDropdown(lookups.clinics); } catch(e){ console.warn('[unitDropdown]', e); }
   try { if(typeof rebuildSpecialtyDropdown === 'function') rebuildSpecialtyDropdown(lookups.specialties); } catch(e){ console.warn('[specDropdown]', e); }
-  try { applyStatsToUI(stats); } catch(e){ console.error('[applyStatsToUI]', e); }
-  try { if(typeof populateOperatorList === 'function') populateOperatorList(); } catch(e){ console.warn('[populateOperatorList]', e); }
+  if (!IS_OPERADOR) {
+    try { applyStatsToUI(stats); } catch(e){ console.error('[applyStatsToUI]', e); }
+    try { if(typeof populateOperatorList === 'function') populateOperatorList(); } catch(e){ console.warn('[populateOperatorList]', e); }
+  }
   try { renderActiveFilterChips(); } catch(e){ console.warn('[chips]', e); }
   try { ['mn','cf','rg'].forEach(k => loadTablePage(k)); } catch(e){ console.warn('[tables]', e); }
   try { if(typeof computeThauanyMetrics === 'function') computeThauanyMetrics().catch(err => console.warn('[thauany]', err)); } catch(e){ console.warn('[thauany sync]', e); }
 
   // SEMPRE esconder banner — mesmo que algum sub-step quebre.
   hideBanner();
-  console.log('[load v3] stats:', { kpis: stats.kpis, mc_revenue: stats.mc_revenue, mc_revenue_v4: stats.mc_revenue_v4 });
+  if (!IS_OPERADOR) console.log('[load v3] stats:', { kpis: stats.kpis, mc_revenue: stats.mc_revenue, mc_revenue_v4: stats.mc_revenue_v4 });
 }
 
 // ══ Filtro rápido por Regional (Líder → unidades) ══════════════════════════
@@ -2726,22 +2751,23 @@ function renderResgateDrill(){
   const { stage, rows, count, total } = RG_DRILL;
   const foot = document.getElementById('drillFootInfo');
   document.getElementById('drillSub').textContent = stage==='receita'
-    ? count + ' pacientes · ' + fmtMoney(total) + ' — pagamentos do período depois de consulta desta ação'
+    ? count + ' pacientes' + (IS_OPERADOR ? ' com pagamento' : ' · ' + fmtMoney(total)) + ' — pagamentos do período depois de consulta desta ação'
     : count + ' ' + (stage==='contatos'?'contatos':'agendamentos');
+  const thPago = IS_OPERADOR ? '' : null;
   if(!rows.length){ document.getElementById('drillBody').innerHTML='<div class="drill-empty">Nenhum registro</div>'; if (foot) foot.textContent = '0'; return; }
   const esc = s => (s==null?'':String(s)).replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
   const cabecalho = stage==='contatos'
     ? '<th style="padding:6px 8px;">Nome</th><th style="padding:6px 8px;">Telefone</th><th style="padding:6px 8px;">Criado em</th>'
     : stage==='receita'
-    ? '<th style="padding:6px 8px;">Nome</th><th style="padding:6px 8px;">Telefone</th><th style="padding:6px 8px;">Último pagamento</th><th style="padding:6px 8px;">Consulta da ação</th><th style="padding:6px 8px;" title="Quem criou a consulta que levou ao pagamento">Atendente</th><th style="padding:6px 8px;text-align:right;">Pago</th><th style="padding:6px 8px;">Ficha</th>'
-    : '<th style="padding:6px 8px;">Nome</th><th style="padding:6px 8px;">Telefone</th><th style="padding:6px 8px;">Agendado</th><th style="padding:6px 8px;">Status</th><th style="padding:6px 8px;" title="Quem criou o agendamento no Ecuro">Atendente</th><th style="padding:6px 8px;text-align:right;" title="Pagamentos do período feitos depois desta consulta">Pago</th><th style="padding:6px 8px;">Ficha</th>';
+    ? '<th style="padding:6px 8px;">Nome</th><th style="padding:6px 8px;">Telefone</th><th style="padding:6px 8px;">Último pagamento</th><th style="padding:6px 8px;">Consulta da ação</th><th style="padding:6px 8px;" title="Quem criou a consulta que levou ao pagamento">Atendente</th>'+(thPago ?? '<th style="padding:6px 8px;text-align:right;">Pago</th>')+'<th style="padding:6px 8px;">Ficha</th>'
+    : '<th style="padding:6px 8px;">Nome</th><th style="padding:6px 8px;">Telefone</th><th style="padding:6px 8px;">Agendado</th><th style="padding:6px 8px;">Status</th><th style="padding:6px 8px;" title="Quem criou o agendamento no Ecuro">Atendente</th>'+(thPago ?? '<th style="padding:6px 8px;text-align:right;" title="Pagamentos do período feitos depois desta consulta">Pago</th>')+'<th style="padding:6px 8px;">Ficha</th>';
   let html = '<table style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr style="text-align:left;color:var(--gray-l);font-size:10px;text-transform:uppercase;letter-spacing:.05em;">'+cabecalho+'</tr></thead><tbody>';
   for(const x of rows){
     if(stage==='contatos'){
       html += '<tr style="border-top:1px solid var(--border);"><td style="padding:7px 8px;font-weight:600;">'+nomeLimpo(x.nome)+'</td><td style="padding:7px 8px;">'+esc(x.telefone)+'</td><td style="padding:7px 8px;">'+esc(x.data)+'</td></tr>';
     } else {
       const ficha = x.patient_id ? '<a href="https://ecuro.com.br/dashboard/patient-profile/'+esc(x.patient_id)+'?activeTab=appointments" target="_blank" rel="noopener" style="color:var(--blue);text-decoration:none">↗ ficha</a>' : '—';
-      html += '<tr style="border-top:1px solid var(--border);"><td style="padding:7px 8px;font-weight:600;">'+nomeLimpo(x.nome)+'</td><td style="padding:7px 8px;">'+esc(x.telefone)+'</td><td style="padding:7px 8px;">'+esc(x.data)+'</td><td style="padding:7px 8px;">'+esc(x.status||'—')+'</td><td style="padding:7px 8px;color:var(--gray-l);">'+esc(x.atendente||'—')+'</td><td style="padding:7px 8px;text-align:right;">'+(Number(x.pago)!==0?fmtMoney(x.pago):'—')+'</td><td style="padding:7px 8px;">'+ficha+'</td></tr>';
+      html += '<tr style="border-top:1px solid var(--border);"><td style="padding:7px 8px;font-weight:600;">'+nomeLimpo(x.nome)+'</td><td style="padding:7px 8px;">'+esc(x.telefone)+'</td><td style="padding:7px 8px;">'+esc(x.data)+'</td><td style="padding:7px 8px;">'+esc(x.status||'—')+'</td><td style="padding:7px 8px;color:var(--gray-l);">'+esc(x.atendente||'—')+'</td>'+(IS_OPERADOR ? '' : '<td style="padding:7px 8px;text-align:right;">'+(Number(x.pago)?fmtMoney(x.pago):'—')+'</td>')+'<td style="padding:7px 8px;">'+ficha+'</td></tr>';
     }
   }
   html += '</tbody></table>';
@@ -2841,7 +2867,7 @@ function renderDrillTable(stage, data){
     setTimeout(() => { const i = document.getElementById('drillSearch'); if (i) i.focus(); }, 50);
     return;
   }
-  const showVendas = stage === 'venderam' || rows.some(r => parseFloat(r.total_pago||0) > 0);
+  const showVendas = !IS_OPERADOR && (stage === 'venderam' || rows.some(r => parseFloat(r.total_pago||0) > 0));
   const fmtBR = (s) => { try { return new Date(s).toLocaleString('pt-BR', {dateStyle:'short', timeStyle:'short'}); } catch { return s||'—'; } };
   const tbl = `<table class="drill-table"><thead><tr>
     <th>#</th>

@@ -1,6 +1,7 @@
 // Drill-down do bloco "Ações do CRC". Chama crc_acoes_detail(bucket, stage, ...) — mesma base do
 // crc_acoes_stats, então a lista bate com o número da tabela.
 import { supaHeaders } from '../../_lib/supabase.js';
+import { paraUsuario } from '../../_lib/acesso.js';
 
 const BUCKETS = new Set(['resgate', 'resgate_orto', 'follow', 'follow_campanha', 'follow_organico', 'lead_organico', 'indicacao']);
 const STAGES  = new Set(['contatos', 'agendados', 'confirmados', 'compareceram', 'receita']);
@@ -51,7 +52,7 @@ export async function onRequestGet({ request, env, data }) {
       body: JSON.stringify(body) });
     const txt = await res.text();
     if (!res.ok) return j(res.status, { error: 'rpc_error', message: txt.slice(0,300) });
-    return new Response(txt, { status: 200, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
+    return new Response(paraUsuario(txt, data?.user), { status: 200, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
   } catch (e) { return j(500, { error: 'rpc_exception', message: String(e?.message||e) }); }
 }
 function j(status, body) { return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } }); }
