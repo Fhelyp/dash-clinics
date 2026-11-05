@@ -1,4 +1,5 @@
 import { verifyJWT, readCookie } from './_lib/auth.js';
+import { ehOperador, OPERADOR_LIBERADO, OPERADOR_APIS } from './_lib/acesso.js';
 
 const PUBLIC_PATHS = new Set([
   '/',           // a "casca" do SPA é pública: a auth é decidida no cliente (cookie OU token no
@@ -55,6 +56,16 @@ export async function onRequest(context) {
         headers: { 'Content-Type': 'application/json' }
       });
     }
+  }
+
+  // Visão do operador (05/11/2026): só as APIs de Marketing e Auditoria. Se a visão for
+  // desligada (OPERADOR_LIBERADO = false), quem já tem sessão de operador perde o acesso na hora.
+  if (ehOperador(claims) && path.startsWith('/api/') && path !== '/api/logout'
+      && (!OPERADOR_LIBERADO || !OPERADOR_APIS.has(path))) {
+    return new Response(JSON.stringify({ error: 'operador_sem_acesso' }), {
+      status: 403,
+      headers: { 'Content-Type': 'application/json' }
+    });
   }
 
   // Disponibiliza claims para handlers downstream

@@ -8,6 +8,7 @@
 // Vantagem: desativar/mudar senha no Chatwoot reflete imediatamente no dashboard.
 import { verifyPassword, signJWT, makeAuthCookie, sha256Hex } from '../_lib/auth.js';
 import { supaSelect, supaInsert, supaUpdate } from '../_lib/supabase.js';
+import { OPERADOR_LIBERADO, unidadesDasContas } from '../_lib/acesso.js';
 
 export async function onRequestPost({ request, env }) {
   try {
@@ -190,6 +191,7 @@ async function handle({ request, env }) {
   // NENHUMA conta no Chatwoot (recepção agente, regional GO fora do CW, conta especial).
   // unrestricted=true = acesso total (hoje só admin@arvore.ia).
   let allowedClinicIds = null; // null = sem restrição (UNICO caso: unrestricted=true)
+  let papel = null; // 'operador' quando o acesso vem só de agente no Chatwoot
   const isUnrestricted = user.unrestricted === true;
   const cwAccountIds = Array.isArray(cwUser.account_ids) ? cwUser.account_ids : [];
   const regionalOverride = user.regional && String(user.regional).trim();
@@ -235,6 +237,20 @@ async function handle({ request, env }) {
       console.error('regional lookup failed:', e);
       return j(500, { error: 'rbac_error' });
     }
+  } else if (OPERADOR_LIBERADO && Array.isArray(cwUser.all_account_ids) && cwUser.all_account_ids.length > 0) {
+    // PRIORIDADE 4 (visão do operador, 05/11/2026): agente/supervisor no Chatwoot, sem admin em
+    // nenhuma conta → vê só as unidades das contas em que atende, como 'operador' (Marketing +
+    // Auditoria, sem R$). Restrição aplicada no middleware e nos endpoints (_lib/acesso.js).
+    try {
+      allowedClinicIds = await unidadesDasContas(env, cwUser.all_account_ids);
+    } catch (e) {
+      console.error('unitConfigs lookup (operador) failed:', e);
+      return j(500, { error: 'rbac_error' });
+    }
+    if (allowedClinicIds.length === 0) {
+      return j(403, { error: 'no_clinic_access', message: 'Seu usuário no Chatwoot não atende nenhuma unidade do dashboard.' });
+    }
+    papel = 'operador';
   } else {
     // Sem admin no Chatwoot, sem escopo salvo, sem regional → nega.
     return j(403, { error: 'no_admin_access', message: 'Você precisa ter permissão de administrador em pelo menos uma unidade no Chatwoot para acessar o dashboard.' });
@@ -246,7 +262,7 @@ async function handle({ request, env }) {
   const claims = {
     sub: user.id || user.email,
     email: user.email,
-    role: user.role,
+    role: papel || user.role,
     name: user.display_name || cwUser.name || user.email,
     iss: env.JWT_ISSUER || 'dash-clinics',
     auth: authedViaCw ? 'chatwoot' : 'local',
@@ -288,7 +304,7 @@ async function handle({ request, env }) {
     ok: true,
     user: {
       email: user.email,
-      role: user.role,
+      role: claims.role,
       name: claims.name,
       must_change_password: user.must_change_password || false,
       auth_source: claims.auth
