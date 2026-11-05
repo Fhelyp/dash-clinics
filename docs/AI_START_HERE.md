@@ -123,16 +123,26 @@ financeiro e auditoria das ~37 clínicas. É acessado de 2 formas:
 - **Receita = valor vendido** → `docs/BUSINESS_RULES.md` §0. Boleto da clínica conta inteiro;
   **boleto programado só quando pago** (`is_confirmed`). A regra está repetida em 6 funções
   (`dashboard_stats_live`, `refresh_daily_rollup`, `funnel_stats_v6`, `funnel_detail`,
-  `funnel_resgate_followup`, `funnel_resgate_detail`) e na `funnel_v7_rows`. Mudou a regra? Mude em todas, reprocesse o rollup
+  `funnel_resgate_followup`, `funnel_resgate_detail`) e na `funnel_v7_rows` e `crc_acoes_base`. Mudou a regra? Mude em todas, reprocesse o rollup
   dos meses afetados e confira `fast == live`.
 - **Atribuição por telefone** → `refresh_campaign_attribution` + `nome_compativel`. Telefone com
   vários pacientes (família) só atribui quem tem nome compatível com o lead. Roda todo dia na VPS
   depois do sync; para reprocessar na mão, eleve o `statement_timeout` na sessão antes.
 - **Schema drift do Ecuro** → `db/SYNC_SCHEMA_DRIFT.md`. O Ecuro pode ADICIONAR campos; o sync da
   VPS filtra colunas desconhecidas pra não derrubar o feed.
-- **RBAC/permissionamento** → `functions/api/login.js` e `sso.js`. Fonte de verdade = Chatwoot
-  (admin de conta → clínicas daquela conta ao vivo). Overrides: `unrestricted` > `regional` >
-  `allowed_clinic_ids` explícito. NÃO reexpandir acesso sem pedido.
+- **Ações do CRC** (Resgate, Resgate Orto, Follow-Ups, Lead Orgânico, Indicação) →
+  `db/functions/crc_acoes.sql` (`crc_acoes_stats` / `crc_acoes_detail`, endpoints `funnel-resgate*`).
+  Cada pagamento num lugar só: a receita vai para a vertente da última consulta atendida e o
+  pagamento de paciente de campanha (cópia do `camp`/`camp_ok` do v7) não entra em Orgânico/Indicação.
+  Mexeu no v7? Rode `tests/sql/validar_crc_acoes.py`. Decisões: `docs/DECISOES_2026-11-05.md`.
+- **RBAC/permissionamento** → `functions/api/login.js` e `sso.js`. Fonte de verdade = Chatwoot.
+  Ordem real: `unrestricted` > **admin de conta no Chatwoot** (unidades ao vivo) > `allowed_clinic_ids`
+  explícito > `regional` > **agente no Chatwoot = `operador`** (05/11/2026) > nega. NÃO reexpandir
+  acesso sem pedido. Escopo vazio = 403 no `_middleware.js`.
+- **Visão do operador** → `functions/_lib/acesso.js`: operador só chama as APIs de `OPERADOR_APIS`
+  (Marketing + Auditoria), recebe as respostas sem R$ (`paraUsuario`) e não vê Overview/Financeiro
+  (`body.modo-operador` no front). Desligar tudo, inclusive sessões abertas: `OPERADOR_LIBERADO = false`.
+  Prévia da tela: `/?ver=operador`.
 - **Filtro por Regional** (chips "Regional <Líder>" no filtro de Unidade): mapa por `clinic_id` no
   `public/index.html` (constante `REGIONAIS`), porque o banco não tem mapa gerente→unidades.
 
@@ -142,10 +152,11 @@ financeiro e auditoria das ~37 clínicas. É acessado de 2 formas:
 public/            SPA servido (index.html = dashboard, login.html, gci-sso.js, favicon…)
 functions/
   _middleware.js   guard de auth (cookie OU Bearer; PUBLIC_PATHS)
-  _lib/            auth.js (JWT), supabase.js (service_role)
+  _lib/            auth.js (JWT), supabase.js (service_role), acesso.js (visão do operador)
   api/             login, sso, me, logout, change-password, sso
   api/dashboard/   stats, funnel, funnel-detail, funnel-resgate*, lookups, appointments, audit-events
-  api/data/[[path]].js   proxy REST read-only p/ Supabase (usado pelo cache de campanha)
+  (api/data/[[path]].js, o proxy REST genérico, foi removido em 05/11/2026: sem uso e sem filtro de clínica)
+tests/             npm test (node --test: middleware, endpoints, operador); tests/sql/ = validação no banco real
 db/
   functions/       SQL versionado das RPCs (fonte de verdade dos números)
   ROLLUP_CRON.md   runbook do rollup/cron + incidentes
