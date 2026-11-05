@@ -1,7 +1,7 @@
 # Regras de Negócio — Dashboard Ecuro
 
 Documento atualizado em **24/06/2026** (refactor do funil por lead + receita por pessoa).
-Seção 0 atualizada em **27/10/2026** — ela prevalece sobre as seções abaixo quando houver conflito.
+Seção 0 atualizada em **05/11/2026** — ela prevalece sobre as seções abaixo quando houver conflito.
 
 ## 0. Regras em vigor (27/10/2026)
 
@@ -38,6 +38,26 @@ Decisões, premissas e casos validados em `docs/DECISOES_2026-10-27.md`; código
   **Safra de leads** (leads que caíram no período e o que fizeram depois).
 - **Lead** = contado na data em que caiu (criação do contato ou anúncio mais recente), piso 06/04/2026.
 - A v6 (`funnel_stats_v6`/`funnel_detail`) segue no banco como rollback; lê só leads a partir de 06/04/2026.
+
+### Ações do CRC fora da campanha (05/11/2026)
+Decisões e números em `docs/DECISOES_2026-11-05.md`; código em `db/functions/crc_acoes.sql`
+(`crc_acoes_stats`, `crc_acoes_detail`). Blocos "Resgate & Follow-up" e "Orgânico & Indicação".
+- **Vertente** = subcanal do agendamento no Ecuro: `CRC · Resgate` (especialidade Ortodontia =
+  **Resgate Orto**, o "resgate de orto"), `CRC · Follow-Up - Campanha/Orgânico`, `CRC · Lead Orgânico`,
+  `CRC · Indicação`. Só o que o CRC agenda; recepção não entra. Definições do manual de auditoria.
+- **Agendados** = criados no período (todas as especialidades); **compareceram** = `attended_time`.
+- **Receita** = pagamento do período vai para a vertente da última consulta atendida antes dele.
+  Cada pagamento num lugar só: depois de Follow-Up/Resgate sai da campanha; pagamento de paciente de
+  campanha fica na campanha mesmo que a última consulta seja Orgânico/Indicação.
+- **Família** de paciente de campanha agendada como `Indicação` aparece em Indicação. Atenção: se o
+  CRC marcar o familiar como `Lead Campanha` no Ecuro, ele conta como campanha (a marcação do Ecuro
+  vale, regra 4).
+- Filtro de operador vale nos blocos (quem criou o agendamento / a consulta que levou ao pagamento).
+
+### Visão do operador (05/11/2026)
+Agente/supervisor do Chatwoot sem admin em nenhuma conta entra como `operador`: só Marketing e
+Auditoria das unidades das contas em que atende, só quantidades (sem R$). Aplicado no servidor
+(`functions/_lib/acesso.js`). Prévia da tela: `/?ver=operador`.
 
 ## 1. Atribuição de Receita à Maria Clara (MC)
 
