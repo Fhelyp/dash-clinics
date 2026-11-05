@@ -9,6 +9,7 @@
 //   search (nome ou telefone)
 //   origem (CSV de canais da consulta de campanha, ex.: CRC, Maria Clara IA, Fachada)
 import { supaHeaders } from '../../_lib/supabase.js';
+import { paraUsuario } from '../../_lib/acesso.js';
 
 export async function onRequestGet({ request, env, data }) {
   const url = new URL(request.url);
@@ -66,7 +67,7 @@ export async function onRequestGet({ request, env, data }) {
     });
     const txt = await res.text();
     if (!res.ok) return j(res.status, { error: 'rpc_error', message: txt.slice(0,300) });
-    return new Response(txt, {
+    return new Response(paraUsuario(txt, data?.user), {
       status: 200,
       headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }
     });

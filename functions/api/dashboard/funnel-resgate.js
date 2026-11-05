@@ -3,6 +3,7 @@
 // Visão APARTADA da campanha: ação do operador do CRC no Ecuro + coluna de contatos do Chatwoot
 // (tag resgate/follow_1..4). Mesmo RBAC e mesmos filtros de operador do funnel.js.
 import { supaHeaders } from '../../_lib/supabase.js';
+import { paraUsuario } from '../../_lib/acesso.js';
 
 export async function onRequestGet({ request, env, data }) {
   const url = new URL(request.url);
@@ -52,7 +53,7 @@ export async function onRequestGet({ request, env, data }) {
   let cached = null;
   try { cached = await cache.match(cacheKey); } catch (_) {}
   if (cached) {
-    return new Response(await cached.text(), {
+    return new Response(paraUsuario(await cached.text(), data?.user), {
       status: 200,
       headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'X-Cache': 'HIT' }
     });
@@ -72,7 +73,7 @@ export async function onRequestGet({ request, env, data }) {
         headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=180, s-maxage=180' }
       }));
     } catch (_) {}
-    return new Response(txt, {
+    return new Response(paraUsuario(txt, data?.user), {
       status: 200,
       headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store, must-revalidate', 'X-Cache': 'MISS' }
     });
