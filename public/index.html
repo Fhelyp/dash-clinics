@@ -2155,7 +2155,7 @@ setTimeout(()=>{ setRing('rv0', 48, 213.6); setRing('rv1', 48, 339.3); }, 400);
 // ║                    DATA ACCESS (via Pages Function proxy)         ║
 // ║                                                                   ║
 // ║  Frontend NUNCA toca a service_role do Supabase.                  ║
-// ║  Todas as leituras passam por /api/data/<table> que é             ║
+// ║  Todas as leituras passam por /api/dashboard/* que são            ║
 // ║  protegido por JWT da sessão (cookie HttpOnly).                   ║
 // ╚═══════════════════════════════════════════════════════════════════╝
 
@@ -2323,40 +2323,8 @@ function ageBucketFromDOB(dob){
   return '60+';
 }
 
-// Fetch rows from a table via proxy /api/data/<table>
-// - select: lista de colunas (reduz payload)
-// - filters: query string adicional (filtros server-side)
-// - onProgress: callback(loaded, total) para progress bar
-// Usa Content-Range pra saber o total e atualizar progress.
-async function fetchAllProxy(table, opts = {}){
-  const PAGE = 1000;
-  const select = opts.select || '*';
-  const filters = opts.filters || '';
-  const onProgress = opts.onProgress || (() => {});
-  let all = [], from = 0, total = null;
-  while(true){
-    const url = `/api/data/${encodeURIComponent(table)}?select=${encodeURIComponent(select)}${filters}`;
-    const res = await fetch(url, {
-      headers: { 'Range-Unit': 'items', Range: `${from}-${from + PAGE - 1}`, Prefer: 'count=exact' },
-      credentials: 'same-origin'
-    });
-    if(res.status === 401){ window.location.href = '/login.html'; throw new Error('unauthorized'); }
-    if(!res.ok && res.status !== 206) throw new Error(`${table}: HTTP ${res.status} ${(await res.text()).slice(0,200)}`);
-    // Content-Range: "0-999/49815" → total = 49815
-    if(total === null){
-      const cr = res.headers.get('Content-Range') || '';
-      const m = /\/(\d+)$/.exec(cr);
-      if(m) total = parseInt(m[1], 10);
-    }
-    const data = await res.json();
-    if(!Array.isArray(data) || data.length === 0) break;
-    all = all.concat(data);
-    onProgress(all.length, total || all.length);
-    if(data.length < PAGE) break;
-    from += PAGE;
-  }
-  return all;
-}
+// (fetchAllProxy e o proxy /api/data/<table> foram removidos em 05/11/2026: sem uso e sem filtro de
+// clínica na tabela de logs. Toda leitura passa pelos endpoints /api/dashboard/*, que aplicam o escopo.)
 
 // ═════════════════════════════════════════════════════════════════════
 // V2 — Server-side aggregations

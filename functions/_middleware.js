@@ -45,6 +45,18 @@ export async function onRequest(context) {
     return Response.redirect(new URL('/login.html', request.url), 302);
   }
 
+  // Escopo vazio NUNCA vira acesso total. Os endpoints tratam `allowed_clinic_ids` null como
+  // "todas as clínicas" (só unrestricted=true) e uma lista com itens como restrição; uma lista
+  // VAZIA caía no "sem restrição" e o usuário via a rede inteira. Agora é negado (05/11/2026).
+  if (Array.isArray(claims.allowed_clinic_ids) && claims.allowed_clinic_ids.filter(Boolean).length === 0) {
+    if (path.startsWith('/api/') && path !== '/api/logout') {
+      return new Response(JSON.stringify({ error: 'no_clinic_access' }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+  }
+
   // Disponibiliza claims para handlers downstream
   context.data = context.data || {};
   context.data.user = claims;
