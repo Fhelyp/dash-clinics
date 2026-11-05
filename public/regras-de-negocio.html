@@ -65,7 +65,7 @@
       <tr><td>Validade do lead</td><td>Sem prazo: uma vez campanha, sempre campanha.</td></tr>
       <tr><td>Paciente da casa</td><td>Quem teve consulta concluída nos 6 meses antes do agendamento não conta como campanha. Ficha sem consulta concluída não tira.</td></tr>
       <tr><td>Remarcação</td><td>Conta como agendado uma vez só, no primeiro agendamento (outra consulta de campanha do paciente nos 60 dias anteriores é remarcação). O comparecimento depois conta.</td></tr>
-      <tr><td>Lead que foi direto à clínica</td><td>Consulta criada pela recepção (fachada e outros canais) conta como campanha até 30 dias depois do lead. Depois, é orgânico.</td></tr>
+      <tr><td>Lead que não agendou com o CRC e foi direto à clínica</td><td>Consulta criada pela recepção (fachada e outros canais) conta como campanha se foi criada depois do lead e em até 30 dias dele. Depois disso, é orgânico.</td></tr>
       <tr><td>Família no mesmo telefone</td><td>Só a pessoa do lead conta como campanha; os demais são indicação.</td></tr>
       <tr><td>Receita</td><td>Valores lançados como pagamento no Ecuro. Boleto da clínica pelo valor lançado; boleto programado só quando pago. Venda que vem depois de consulta de Follow-Up ou Resgate não é da campanha: entra no bloco Resgate &amp; Follow-up — depois de Follow-Up conta no Follow-Up, depois de Resgate no Resgate. Cada pagamento conta num lugar só.</td></tr>
       <tr><td>Confirmados</td><td>Informativo, fora da meta.</td></tr>
@@ -88,8 +88,8 @@
     <p>Conta, porque o dash lê o Ecuro. Para ver só o que o CRC agendou, filtre pelos operadores do CRC. O certo é corrigir a marcação no Ecuro.</p></details>
   <details class="faq"><summary>O paciente faltou e foi remarcado para o mês seguinte. Conta duas vezes?</summary>
     <p>Não. Conta como agendado só no primeiro agendamento. Se comparecer depois, o comparecimento conta.</p></details>
-  <details class="faq"><summary>O lead não fechou com o CRC e foi direto à clínica. Conta?</summary>
-    <p>Conta como campanha se a consulta foi criada até 30 dias depois do lead. Depois disso, é orgânico.</p></details>
+  <details class="faq"><summary>O lead não agendou com o CRC e foi direto à clínica. Conta?</summary>
+    <p>Conta como campanha se a consulta foi criada <strong>depois</strong> do lead e em até 30 dias dele. Depois disso, é orgânico. Consulta criada antes do lead não conta: o lead não foi o que trouxe o paciente.</p></details>
   <details class="faq"><summary>Veio uma família usando o mesmo telefone. Quantos contam?</summary>
     <p>Só a pessoa do lead conta como campanha. Os demais são indicação.</p></details>
   <details class="faq"><summary>O que entra na receita?</summary>
