@@ -34,13 +34,16 @@ export async function onRequestGet({ request, env, data }) {
 
   const creators = url.searchParams.get('creators');
   const agentMode = url.searchParams.get('agent_mode');
+  const lista = (k) => { const v = url.searchParams.get(k) || ''; const a = v.split(/[|,]/).map(s => s.trim()).filter(Boolean); return a.length ? a : null; };
   const rpcUrl = `${env.SUPABASE_URL}/rest/v1/rpc/crc_acoes_stats`;
   const body = {
     p_start: start + 'T00:00:00-03:00',
     p_end:   end   + 'T00:00:00-03:00',
     p_clinic_ids: clinicIdsParam,
     p_creators: creators ? creators.split('|').filter(Boolean) : null,  // nomes podem ter vírgula → |
-    p_agent_mode: agentMode === 'MC' || agentMode === 'HUM' ? agentMode : 'ALL'
+    p_agent_mode: agentMode === 'MC' || agentMode === 'HUM' ? agentMode : 'ALL',
+    p_specialty_ids: lista('specialty_ids'),
+    p_origem: lista('origem')
   };
 
   // Cache de 180s (mesmo esquema do funnel.js): a chave é o corpo da RPC, que já leva as

@@ -7,7 +7,8 @@
 //   limit (default 100, max 500)
 //   offset (default 0)
 //   search (nome ou telefone)
-//   origem (CSV de canais da consulta de campanha, ex.: CRC, Maria Clara IA, Fachada)
+//   origem (CSV) = filtro Origem do dash: canal de origem do paciente, igual ao funil e ao Overview
+//   canal  (CSV de canais da consulta de campanha, ex.: CRC, Maria Clara IA, Fachada) = chips do drill
 import { supaHeaders } from '../../_lib/supabase.js';
 import { paraUsuario } from '../../_lib/acesso.js';
 
@@ -20,8 +21,9 @@ export async function onRequestGet({ request, env, data }) {
   const limit = Math.min(500, Math.max(10, parseInt(url.searchParams.get('limit') || '100', 10)));
   const offset = Math.max(0, parseInt(url.searchParams.get('offset') || '0', 10));
   const search = url.searchParams.get('search') || null;
-  const origemRaw = url.searchParams.get('origem') || '';
-  const origemArr = origemRaw ? origemRaw.split(',').filter(Boolean) : null;
+  const lista = (k) => { const v = url.searchParams.get(k) || ''; const a = v.split(/[|,]/).map(s => s.trim()).filter(Boolean); return a.length ? a : null; };
+  const canalArr = lista('canal');
+  const origemArr = lista('origem');
 
   const allowed = data?.user?.allowed_clinic_ids;
   const clientClinicsRaw = url.searchParams.get('clinic_ids') || '';
@@ -56,7 +58,8 @@ export async function onRequestGet({ request, env, data }) {
     p_limit: limit,
     p_offset: offset,
     p_search: search,
-    p_origem_channels: origemArr
+    p_origem_channels: canalArr,
+    p_origem: origemArr
   };
 
   try {
