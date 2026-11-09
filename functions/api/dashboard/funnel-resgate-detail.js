@@ -37,6 +37,7 @@ export async function onRequestGet({ request, env, data }) {
 
   const creators = url.searchParams.get('creators');
   const agentMode = url.searchParams.get('agent_mode');
+  const lista = (k) => { const v = url.searchParams.get(k) || ''; const a = v.split(/[|,]/).map(s => s.trim()).filter(Boolean); return a.length ? a : null; };
   const rpcUrl = `${env.SUPABASE_URL}/rest/v1/rpc/crc_acoes_detail`;
   const body = {
     p_bucket: bucket, p_stage: stage,
@@ -44,7 +45,9 @@ export async function onRequestGet({ request, env, data }) {
     p_clinic_ids: clinicIdsParam,
     p_creators: creators ? creators.split('|').filter(Boolean) : null,
     p_agent_mode: agentMode === 'MC' || agentMode === 'HUM' ? agentMode : 'ALL',
-    p_limit: limit, p_offset: offset
+    p_limit: limit, p_offset: offset,
+    p_specialty_ids: lista('specialty_ids'),
+    p_origem: lista('origem')
   };
   try {
     const res = await fetch(rpcUrl, { method: 'POST',

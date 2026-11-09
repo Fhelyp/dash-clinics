@@ -2,6 +2,8 @@
 // Cruza chatwoot_leads (campanha/anúncio) × BI Appointments × BI Payments.
 // view = 'comissao' (cada etapa no período em que aconteceu) | 'safra' (leads que caíram no período).
 // creators (nomes separados por |) e agent_mode (MC|HUM) seguem os filtros de operador do dash.
+// origem (09/11/2026) = filtro Origem do dash (canal de origem do paciente), igual ao Overview.
+// Especialidade e Status não se aplicam: campanha é consulta de Avaliação e as etapas já são status.
 import { supaHeaders } from '../../_lib/supabase.js';
 import { paraUsuario } from '../../_lib/acesso.js';
 
@@ -35,6 +37,7 @@ export async function onRequestGet({ request, env, data }) {
   const view = url.searchParams.get('view') === 'safra' ? 'safra' : 'comissao';
   const creators = url.searchParams.get('creators');
   const agentMode = url.searchParams.get('agent_mode');
+  const lista = (k) => { const v = url.searchParams.get(k) || ''; const a = v.split(/[|,]/).map(s => s.trim()).filter(Boolean); return a.length ? a : null; };
 
   const rpcUrl = `${env.SUPABASE_URL}/rest/v1/rpc/funnel_stats_v7`;
   const body = {
@@ -43,7 +46,8 @@ export async function onRequestGet({ request, env, data }) {
     p_clinic_ids: clinicIdsParam,
     p_view: view,
     p_creators: creators ? creators.split('|').filter(Boolean) : null,  // nomes podem ter vírgula → |
-    p_agent_mode: agentMode === 'MC' || agentMode === 'HUM' ? agentMode : 'ALL'
+    p_agent_mode: agentMode === 'MC' || agentMode === 'HUM' ? agentMode : 'ALL',
+    p_origem: lista('origem')
   };
 
   // Cache de 180s (mesmo esquema do stats.js). A chave é o corpo inteiro da RPC, que já leva as

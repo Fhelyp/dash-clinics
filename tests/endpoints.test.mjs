@@ -86,3 +86,38 @@ test('detail: chama crc_acoes_detail com escopo, operador e limite saneado', asy
   assert.equal(calls[0].body.p_limit, 1000);
   assert.equal(calls[0].body.p_offset, 0);
 });
+
+// ── Filtros de 09/11: Origem no funil; Especialidade e Origem nas ações do CRC ──
+import { onRequestGet as funnelGet } from '../functions/api/dashboard/funnel.js';
+import { onRequestGet as funnelDetailGet } from '../functions/api/dashboard/funnel-detail.js';
+
+test('funil: repassa a Origem (canal do paciente) e não a confunde com o canal do drill', async () => {
+  calls = []; store.clear();
+  await funnelGet({ request: req('/api/dashboard/funnel?start=2026-10-01&end=2026-11-01&origem=CRC,Fachada'), env, data: user(['A']) });
+  assert.deepEqual(calls[0].body.p_origem, ['CRC', 'Fachada']);
+  calls = [];
+  await funnelDetailGet({ request: req('/api/dashboard/funnel-detail?start=2026-10-01&end=2026-11-01&stage=agendados&origem=Fachada&canal=CRC'), env, data: user(['A']) });
+  assert.deepEqual(calls[0].body.p_origem, ['Fachada']);          // filtro global
+  assert.deepEqual(calls[0].body.p_origem_channels, ['CRC']);     // chips do drill
+});
+
+test('funil: sem filtro de origem manda null (resultado igual ao de antes)', async () => {
+  calls = []; store.clear();
+  await funnelGet({ request: req('/api/dashboard/funnel?start=2026-10-01&end=2026-11-01'), env, data: user(['A']) });
+  assert.equal(calls[0].body.p_origem, null);
+});
+
+test('CRC: repassa Especialidade e Origem (stats e drill); a chave de cache muda com o filtro', async () => {
+  calls = []; store.clear();
+  const base = '/api/dashboard/funnel-resgate?start=2026-10-01&end=2026-11-01';
+  await statsGet({ request: req(base), env, data: user(['A']) });
+  await statsGet({ request: req(base + '&specialty_ids=7f945176-078f-448e-aa9b-6d5cd95961e7&origem=Indica%C3%A7ao'), env, data: user(['A']) });
+  assert.equal(calls.length, 2);                                   // não serviu o 2º do cache do 1º
+  assert.equal(calls[0].body.p_specialty_ids, null);
+  assert.deepEqual(calls[1].body.p_specialty_ids, ['7f945176-078f-448e-aa9b-6d5cd95961e7']);
+  assert.deepEqual(calls[1].body.p_origem, ['Indicaçao']);
+  calls = [];
+  await detailGet({ request: req('/api/dashboard/funnel-resgate-detail?start=2026-10-01&end=2026-11-01&bucket=resgate_orto&stage=contatos&origem=CRC'), env, data: user(['A']) });
+  assert.deepEqual(calls[0].body.p_origem, ['CRC']);
+  assert.equal(calls[0].body.p_bucket, 'resgate_orto');
+});

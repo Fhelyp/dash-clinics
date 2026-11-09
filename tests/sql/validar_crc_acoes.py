@@ -63,7 +63,14 @@ for nome, s, e, cids in CASOS:
         check(abs(soma - float(ob['resgate'][k])) < 0.01, f'resgate+orto {k}: {soma:.2f} == antigo {float(ob["resgate"][k]):.2f}')
         for f in ('follow_campanha', 'follow_organico'):
             check(abs(float(nb[f][k]) - float(ob[f][k])) < 0.01, f'{f} {k}: {float(nb[f][k]):.2f} == antigo {float(ob[f][k]):.2f}')
-    check(novo['contatos_cw'] == antigo['contatos_cw'], f'contatos CW iguais {novo["contatos_cw"]}')
+    nc, oc = novo['contatos_cw'], antigo['contatos_cw']
+    # 09/11: o resgate passou a se dividir em sem orto / com orto (etiqueta orto); follow igual
+    check(nc['follow'] == oc['follow'], f'contatos follow iguais ao antigo: {nc["follow"]} == {oc["follow"]}')
+    check(nc['resgate'] + nc['resgate_orto'] == oc['resgate'],
+          f'contatos resgate + orto == antigo: {nc["resgate"]} + {nc["resgate_orto"]} == {oc["resgate"]}')
+    for bk in ['resgate', 'resgate_orto', 'lead_organico', 'indicacao']:
+        d = q1("SELECT crc_acoes_detail(%s, 'contatos', %s, %s, %s, NULL, 'ALL', 1, 0)", bk, ps, pe, cids)
+        check(d['count'] == nc[bk], f'drill contatos {bk}: {d["count"]} == {nc[bk]}')
 
     # 2. drill == tabela
     for bk in BUCKETS:
@@ -121,6 +128,25 @@ for nome, s, e, cids in CASOS:
                   f'MC+HUM {bk}/{k}: {float(mc[bk][k]):.2f}+{float(hum[bk][k]):.2f} == {float(nb[bk][k]):.2f}')
 
     print('  números:', json.dumps({bk: {k: nb[bk][k] for k in ['agendados', 'compareceram', 'venderam', 'receita']} for bk in BUCKETS}, ensure_ascii=False))
+
+# 6. filtros de 09/11 (Origem no funil; Especialidade e Origem nas ações do CRC): drill == tabela
+print('\n== filtros Origem/Especialidade (out/26 SP)')
+ps, pe = '2026-10-01 00:00:00-03', '2026-11-01 00:00:00-03'
+ORTO = '7f945176-078f-448e-aa9b-6d5cd95961e7'
+for origem in (['CRC'], ['Fachada'], ['Maria Clara IA']):
+    fs = q1("SELECT funnel_stats_v7(%s, %s, %s, 'comissao', NULL, 'ALL', %s)->'funnel'", ps, pe, SP, origem)
+    for st in ['agendados', 'compareceram', 'venderam']:
+        d = q1("SELECT funnel_detail_v7(%s, %s, %s, %s, 'comissao', NULL, 'ALL', 1, 0, NULL, NULL, %s)", st, ps, pe, SP, origem)
+        check(d['count'] == fs[st], f'funil origem {origem[0]} {st}: drill {d["count"]} == {fs[st]}')
+for esp, origem in (([ORTO], None), (None, ['CRC']), ([ORTO], ['Fachada'])):
+    b = q1("SELECT crc_acoes_stats(%s, %s, %s, NULL, 'ALL', %s::uuid[], %s)", ps, pe, SP, esp, origem)['buckets']
+    for bk in BUCKETS:
+        d = q1("SELECT crc_acoes_detail(%s, 'agendados', %s, %s, %s, NULL, 'ALL', 1, 0, %s::uuid[], %s)", bk, ps, pe, SP, esp, origem)
+        r = q1("SELECT crc_acoes_detail(%s, 'receita', %s, %s, %s, NULL, 'ALL', 1, 0, %s::uuid[], %s)", bk, ps, pe, SP, esp, origem)
+        check(d['count'] == b[bk]['agendados'] and abs(float(r['total_pago']) - float(b[bk]['receita'])) < 0.01,
+              f'CRC esp={bool(esp)} origem={origem} {bk}: drill {d["count"]}/{float(r["total_pago"]):.2f} == {b[bk]["agendados"]}/{float(b[bk]["receita"]):.2f}')
+    if esp:
+        check(b['resgate']['agendados'] == 0, f'com Ortodontia o Resgate comum zera: {b["resgate"]["agendados"]}')
 
 print('\nRESULTADO:', 'TUDO OK' if not FAILS else f'{len(FAILS)} FALHA(S)')
 sys.exit(1 if FAILS else 0)
