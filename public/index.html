@@ -501,6 +501,8 @@
   body.modo-operador .so-admin, body.modo-operador .so-valor { display:none !important; }
   body.modo-operador #cmpKpis { grid-template-columns:repeat(3,1fr) !important; }
   #opBadge { display:none; }
+  .filtro-aviso { font-size:10.5px; line-height:1.45; color:var(--orange); background:rgba(249,115,22,.08);
+                  border:1px solid rgba(249,115,22,.25); border-radius:8px; padding:6px 10px; margin-bottom:10px; }
   body.modo-operador #opBadge { display:inline-flex; }
 </style>
 </head>
@@ -932,6 +934,7 @@
 
     <!-- ═══ Funil de Vendas (5 estágios) — CLICÁVEL pra drill-down ═══ -->
     <div class="card fnl-busy fnl-first" id="fnlCard" style="margin-bottom:var(--gap);padding:18px 22px;">
+      <div class="filtro-aviso" id="avisoFnl" role="note" hidden></div>
       <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:8px;">
         <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--gray-l);">Funil de Vendas — Campanha</div>
         <div id="fnlViewToggle" role="group" aria-label="Visão do funil" style="display:flex;gap:2px;padding:2px;border:1px solid var(--border);border-radius:8px;">
@@ -966,6 +969,7 @@
 
     <!-- ═══ Funil de Resgate e Follow-up (ação do operador) — SEPARADO da campanha ═══ -->
     <div class="card" id="resgCard" style="margin-bottom:var(--gap);padding:18px 22px;">
+      <div class="filtro-aviso" id="avisoResg" role="note" hidden></div>
       <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;">
         <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--gray-l);">Resgate & Follow-up — ação do operador</div>
         <div style="font-size:9.5px;color:var(--gray);">retrabalho de base, <strong>não</strong> é lead novo de campanha</div>
@@ -985,7 +989,7 @@
         <tbody style="font-variant-numeric:tabular-nums;">
           <tr style="border-top:1px solid var(--border);">
             <td style="padding:9px 8px;font-weight:600;color:var(--orange);" title="CRC · Resgate no Ecuro, especialidade que não é Ortodontia">Resgate</td>
-            <td id="rgCw"   title="Contatos com a tag resgate no Chatwoot (a tag não separa orto — total compartilhado com a linha Resgate Orto)" onclick="openResgateDrill('resgate','contatos')"    style="padding:9px 8px;text-align:right;cursor:pointer;">–</td>
+            <td id="rgCw"   title="Contatos do Chatwoot com a etiqueta resgate (sem orto), criados no período" onclick="openResgateDrill('resgate','contatos')"    style="padding:9px 8px;text-align:right;cursor:pointer;">–</td>
             <td id="rgAg"   onclick="openResgateDrill('resgate','agendados')"   style="padding:9px 8px;text-align:right;cursor:pointer;">–</td>
             <td id="rgConf" onclick="openResgateDrill('resgate','confirmados')" style="padding:9px 8px;text-align:right;cursor:pointer;">–</td>
             <td id="rgComp" onclick="openResgateDrill('resgate','compareceram')" style="padding:9px 8px;text-align:right;cursor:pointer;">–</td>
@@ -993,7 +997,7 @@
           </tr>
           <tr style="border-top:1px solid var(--border);">
             <td style="padding:9px 8px;font-weight:600;color:var(--orange);" title="Resgate de orto: CRC · Resgate no Ecuro com especialidade Ortodontia">Resgate Orto</td>
-            <td id="roCw"   title="A tag resgate do Chatwoot não separa orto — ver o total na linha Resgate" style="padding:9px 8px;text-align:right;color:var(--gray-l);">–</td>
+            <td id="roCw"   title="Contatos do Chatwoot com as etiquetas resgate e orto, criados no período" onclick="openResgateDrill('resgate_orto','contatos')" style="padding:9px 8px;text-align:right;cursor:pointer;">–</td>
             <td id="roAg"   onclick="openResgateDrill('resgate_orto','agendados')"   style="padding:9px 8px;text-align:right;cursor:pointer;">–</td>
             <td id="roConf" onclick="openResgateDrill('resgate_orto','confirmados')" style="padding:9px 8px;text-align:right;cursor:pointer;">–</td>
             <td id="roComp" onclick="openResgateDrill('resgate_orto','compareceram')" style="padding:9px 8px;text-align:right;cursor:pointer;">–</td>
@@ -1019,12 +1023,13 @@
       </table>
       </div>
       <div style="font-size:9.5px;color:var(--gray);margin-top:10px;line-height:1.5;border-top:1px solid var(--border);padding-top:9px;">
-        <strong>Contatos (CW)</strong> = contatos do Chatwoot com tag <code style="font-size:10px">resgate</code> / <code style="font-size:10px">follow_1..4</code>, pela data de criação. <strong>Agendados</strong> em diante = agendamentos que o operador marcou no Ecuro como <code style="font-size:10px">CRC · Resgate/Follow-Up</code>, pela data do agendamento. Sem carência. <strong>Resgate Orto</strong> = Resgate com especialidade Ortodontia. <strong>Compareceram</strong> = comparecimento registrado no Ecuro. <strong>Receita</strong> = pagamentos do período cuja última consulta atendida antes foi desta ação: depois de Follow-Up conta no Follow-Up, depois de Resgate no Resgate. Cada pagamento conta num lugar só: essa venda não entra no funil de campanha. O filtro de operador vale aqui: quem criou o agendamento. <a href="/regras-de-negocio.html#crc" target="_blank" rel="noopener" style="color:var(--blue);text-decoration:none">Regras ↗</a>
+        <strong>Contatos (CW)</strong> = contatos do Chatwoot com a etiqueta <code style="font-size:10px">resgate</code> (orto: <code style="font-size:10px">resgate</code> + <code style="font-size:10px">orto</code>) / <code style="font-size:10px">follow_1..4</code>, pela data de criação. <strong>Agendados</strong> em diante = agendamentos que o operador marcou no Ecuro como <code style="font-size:10px">CRC · Resgate/Follow-Up</code>, pela data do agendamento. Sem carência. <strong>Resgate Orto</strong> = Resgate com especialidade Ortodontia. <strong>Compareceram</strong> = comparecimento registrado no Ecuro. <strong>Receita</strong> = pagamentos do período cuja última consulta atendida antes foi desta ação: depois de Follow-Up conta no Follow-Up, depois de Resgate no Resgate. Cada pagamento conta num lugar só: essa venda não entra no funil de campanha. O filtro de operador vale aqui: quem criou o agendamento. <a href="/regras-de-negocio.html#crc" target="_blank" rel="noopener" style="color:var(--blue);text-decoration:none">Regras ↗</a>
       </div>
     </div>
 
     <!-- ═══ Orgânico & Indicação — agendamentos do CRC (pedido de 05/11, tópico 8 dos líderes) ═══ -->
     <div class="card" id="orgCard" style="margin-bottom:var(--gap);padding:18px 22px;">
+      <div class="filtro-aviso" id="avisoOrg" role="note" hidden></div>
       <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;gap:10px;flex-wrap:wrap;">
         <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--gray-l);">Orgânico & Indicação — agendados pelo CRC</div>
         <div style="font-size:9.5px;color:var(--gray);">paciente que <strong>não</strong> veio de anúncio · o que a recepção agenda não entra</div>
@@ -1034,6 +1039,7 @@
         <thead>
           <tr style="text-align:right;color:var(--gray-l);font-size:9.5px;text-transform:uppercase;letter-spacing:.06em;">
             <th style="text-align:left;padding:7px 8px;">Vertente</th>
+            <th style="padding:7px 8px;" title="Contatos do Chatwoot com a etiqueta organico / indicacao, criados no período">Contatos (CW)</th>
             <th style="padding:7px 8px;" title="Agendamentos marcados no Ecuro como CRC · Lead Orgânico / CRC · Indicação, pela data do agendamento">Agendados</th>
             <th style="padding:7px 8px;" title="Informativo: confirmado, atendido ou com confirmação registrada">Confirmados</th>
             <th style="padding:7px 8px;" title="Agendamentos do período com comparecimento registrado no Ecuro">Compareceram</th>
@@ -1044,6 +1050,7 @@
         <tbody style="font-variant-numeric:tabular-nums;">
           <tr style="border-top:1px solid var(--border);">
             <td style="padding:9px 8px;font-weight:600;color:var(--teal);" title="CRC · Lead Orgânico no Ecuro: contato espontâneo, sem origem em anúncio (manual de auditoria)">Lead Orgânico</td>
+            <td id="loCw"   onclick="openResgateDrill('lead_organico','contatos')"     style="padding:9px 8px;text-align:right;cursor:pointer;">–</td>
             <td id="loAg"   onclick="openResgateDrill('lead_organico','agendados')"    style="padding:9px 8px;text-align:right;cursor:pointer;">–</td>
             <td id="loConf" onclick="openResgateDrill('lead_organico','confirmados')"  style="padding:9px 8px;text-align:right;cursor:pointer;">–</td>
             <td id="loComp" onclick="openResgateDrill('lead_organico','compareceram')" style="padding:9px 8px;text-align:right;cursor:pointer;">–</td>
@@ -1052,6 +1059,7 @@
           </tr>
           <tr style="border-top:1px solid var(--border);">
             <td style="padding:9px 8px;font-weight:600;color:var(--purple);" title="CRC · Indicação no Ecuro: recomendação de terceiros, inclusive a família de paciente de campanha (manual de auditoria)">Indicação</td>
+            <td id="inCw"   onclick="openResgateDrill('indicacao','contatos')"     style="padding:9px 8px;text-align:right;cursor:pointer;">–</td>
             <td id="inAg"   onclick="openResgateDrill('indicacao','agendados')"    style="padding:9px 8px;text-align:right;cursor:pointer;">–</td>
             <td id="inConf" onclick="openResgateDrill('indicacao','confirmados')"  style="padding:9px 8px;text-align:right;cursor:pointer;">–</td>
             <td id="inComp" onclick="openResgateDrill('indicacao','compareceram')" style="padding:9px 8px;text-align:right;cursor:pointer;">–</td>
@@ -1062,7 +1070,7 @@
       </table>
       </div>
       <div style="font-size:9.5px;color:var(--gray);margin-top:10px;line-height:1.5;border-top:1px solid var(--border);padding-top:9px;">
-        <strong>Agendados</strong> = agendamentos que o operador marcou no Ecuro como <code style="font-size:10px">CRC · Lead Orgânico</code> ou <code style="font-size:10px">CRC · Indicação</code>, pela data do agendamento (todas as especialidades). <strong>Compareceram</strong> = comparecimento registrado no Ecuro. <strong>Receita</strong> = pagamentos do período cuja última consulta atendida antes foi desta vertente; boleto programado só quando pago. Pagamento de paciente de campanha continua no funil de campanha. Família de paciente de campanha agendada como Indicação aparece aqui. O filtro de operador vale aqui: quem criou o agendamento. <a href="/regras-de-negocio.html#crc" target="_blank" rel="noopener" style="color:var(--blue);text-decoration:none">Regras ↗</a>
+        <strong>Contatos (CW)</strong> = contatos do Chatwoot com a etiqueta <code style="font-size:10px">organico</code> / <code style="font-size:10px">indicacao</code>, pela data de criação. <strong>Agendados</strong> = agendamentos que o operador marcou no Ecuro como <code style="font-size:10px">CRC · Lead Orgânico</code> ou <code style="font-size:10px">CRC · Indicação</code>, pela data do agendamento (todas as especialidades). <strong>Compareceram</strong> = comparecimento registrado no Ecuro. <strong>Receita</strong> = pagamentos do período cuja última consulta atendida antes foi desta vertente; boleto programado só quando pago. Pagamento de paciente de campanha continua no funil de campanha. Família de paciente de campanha agendada como Indicação aparece aqui. O filtro de operador vale aqui: quem criou o agendamento. <a href="/regras-de-negocio.html#crc" target="_blank" rel="noopener" style="color:var(--blue);text-decoration:none">Regras ↗</a>
       </div>
     </div>
     <style>
@@ -1792,7 +1800,7 @@ function filteredALL(){
 // Espera 600ms sem novo filtro pra disparar a query — evita N requests pra Postgres.
 // Padrão BI (Looker, Metabase, Power BI) usa esse approach pra reduzir carga no DB.
 let _updateDebounceTimer = null;
-let _updateInFlight = false;
+let _statsSeq = 0;
 
 function updateDashboard(){
   if(_updateDebounceTimer){ clearTimeout(_updateDebounceTimer); }
@@ -1802,30 +1810,56 @@ function updateDashboard(){
   }, 600);
 }
 
+// Aviso em cada bloco quando um filtro ativo não muda aquele bloco — sem isso parece que o filtro
+// "não funciona" (09/11). Regras: campanha = consulta de Avaliação (Especialidade não se aplica) e as
+// etapas do funil já são status (Status não se aplica); Leads e Contatos (CW) são contatos do
+// Chatwoot, sem operador, especialidade ou origem.
+function atualizarAvisosFiltro(){
+  const tem = x => !!(x && x.size > 0);
+  const op = tem(APPLIED.creators) || MC_MODE !== 'ALL';
+  const set = (id, partes) => {
+    const el = document.getElementById(id); if (!el) return;
+    const txt = partes.filter(Boolean).join(' ');
+    el.textContent = txt; el.hidden = !txt;
+  };
+  set('avisoFnl', [
+    (tem(APPLIED.specs) || tem(APPLIED.statuses)) ? 'Filtro de ' + [tem(APPLIED.specs) && 'Especialidade', tem(APPLIED.statuses) && 'Status'].filter(Boolean).join(' e ') + ' não muda este funil: campanha é consulta de Avaliação e cada etapa já é um status.' : '',
+    (op || tem(APPLIED.origens)) ? 'Leads são contatos do Chatwoot e não têm operador nem origem: a etapa Leads não muda com esses filtros.' : ''
+  ]);
+  const crc = [
+    tem(APPLIED.statuses) ? 'Filtro de Status não muda este bloco (as colunas já são as etapas).' : '',
+    (op || tem(APPLIED.specs) || tem(APPLIED.origens)) ? 'Contatos (CW) são do Chatwoot e não mudam com filtro de operador, especialidade ou origem.' : ''
+  ];
+  set('avisoResg', crc);
+  set('avisoOrg', [crc[0]]);
+}
+
+// Cada "Aplicar" dispara tudo de novo; resposta de um filtro antigo é descartada pelo número de
+// sequência de cada bloco (_statsSeq, _fnlSeq, _crcSeq, TS[k]._seq). Antes: (1) um Aplicar feito
+// enquanto a atualização anterior rodava era IGNORADO em silêncio (_updateInFlight); (2) o funil e
+// as ações do CRC só carregavam DEPOIS do stats do Overview — que com filtro de operador é a
+// consulta mais lenta — e parecia que o filtro de operador não mudava o funil (Fhely, 09/11).
 function _runUpdate(){
-  if(_updateInFlight) return; // já tem uma rodando
-  _updateInFlight = true;
+  const seq = ++_statsSeq;
   showBanner('Atualizando dados…', 'info');
   // Re-render chips imediatamente pra UX (botões já mudam de cor)
   renderActiveFilterChips();
-  try { setFunnelBusy(); } catch(_) {}
-  (IS_OPERADOR ? Promise.resolve(null) : fetchStats()).then(stats => {
-    if (stats) {
-      STATS = stats;
-      try { applyStatsToUI(stats); } catch(e){ console.error('[applyStatsToUI]', e); }
-    }
-    try { if(typeof loadTablePage === 'function') ['mn','cf','rg'].forEach(k => loadTablePage(k)); } catch(e){ console.warn('[tables]', e); }
-    try { if(typeof computeThauanyMetrics === 'function') computeThauanyMetrics().catch(err => console.warn('[thauany]', err)); } catch(e){ console.warn('[thauany sync]', e); }
+  try { atualizarAvisosFiltro(); } catch(_) {}
+  // Marketing e Auditoria não dependem do stats: começam já, em paralelo
+  try { ['mn','cf','rg'].forEach(k => loadTablePage(k)); } catch(e){ console.warn('[tables]', e); }
+  try { computeThauanyMetrics().catch(err => console.warn('[funil]', err)); } catch(e){ console.warn('[funil sync]', e); }
+  if (IS_OPERADOR) { hideBanner(); return; }
+  fetchStats().then(stats => {
+    if (seq !== _statsSeq) return;            // filtro mudou enquanto carregava
+    STATS = stats;
+    try { applyStatsToUI(stats); } catch(e){ console.error('[applyStatsToUI]', e); }
   }).catch(e => {
-    if(e.message === 'unauthorized') return;
+    if (seq !== _statsSeq || e.message === 'unauthorized') return;
     console.error('[updateDashboard]', e);
-    // o funil não depende do dashboard_stats: se o Overview falhar, carrega o funil assim mesmo
-    try { loadFunnelMarketing(); } catch(_) {}
-    showBanner('Erro ao atualizar: ' + e.message, 'error');
+    showBanner('Erro ao atualizar o Overview: ' + e.message, 'error');
     setTimeout(hideBanner, 3000);
   }).finally(() => {
-    _updateInFlight = false;
-    hideBanner(); // GARANTIA: sempre esconde
+    if (seq === _statsSeq) hideBanner(); // GARANTIA: sempre esconde
   });
 }
 
@@ -2488,34 +2522,47 @@ async function loadFromSupabase(){
     if(dInputs[1]) dInputs[1].value = APPLIED.d2;
   }
 
-  // Fetch lookups + stats em paralelo
-  let lookups, stats;
+  // Overview (stats) começa já, em paralelo com as unidades; Marketing e Auditoria começam assim
+  // que as unidades chegam — não esperam o Overview (ver _runUpdate).
+  const seq = ++_statsSeq;
+  const statsP = IS_OPERADOR ? Promise.resolve(null) : fetchStats();
+  statsP.catch(() => {});                     // o erro é tratado abaixo
+  let lookups;
   try {
-    [lookups, stats] = await Promise.all([fetchLookups(), IS_OPERADOR ? Promise.resolve({}) : fetchStats()]);
+    lookups = await fetchLookups();
   } catch(e){
     if(e.message === 'unauthorized') { hideBanner(); return; }
-    // o funil não depende do dashboard_stats: se o Overview falhar, carrega o funil assim mesmo
-    try { loadFunnelMarketing(); } catch(_) {}
     showBanner('Erro: ' + e.message, 'error');
     setTimeout(hideBanner, 3000); // fecha o erro após 3s
     return;
   }
-  STATS = stats;
 
   // Bloco render: cada step protegido pra não bloquear hideBanner final
   try { if(typeof rebuildUnitDropdown === 'function') rebuildUnitDropdown(lookups.clinics); } catch(e){ console.warn('[unitDropdown]', e); }
   try { if(typeof rebuildSpecialtyDropdown === 'function') rebuildSpecialtyDropdown(lookups.specialties); } catch(e){ console.warn('[specDropdown]', e); }
+  try { renderActiveFilterChips(); } catch(e){ console.warn('[chips]', e); }
+  try { atualizarAvisosFiltro(); } catch(_) {}
+  try { ['mn','cf','rg'].forEach(k => loadTablePage(k)); } catch(e){ console.warn('[tables]', e); }
+  try { computeThauanyMetrics().catch(err => console.warn('[funil]', err)); } catch(e){ console.warn('[funil sync]', e); }
+
   if (!IS_OPERADOR) {
+    let stats;
+    try { stats = await statsP; }
+    catch(e){
+      if (seq !== _statsSeq) return;
+      if(e.message === 'unauthorized') { hideBanner(); return; }
+      showBanner('Erro no Overview: ' + e.message, 'error');
+      setTimeout(hideBanner, 3000);
+      return;
+    }
+    if (seq !== _statsSeq) return;            // o usuário já aplicou outro filtro
+    STATS = stats;
     try { applyStatsToUI(stats); } catch(e){ console.error('[applyStatsToUI]', e); }
     try { if(typeof populateOperatorList === 'function') populateOperatorList(); } catch(e){ console.warn('[populateOperatorList]', e); }
+    console.log('[load v3] stats:', { kpis: stats.kpis, mc_revenue: stats.mc_revenue, mc_revenue_v4: stats.mc_revenue_v4 });
   }
-  try { renderActiveFilterChips(); } catch(e){ console.warn('[chips]', e); }
-  try { ['mn','cf','rg'].forEach(k => loadTablePage(k)); } catch(e){ console.warn('[tables]', e); }
-  try { if(typeof computeThauanyMetrics === 'function') computeThauanyMetrics().catch(err => console.warn('[thauany]', err)); } catch(e){ console.warn('[thauany sync]', e); }
-
   // SEMPRE esconder banner — mesmo que algum sub-step quebre.
   hideBanner();
-  if (!IS_OPERADOR) console.log('[load v3] stats:', { kpis: stats.kpis, mc_revenue: stats.mc_revenue, mc_revenue_v4: stats.mc_revenue_v4 });
 }
 
 // ══ Filtro rápido por Regional (Líder → unidades) ══════════════════════════
@@ -2629,6 +2676,7 @@ function rebuildSpecialtyDropdown(specs){
 async function loadTablePage(k){
   const tConf = TS[k];
   if(!tConf) return;
+  const seq = tConf._seq = (tConf._seq || 0) + 1;
   const params = buildStatsParams();
   params.set('page', String(tConf.page || 1));
   params.set('pp', String(tConf.pp || 10));
@@ -2652,9 +2700,11 @@ async function loadTablePage(k){
 
   try {
     const r = await fetch(endpoint + '?' + params.toString(), { credentials: 'same-origin' });
+    if (seq !== tConf._seq) return;
     if(r.status === 401){ window.location.href = '/login.html'; return; }
     if(!r.ok) return;
     const j = await r.json();
+    if (seq !== tConf._seq) return;
     tConf.rows = j.data || [];
     tConf.total = j.pagination?.total || 0;
     tConf.totalPages = j.pagination?.total_pages || 1;
@@ -2676,7 +2726,7 @@ function setCrcCells(fn){
   for (const pre in CRC_ROWS) for (const col of ['Ag','Conf','Comp','Vend','Rec']) {
     const el = document.getElementById(pre + col); if (el) fn(el, pre, col);
   }
-  for (const id of ['rgCw','fcCw']) { const el = document.getElementById(id); if (el) fn(el, id, 'Cw'); }
+  for (const id of ['rgCw','roCw','fcCw','loCw','inCw']) { const el = document.getElementById(id); if (el) fn(el, id, 'Cw'); }
 }
 async function loadFunnelResgate(fparams){
   const seq = ++_crcSeq;
@@ -2699,10 +2749,13 @@ async function loadFunnelResgate(fparams){
       if (document.getElementById(pre + 'Vend')) setTxt(pre + 'Vend', n(x.venderam));
       setTxt(pre + 'Rec',  fmtMoney((Number(x.receita)||0)));
     }
-    // Contatos (CW): a tag resgate não separa orto e a follow_N não separa campanha/orgânico
-    // → total na primeira linha de cada par
+    // Contatos (CW) por etiqueta do Chatwoot. A follow_N não separa campanha/orgânico → total na
+    // linha Follow-Up Campanha. Orto = resgate + orto (sync da VPS desde 09/11).
     setTxt('rgCw', n(cw.resgate));
+    setTxt('roCw', n(cw.resgate_orto));
     setTxt('fcCw', n(cw.follow));
+    setTxt('loCw', n(cw.lead_organico));
+    setTxt('inCw', n(cw.indicacao));
     setCrcCells(el => { el.style.opacity = ''; el.removeAttribute('data-erro'); });
   } catch(e) {
     if (seq !== _crcSeq) return;
@@ -2812,7 +2865,7 @@ async function loadDrillPage(){
   usp.set('limit', DRILL_STATE.pp);
   usp.set('offset', (DRILL_STATE.page - 1) * DRILL_STATE.pp);
   if (DRILL_STATE.search) usp.set('search', DRILL_STATE.search);
-  if (DRILL_STATE.origem.size > 0) usp.set('origem', [...DRILL_STATE.origem].join(','));
+  if (DRILL_STATE.origem.size > 0) usp.set('canal', [...DRILL_STATE.origem].join(','));
   try {
     const r = await fetch('/api/dashboard/funnel-detail?' + usp.toString(), { credentials: 'same-origin' });
     if (r.status === 401) { window.location.href = '/login.html'; return; }

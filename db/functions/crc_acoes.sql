@@ -23,6 +23,16 @@
 --   Venderam      pacientes com receita na vertente
 --   Operador      p_creators / p_agent_mode: quem criou o agendamento (na receita, quem criou a
 --                 consulta que levou ao pagamento) — mesmos nomes do filtro "Operador" do dash.
+--   Especialidade p_specialty_ids (09/11): especialidade do agendamento (na receita, da consulta que
+--                 levou ao pagamento).
+--   Origem        p_origem (09/11): canal de origem do paciente (patient_channel_name), mesmo critério
+--                 do Overview e da Auditoria.
+--   Contatos (CW) etiquetas do Chatwoot (sync da VPS, 09/11): resgate sem orto / resgate + orto /
+--                 follow_1..4 / organico / indicacao, pela data de criação do contato. Contato não
+--                 tem operador, especialidade nem origem: esses filtros não valem para esta coluna.
+--
+-- Mudança de assinatura em 09/11: aplicar junto com db/functions/funnel_v7_origem_drop.sql (DROP
+-- das assinaturas antigas na mesma transação).
 
 CREATE OR REPLACE FUNCTION public.crc_acao_bucket(p_channel text, p_sub text, p_speciality uuid)
  RETURNS text
@@ -53,7 +63,7 @@ $function$;
 
 -- Base única: uma linha por agendamento do período e uma por pagamento atribuído.
 -- kind = 'ag' (agendamento) | 'pg' (pagamento). Stats e drill leem daqui (contagem == drill).
-CREATE OR REPLACE FUNCTION public.crc_acoes_base(p_start timestamp with time zone, p_end timestamp with time zone, p_clinic_ids text[] DEFAULT NULL::text[], p_creators text[] DEFAULT NULL::text[], p_agent_mode text DEFAULT 'ALL'::text)
+CREATE OR REPLACE FUNCTION public.crc_acoes_base(p_start timestamp with time zone, p_end timestamp with time zone, p_clinic_ids text[] DEFAULT NULL::text[], p_creators text[] DEFAULT NULL::text[], p_agent_mode text DEFAULT 'ALL'::text, p_specialty_ids uuid[] DEFAULT NULL::uuid[], p_origem text[] DEFAULT NULL::text[])
  RETURNS TABLE(kind text, bucket text, appt_id uuid, patient_id uuid, patient_name text, phone_norm text, atendente text, dt timestamp with time zone, ult_start timestamp with time zone, status smallint, attended boolean, confirmed boolean, amount numeric)
  LANGUAGE plpgsql
  STABLE
@@ -68,6 +78,7 @@ cr AS (
   FROM unnest(COALESCE($4, ARRAY[]::text[])) c),
 acao AS MATERIALIZED (
   SELECT a.id AS appt_id, a.patient_id, a.patient_name, a.phone_norm, a.created_at, a.status, a.attended_time,
+         a.speciality_id AS esp, a.patient_channel_name AS origem,
          public.crc_acao_bucket(a.channel_name, a.subchannel_name, a.speciality_id) AS bucket,
          public.crc_creator_key(a.channel_name, a.created_by_name, a.created_by_name_norm) AS ck,
          NULLIF(btrim(regexp_replace(COALESCE(a.created_by_name,''), '\s+', ' ', 'g')), '') AS atendente
@@ -78,10 +89,11 @@ acao AS MATERIALIZED (
 -- pagamentos do período com a consulta atendida que veio logo antes de cada um
 pay0 AS MATERIALIZED (
   SELECT p.id, p.patient_id, p.amount, p.date, u.appt_id AS ult_id, u.start_time AS ult_start,
-         u.patient_name, u.phone_norm, u.bucket, u.ck, u.atendente
+         u.patient_name, u.phone_norm, u.bucket, u.ck, u.atendente, u.esp, u.origem
   FROM "BI Payments" p
   CROSS JOIN LATERAL (
     SELECT x.id AS appt_id, x.start_time, x.patient_name, x.phone_norm,
+           x.speciality_id AS esp, x.patient_channel_name AS origem,
            public.crc_acao_bucket(x.channel_name, x.subchannel_name, x.speciality_id) AS bucket,
            public.crc_creator_key(x.channel_name, x.created_by_name, x.created_by_name_norm) AS ck,
            NULLIF(btrim(regexp_replace(COALESCE(x.created_by_name,''), '\s+', ' ', 'g')), '') AS atendente
@@ -143,18 +155,22 @@ FROM acao ac
 WHERE ac.bucket IS NOT NULL
   AND ($4 IS NULL OR ac.ck IN (SELECT unnest(list) FROM cr))
   AND (COALESCE($5,'ALL') IN ('ALL','') OR ($5 = 'MC' AND ac.ck = 'maria clara') OR ($5 = 'HUM' AND ac.ck <> 'maria clara'))
+  AND ($6 IS NULL OR ac.esp = ANY($6))
+  AND ($7 IS NULL OR ac.origem = ANY($7))
 UNION ALL
 SELECT 'pg'::text, p.bucket, p.ult_id, p.patient_id, p.patient_name, p.phone_norm, p.atendente,
        p.date, p.ult_start, NULL::smallint, NULL::boolean, NULL::boolean, p.amount
 FROM pay p
 WHERE ($4 IS NULL OR p.ck IN (SELECT unnest(list) FROM cr))
   AND (COALESCE($5,'ALL') IN ('ALL','') OR ($5 = 'MC' AND p.ck = 'maria clara') OR ($5 = 'HUM' AND p.ck <> 'maria clara'))
+  AND ($6 IS NULL OR p.esp = ANY($6))
+  AND ($7 IS NULL OR p.origem = ANY($7))
 $q$
-USING p_start, p_end, p_clinic_ids, p_creators, p_agent_mode;
+USING p_start, p_end, p_clinic_ids, p_creators, p_agent_mode, p_specialty_ids, p_origem;
 END;
 $function$;
 
-CREATE OR REPLACE FUNCTION public.crc_acoes_stats(p_start timestamp with time zone, p_end timestamp with time zone, p_clinic_ids text[] DEFAULT NULL::text[], p_creators text[] DEFAULT NULL::text[], p_agent_mode text DEFAULT 'ALL'::text)
+CREATE OR REPLACE FUNCTION public.crc_acoes_stats(p_start timestamp with time zone, p_end timestamp with time zone, p_clinic_ids text[] DEFAULT NULL::text[], p_creators text[] DEFAULT NULL::text[], p_agent_mode text DEFAULT 'ALL'::text, p_specialty_ids uuid[] DEFAULT NULL::uuid[], p_origem text[] DEFAULT NULL::text[])
  RETURNS jsonb
  LANGUAGE sql
  STABLE
@@ -162,7 +178,7 @@ CREATE OR REPLACE FUNCTION public.crc_acoes_stats(p_start timestamp with time zo
 AS $function$
 WITH bk(bucket, ord) AS (
   VALUES ('resgate',1), ('resgate_orto',2), ('follow_campanha',3), ('follow_organico',4), ('lead_organico',5), ('indicacao',6)),
-b AS MATERIALIZED (SELECT * FROM public.crc_acoes_base(p_start, p_end, p_clinic_ids, p_creators, p_agent_mode)),
+b AS MATERIALIZED (SELECT * FROM public.crc_acoes_base(p_start, p_end, p_clinic_ids, p_creators, p_agent_mode, p_specialty_ids, p_origem)),
 agg AS (
   SELECT bucket, COUNT(*) AS agendados, COUNT(*) FILTER (WHERE confirmed) AS confirmados,
          COUNT(*) FILTER (WHERE attended) AS compareceram, COUNT(DISTINCT patient_id) AS pacientes
@@ -171,19 +187,23 @@ rev AS (
   SELECT bucket, COALESCE(SUM(amount),0)::numeric AS receita, COUNT(*) AS pagamentos,
          COUNT(DISTINCT patient_id) AS venderam
   FROM b WHERE kind = 'pg' GROUP BY bucket),
--- Contatos (CW): contatos do Chatwoot com tag resgate / follow_1..4 criados no período (a tag não
--- separa orto nem campanha/orgânico; orgânico e indicação não são sincronizados do Chatwoot)
+-- Contatos (CW): contatos do Chatwoot com a etiqueta, criados no período. Resgate de orto =
+-- etiquetas resgate + orto. A etiqueta follow_N não separa campanha de orgânico (total único).
 cw AS (
   SELECT
-    COUNT(DISTINCT phone_norm) FILTER (WHERE 'resgate' = ANY(labels)) AS resgate,
-    COUNT(DISTINCT phone_norm) FILTER (WHERE labels && ARRAY['follow_1','follow_2','follow_3','follow_4']) AS follow
+    COUNT(DISTINCT phone_norm) FILTER (WHERE 'resgate' = ANY(labels) AND NOT ('orto' = ANY(labels))) AS resgate,
+    COUNT(DISTINCT phone_norm) FILTER (WHERE labels @> ARRAY['resgate','orto']) AS resgate_orto,
+    COUNT(DISTINCT phone_norm) FILTER (WHERE labels && ARRAY['follow_1','follow_2','follow_3','follow_4']) AS follow,
+    COUNT(DISTINCT phone_norm) FILTER (WHERE 'organico' = ANY(labels)) AS lead_organico,
+    COUNT(DISTINCT phone_norm) FILTER (WHERE 'indicacao' = ANY(labels)) AS indicacao
   FROM chatwoot_leads
   WHERE created_at_cw >= p_start AND created_at_cw < p_end
     AND phone_norm IS NOT NULL AND length(phone_norm) >= 10
     AND (p_clinic_ids IS NULL OR ecuro_clinic_id = ANY(p_clinic_ids)))
 SELECT jsonb_build_object(
   'period', jsonb_build_object('start', p_start, 'end', p_end),
-  'contatos_cw', (SELECT jsonb_build_object('resgate', resgate, 'follow', follow) FROM cw),
+  'contatos_cw', (SELECT jsonb_build_object('resgate', resgate, 'resgate_orto', resgate_orto, 'follow', follow,
+                                            'lead_organico', lead_organico, 'indicacao', indicacao) FROM cw),
   'buckets', jsonb_object_agg(bk.bucket, jsonb_build_object(
       'agendados', COALESCE(agg.agendados,0), 'confirmados', COALESCE(agg.confirmados,0),
       'compareceram', COALESCE(agg.compareceram,0), 'pacientes', COALESCE(agg.pacientes,0),
@@ -198,7 +218,7 @@ SELECT jsonb_build_object(
 ) FROM bk LEFT JOIN agg ON agg.bucket = bk.bucket LEFT JOIN rev ON rev.bucket = bk.bucket;
 $function$;
 
-CREATE OR REPLACE FUNCTION public.crc_acoes_detail(p_bucket text, p_stage text, p_start timestamp with time zone, p_end timestamp with time zone, p_clinic_ids text[] DEFAULT NULL::text[], p_creators text[] DEFAULT NULL::text[], p_agent_mode text DEFAULT 'ALL'::text, p_limit integer DEFAULT 100, p_offset integer DEFAULT 0)
+CREATE OR REPLACE FUNCTION public.crc_acoes_detail(p_bucket text, p_stage text, p_start timestamp with time zone, p_end timestamp with time zone, p_clinic_ids text[] DEFAULT NULL::text[], p_creators text[] DEFAULT NULL::text[], p_agent_mode text DEFAULT 'ALL'::text, p_limit integer DEFAULT 100, p_offset integer DEFAULT 0, p_specialty_ids uuid[] DEFAULT NULL::uuid[], p_origem text[] DEFAULT NULL::text[])
  RETURNS jsonb
  LANGUAGE sql
  STABLE
@@ -210,19 +230,25 @@ AS $function$
 --                período cuja última consulta atendida é este agendamento (não repete pagamento)
 --   receita      uma linha por paciente com os pagamentos do período atribuídos à vertente
 WITH b AS MATERIALIZED (
-  SELECT * FROM public.crc_acoes_base(p_start, p_end, p_clinic_ids, p_creators, p_agent_mode)
+  SELECT * FROM public.crc_acoes_base(p_start, p_end, p_clinic_ids, p_creators, p_agent_mode, p_specialty_ids, p_origem)
   WHERE p_stage <> 'contatos' AND bucket = p_bucket),
-tags AS (SELECT CASE WHEN p_bucket IN ('resgate') THEN ARRAY['resgate']
-                     WHEN p_bucket IN ('follow','follow_campanha','follow_organico') THEN ARRAY['follow_1','follow_2','follow_3','follow_4']
-                     ELSE ARRAY[]::text[] END AS list),
 contatos AS (
   SELECT DISTINCT ON (cl.phone_norm) cl.name AS nome, cl.phone_norm AS telefone,
          to_char(cl.created_at_cw AT TIME ZONE 'America/Sao_Paulo','DD/MM/YYYY') AS data,
          NULL::text AS status, 0::numeric AS pago, NULL::uuid AS patient_id, NULL::text AS atendente,
          cl.created_at_cw AS ord_dt
-  FROM chatwoot_leads cl CROSS JOIN tags
+  FROM chatwoot_leads cl
   WHERE p_stage = 'contatos'
-    AND cl.labels && tags.list AND cl.phone_norm IS NOT NULL AND length(cl.phone_norm) >= 10
+    AND CASE p_bucket
+          WHEN 'resgate'       THEN 'resgate' = ANY(cl.labels) AND NOT ('orto' = ANY(cl.labels))
+          WHEN 'resgate_orto'  THEN cl.labels @> ARRAY['resgate','orto']
+          WHEN 'lead_organico' THEN 'organico' = ANY(cl.labels)
+          WHEN 'indicacao'     THEN 'indicacao' = ANY(cl.labels)
+          WHEN 'follow'          THEN cl.labels && ARRAY['follow_1','follow_2','follow_3','follow_4']
+          WHEN 'follow_campanha' THEN cl.labels && ARRAY['follow_1','follow_2','follow_3','follow_4']
+          WHEN 'follow_organico' THEN cl.labels && ARRAY['follow_1','follow_2','follow_3','follow_4']
+          ELSE false END
+    AND cl.phone_norm IS NOT NULL AND length(cl.phone_norm) >= 10
     AND cl.created_at_cw >= p_start AND cl.created_at_cw < p_end
     AND (p_clinic_ids IS NULL OR cl.ecuro_clinic_id = ANY(p_clinic_ids))
   ORDER BY cl.phone_norm, cl.created_at_cw DESC),

@@ -26,8 +26,15 @@
 --   9. Confirmados: informativo.
 -- Filtro de operador (p_creators): mesmos nomes do filtro "Operador" do dash; Maria Clara = 'maria clara'.
 -- p_agent_mode: 'ALL' | 'MC' (só Maria Clara) | 'HUM' (só operadores), igual ao botão do dash.
+-- p_origem (09/11/2026): filtro "Origem" do dash = canal de origem do paciente na consulta
+--   (patient_channel_name), o mesmo critério do Overview e da Auditoria. NULL = sem filtro.
+--   Leads (contatos do Chatwoot) não têm origem/operador: a coluna Leads não muda com esses filtros.
+--
+-- Mudança de assinatura (p_origem novo): aplicar com DROP das assinaturas antigas na MESMA
+-- transação (db/functions/funnel_v7_origem_drop.sql), senão ficam duas versões e o PostgREST
+-- não sabe qual chamar.
 
-CREATE OR REPLACE FUNCTION public.funnel_v7_rows(p_start timestamp with time zone, p_end timestamp with time zone, p_clinic_ids text[] DEFAULT NULL::text[], p_view text DEFAULT 'comissao'::text, p_creators text[] DEFAULT NULL::text[], p_agent_mode text DEFAULT 'ALL'::text)
+CREATE OR REPLACE FUNCTION public.funnel_v7_rows(p_start timestamp with time zone, p_end timestamp with time zone, p_clinic_ids text[] DEFAULT NULL::text[], p_view text DEFAULT 'comissao'::text, p_creators text[] DEFAULT NULL::text[], p_agent_mode text DEFAULT 'ALL'::text, p_origem text[] DEFAULT NULL::text[])
  RETURNS TABLE(clinic_id text, patient_id uuid, patient_name text, phone_norm text, cw_contact_id integer, account_id integer, lead_name text, lead_dt timestamp with time zone, agendou boolean, confirmou boolean, compareceu boolean, total_pago numeric, n_pgto integer, canais text[], atendentes text[])
  LANGUAGE plpgsql
  STABLE
@@ -71,6 +78,7 @@ camp AS MATERIALIZED (
     AND a.speciality_id = '8409c08e-f3fa-43a0-b9bd-53128cecdbdc'::uuid        -- regra 4: Avaliação
     AND COALESCE(a.subchannel_name,'') !~* '^(follow|resgate)'                 -- funil de resgate/follow
     AND ($3 IS NULL OR a.clinic_id = ANY($3))
+    AND ($7 IS NULL OR a.patient_channel_name = ANY($7))                       -- filtro Origem do dash
     AND (a.subchannel_name = 'Lead Campanha'
          OR (la.appt_id IS NOT NULL
              AND (a.channel_name IN ('CRC','Maria Clara IA')                    -- regra 2: sem prazo
@@ -158,7 +166,7 @@ LEFT JOIN pg g ON g.patient_id = a.patient_id
 WHERE CASE WHEN $4 = 'safra' THEN a.agendou
            ELSE a.agendou OR a.confirmou OR a.compareceu OR COALESCE(g.total, 0) > 0 END
 $q$
-USING p_start, p_end, p_clinic_ids, p_view, p_creators, p_agent_mode;
+USING p_start, p_end, p_clinic_ids, p_view, p_creators, p_agent_mode, p_origem;
 END;
 $function$;
 
@@ -183,13 +191,13 @@ AS $function$
   ORDER BY x.phone_norm, x.lead_dt DESC;
 $function$;
 
-CREATE OR REPLACE FUNCTION public.funnel_stats_v7(p_start timestamp with time zone, p_end timestamp with time zone, p_clinic_ids text[] DEFAULT NULL::text[], p_view text DEFAULT 'comissao'::text, p_creators text[] DEFAULT NULL::text[], p_agent_mode text DEFAULT 'ALL'::text)
+CREATE OR REPLACE FUNCTION public.funnel_stats_v7(p_start timestamp with time zone, p_end timestamp with time zone, p_clinic_ids text[] DEFAULT NULL::text[], p_view text DEFAULT 'comissao'::text, p_creators text[] DEFAULT NULL::text[], p_agent_mode text DEFAULT 'ALL'::text, p_origem text[] DEFAULT NULL::text[])
  RETURNS jsonb
  LANGUAGE sql
  STABLE
  SET statement_timeout TO '60s'
 AS $function$
-WITH r AS MATERIALIZED (SELECT * FROM public.funnel_v7_rows(p_start, p_end, p_clinic_ids, p_view, p_creators, p_agent_mode)),
+WITH r AS MATERIALIZED (SELECT * FROM public.funnel_v7_rows(p_start, p_end, p_clinic_ids, p_view, p_creators, p_agent_mode, p_origem)),
 m AS (SELECT
     (SELECT COUNT(*) FROM public.funnel_v7_leads(p_start, p_end, p_clinic_ids)) AS leads,
     (SELECT COUNT(*) FROM r WHERE agendou) AS agendados,
@@ -222,7 +230,7 @@ SELECT jsonb_build_object(
 ) FROM m;
 $function$;
 
-CREATE OR REPLACE FUNCTION public.funnel_detail_v7(p_stage text, p_start timestamp with time zone, p_end timestamp with time zone, p_clinic_ids text[] DEFAULT NULL::text[], p_view text DEFAULT 'comissao'::text, p_creators text[] DEFAULT NULL::text[], p_agent_mode text DEFAULT 'ALL'::text, p_limit integer DEFAULT 100, p_offset integer DEFAULT 0, p_search text DEFAULT NULL::text, p_origem_channels text[] DEFAULT NULL::text[])
+CREATE OR REPLACE FUNCTION public.funnel_detail_v7(p_stage text, p_start timestamp with time zone, p_end timestamp with time zone, p_clinic_ids text[] DEFAULT NULL::text[], p_view text DEFAULT 'comissao'::text, p_creators text[] DEFAULT NULL::text[], p_agent_mode text DEFAULT 'ALL'::text, p_limit integer DEFAULT 100, p_offset integer DEFAULT 0, p_search text DEFAULT NULL::text, p_origem_channels text[] DEFAULT NULL::text[], p_origem text[] DEFAULT NULL::text[])
  RETURNS jsonb
  LANGUAGE sql
  STABLE
@@ -239,7 +247,7 @@ WITH base AS MATERIALIZED (
   SELECT r.phone_norm, r.clinic_id, r.account_id, r.cw_contact_id, COALESCE(r.patient_name, r.lead_name), r.lead_dt,
          ARRAY[r.patient_id], COALESCE(r.canais, ARRAY[]::text[]), r.atendentes,
          r.agendou, r.confirmou, r.compareceu, r.total_pago, r.n_pgto
-  FROM public.funnel_v7_rows(p_start, p_end, p_clinic_ids, p_view, p_creators, p_agent_mode) r
+  FROM public.funnel_v7_rows(p_start, p_end, p_clinic_ids, p_view, p_creators, p_agent_mode, p_origem) r
   WHERE p_stage <> 'leads'),
 filtered AS MATERIALIZED (
   SELECT * FROM base
