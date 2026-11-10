@@ -51,14 +51,18 @@ cr AS (
 -- sinais de lead do contato: criação no Chatwoot e anúncio registrado
 -- (anuncio_dt vem como meia-noite UTC do dia; vira meia-noite de Brasília do mesmo dia)
 lead_att AS MATERIALIZED (
-  SELECT att.appt_id, att.cw_contact_id, att.account_id, att.lead_name,
+  SELECT att.appt_id, att.cw_contact_id, att.account_id, att.lead_name, cl.phone_norm AS lead_phone,
          COALESCE(cl.created_at_cw, att.lead_created_at) AS cw_dt,
          (cl.anuncio_dt AT TIME ZONE 'UTC')::date::timestamp AT TIME ZONE 'America/Sao_Paulo' AS an_dt
   FROM campaign_appt_attribution att
   LEFT JOIN chatwoot_leads cl ON cl.id = att.cw_contact_id AND cl.account_id = att.account_id
   WHERE ($3 IS NULL OR att.clinic_id = ANY($3))),
 camp AS MATERIALIZED (
-  SELECT a.id AS appt_id, a.clinic_id, a.patient_id, a.patient_name, a.phone_norm, a.created_at,
+  -- telefone: o da consulta; se vier vazio (o Ecuro parou de mandar desde jun/26), o do contato do
+  -- Chatwoot. Só exibição e busca do drill — não entra em nenhuma contagem (caso Lucia, 10/11/2026:
+  -- buscar pelo telefone não achava o paciente e parecia que ele não era contado).
+  SELECT a.id AS appt_id, a.clinic_id, a.patient_id, a.patient_name,
+         COALESCE(NULLIF(a.phone_norm, ''), la.lead_phone) AS phone_norm, a.created_at,
          a.attended_time, a.confirmed_time, a.status, a.channel_name, a.subchannel_name,
          CASE WHEN a.channel_name = 'Maria Clara IA' THEN 'Maria Clara'
               ELSE NULLIF(btrim(regexp_replace(COALESCE(a.created_by_name,''), '\s+', ' ', 'g')), '') END AS atendente,
