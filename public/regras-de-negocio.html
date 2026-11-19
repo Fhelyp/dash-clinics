@@ -49,7 +49,7 @@
 <body class="light">
 <div class="top">
   <a href="/">← Voltar ao dashboard</a>
-  <span style="font-size:11px;color:var(--gray);">Atualizado em <strong style="color:var(--gray-l);">2026-11-05</strong></span>
+  <span style="font-size:11px;color:var(--gray);">Atualizado em <strong style="color:var(--gray-l);">2026-11-19</strong></span>
 </div>
 <div class="wrap">
   <h1>Regras de Negócio</h1>
@@ -91,7 +91,7 @@
       <tr><td>Agendados</td><td>Agendamentos criados no período (data do agendamento), uma linha por agendamento, todas as especialidades. Só o que o CRC agendou: a recepção não entra.</td></tr>
       <tr><td>Confirmados</td><td>Informativo: confirmado, atendido ou com confirmação registrada.</td></tr>
       <tr><td>Compareceram</td><td>Agendamentos do período com comparecimento registrado no Ecuro.</td></tr>
-      <tr><td>Receita</td><td>Pagamento do período vai para a vertente da <strong>última consulta atendida antes dele</strong> (mesma regra do Resgate &amp; Follow-up). Boleto programado só quando pago. Cada pagamento conta num lugar só: o que vem depois de Follow-Up/Resgate não entra no funil de campanha, e o pagamento de um paciente de campanha continua no funil de campanha mesmo que a última consulta tenha sido marcada como Orgânico ou Indicação.</td></tr>
+      <tr><td>Receita</td><td>Pagamento do período vai para a vertente da <strong>última consulta atendida antes dele</strong> (mesma regra do Resgate &amp; Follow-up). <strong>Mesmo dia:</strong> se depois da consulta do CRC a recepção abriu outra consulta no mesmo dia, o pagamento desse dia continua sendo da ação do CRC (aprovado pela gerência em 19/11/2026). Boleto programado só quando pago. Cada pagamento conta num lugar só: o que vem depois de Follow-Up/Resgate não entra no funil de campanha, e o pagamento de um paciente de campanha continua no funil de campanha mesmo que a última consulta tenha sido marcada como Orgânico ou Indicação.</td></tr>
       <tr><td>Venderam</td><td>Pacientes com receita na vertente no período.</td></tr>
       <tr><td>Filtro de operador</td><td>Vale nos dois blocos: conta o que o operador agendou (na receita, a consulta que levou ao pagamento foi criada por ele). Maria Clara não agenda nesses subcanais.</td></tr>
     </table>
@@ -127,6 +127,10 @@
     <p>Não. A coluna é informativa.</p></details>
   <details class="faq"><summary>Follow-up de campanha aparece no funil?</summary>
     <p>Não. Consultas marcadas como Follow-Up ou Resgate ficam no bloco "Resgate &amp; Follow-up". O mesmo vale para a venda: se a última consulta atendida antes do pagamento foi de Follow-Up, a venda conta no Follow-Up; se foi de Resgate, no Resgate — mesmo que o paciente tenha vindo de campanha. Cada pagamento conta num lugar só.</p></details>
+  <details class="faq"><summary>O CRC fez o resgate e a recepção abriu outra consulta no mesmo dia antes do pagamento. A venda é de quem?</summary>
+    <p>Do CRC. Pagamento feito no mesmo dia de uma consulta de ação do CRC atendida (Resgate, Follow-Up, Lead Orgânico ou Indicação) conta para essa ação, mesmo que a recepção tenha aberto outra consulta depois. Regra aprovada pela gerência em 19/11/2026.</p></details>
+  <details class="faq"><summary>Por que um lead que clicou no anúncio às 22h aparece no dia certo?</summary>
+    <p>O Chatwoot guarda a data do anúncio sem hora. O dash usa a hora em que o contato foi criado ou a da primeira mensagem do dia do anúncio, no horário de Brasília. Assim, um clique às 22h de 31/10 conta em 31/10, e não em 01/11.</p></details>
   <details class="faq"><summary>Onde vejo o resultado de orgânico e de indicação?</summary>
     <p>No bloco "Orgânico &amp; Indicação", abaixo do Resgate &amp; Follow-up: agendados, confirmados, compareceram, venderam e receita do que o CRC agendou como <code>Lead Orgânico</code> e <code>Indicação</code>. Clique no número para ver os pacientes e o atendente.</p></details>
   <details class="faq"><summary>O que é Resgate Orto?</summary>

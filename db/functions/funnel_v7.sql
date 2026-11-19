@@ -167,10 +167,21 @@ pg AS (
   SELECT p.patient_id, SUM(p.amount)::numeric AS total, COUNT(*)::int AS n
   FROM pg0 p
   -- venda que vem depois de consulta de Follow-Up/Resgate é do funil de resgate, não da campanha
-  -- (caso da Thauany, 27/10): olha a última consulta atendida do paciente antes do pagamento
-  WHERE COALESCE((SELECT x.subchannel_name FROM "BI Appointments" x
-                  WHERE x.patient_id = p.patient_id AND x.attended_time IS NOT NULL AND x.start_time <= p.date
-                  ORDER BY x.start_time DESC LIMIT 1), '') !~* '^(follow|resgate)'
+  -- (caso da Thauany, 27/10): olha a última consulta atendida do paciente antes do pagamento. Se ela
+  -- não é ação do CRC, vale a última ação do CRC atendida no MESMO DIA (Paulo, 19/11/2026) — espelho
+  -- exato de crc_acoes_base, para cada pagamento contar num lugar só.
+  LEFT JOIN LATERAL (SELECT x.channel_name, x.subchannel_name, x.speciality_id FROM "BI Appointments" x
+                     WHERE x.patient_id = p.patient_id AND x.attended_time IS NOT NULL AND x.start_time <= p.date
+                     ORDER BY x.start_time DESC LIMIT 1) ua ON true
+  LEFT JOIN LATERAL (SELECT x.subchannel_name FROM "BI Appointments" x
+                     WHERE x.patient_id = p.patient_id AND x.attended_time IS NOT NULL AND x.start_time <= p.date
+                       AND x.channel_name = 'CRC'
+                       AND public.crc_acao_bucket(x.channel_name, x.subchannel_name, x.speciality_id) IS NOT NULL
+                       AND (x.start_time AT TIME ZONE 'America/Sao_Paulo')::date = (p.date AT TIME ZONE 'America/Sao_Paulo')::date
+                     ORDER BY x.start_time DESC LIMIT 1) ub ON true
+  WHERE NOT (COALESCE(ua.subchannel_name, '') ~* '^(follow|resgate)'
+             OR (public.crc_acao_bucket(ua.channel_name, ua.subchannel_name, ua.speciality_id) IS NULL
+                 AND COALESCE(ub.subchannel_name, '') ~* '^(follow|resgate)'))
   GROUP BY 1),
 info AS (
   SELECT c.patient_id, MAX(c.clinic_id) AS clinic_id, MAX(c.patient_name) AS patient_name,

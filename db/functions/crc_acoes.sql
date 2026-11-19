@@ -16,7 +16,9 @@
 --   Confirmados   status 7/8, comparecimento ou log de confirmação (informativo)
 --   Compareceram  comparecimento registrado (attended_time)
 --   Receita       pagamento do período vai para a vertente da ÚLTIMA consulta atendida do paciente
---                 antes dele. Boleto programado só quando pago. Cada pagamento conta num lugar só:
+--                 antes dele; se essa consulta não é ação do CRC (ex.: a recepção abriu outra consulta
+--                 depois) e houve consulta de ação do CRC atendida no MESMO DIA antes do pagamento,
+--                 vale a ação do CRC (aprovado pelo Paulo em 19/11/2026 — caso Dulcineia/Matheus). Boleto programado só quando pago. Cada pagamento conta num lugar só:
 --                 Follow-Up/Resgate já saem do funil de campanha (funnel_v7_rows, CTE pg); e um
 --                 pagamento que o funil de campanha já conta (paciente de campanha, regras 1, 2, 4 e
 --                 6 do v7) NÃO entra em Lead Orgânico/Indicação.
@@ -91,15 +93,32 @@ pay0 AS MATERIALIZED (
   SELECT p.id, p.patient_id, p.amount, p.date, u.appt_id AS ult_id, u.start_time AS ult_start,
          u.patient_name, u.phone_norm, u.bucket, u.ck, u.atendente, u.esp, u.origem
   FROM "BI Payments" p
+  -- consulta que leva o pagamento: a última atendida antes dele (prio 1) ou, se ela não é ação do
+  -- CRC, a última ação do CRC atendida no mesmo dia (prio 2)
   CROSS JOIN LATERAL (
-    SELECT x.id AS appt_id, x.start_time, x.patient_name, x.phone_norm,
-           x.speciality_id AS esp, x.patient_channel_name AS origem,
-           public.crc_acao_bucket(x.channel_name, x.subchannel_name, x.speciality_id) AS bucket,
-           public.crc_creator_key(x.channel_name, x.created_by_name, x.created_by_name_norm) AS ck,
-           NULLIF(btrim(regexp_replace(COALESCE(x.created_by_name,''), '\s+', ' ', 'g')), '') AS atendente
-    FROM "BI Appointments" x
-    WHERE x.patient_id = p.patient_id AND x.attended_time IS NOT NULL AND x.start_time <= p.date
-    ORDER BY x.start_time DESC LIMIT 1) u
+    SELECT c.* FROM (
+      (SELECT 1 AS prio, x.id AS appt_id, x.start_time, x.patient_name, x.phone_norm,
+              x.speciality_id AS esp, x.patient_channel_name AS origem,
+              public.crc_acao_bucket(x.channel_name, x.subchannel_name, x.speciality_id) AS bucket,
+              public.crc_creator_key(x.channel_name, x.created_by_name, x.created_by_name_norm) AS ck,
+              NULLIF(btrim(regexp_replace(COALESCE(x.created_by_name,''), '\s+', ' ', 'g')), '') AS atendente
+       FROM "BI Appointments" x
+       WHERE x.patient_id = p.patient_id AND x.attended_time IS NOT NULL AND x.start_time <= p.date
+       ORDER BY x.start_time DESC LIMIT 1)
+      UNION ALL
+      (SELECT 2 AS prio, x.id, x.start_time, x.patient_name, x.phone_norm,
+              x.speciality_id, x.patient_channel_name,
+              public.crc_acao_bucket(x.channel_name, x.subchannel_name, x.speciality_id),
+              public.crc_creator_key(x.channel_name, x.created_by_name, x.created_by_name_norm),
+              NULLIF(btrim(regexp_replace(COALESCE(x.created_by_name,''), '\s+', ' ', 'g')), '')
+       FROM "BI Appointments" x
+       WHERE x.patient_id = p.patient_id AND x.attended_time IS NOT NULL AND x.start_time <= p.date
+         AND x.channel_name = 'CRC'
+         AND public.crc_acao_bucket(x.channel_name, x.subchannel_name, x.speciality_id) IS NOT NULL
+         AND (x.start_time AT TIME ZONE 'America/Sao_Paulo')::date = (p.date AT TIME ZONE 'America/Sao_Paulo')::date
+       ORDER BY x.start_time DESC LIMIT 1)) c
+    ORDER BY (c.bucket IS NOT NULL) DESC, c.prio
+    LIMIT 1) u
   WHERE p.deleted_at IS NULL AND p.date >= $1 AND p.date < $2
     AND NOT (btrim(COALESCE(p.payment_type_name,'')) ILIKE 'boleto programado' AND COALESCE(p.is_confirmed,false) = false)
     AND ($3 IS NULL OR p.clinic_id = ANY($3))

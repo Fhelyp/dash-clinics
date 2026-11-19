@@ -57,12 +57,19 @@ for nome, s, e, cids in CASOS:
     antigo = q1("SELECT funnel_resgate_followup(%s, %s, %s)", ps, pe, cids)
     nb, ob = novo['buckets'], antigo['buckets']
 
-    # 1. equivalência com o bloco antigo
+    # 1. equivalência com o bloco antigo (funnel_resgate_followup): etapas iguais; receita >= antigo,
+    #    porque a regra do mesmo dia (Paulo, 19/11) só ACRESCENTA pagamento à ação do CRC
     for k in ETAPAS + ['receita']:
         soma = float(nb['resgate'][k]) + float(nb['resgate_orto'][k])
-        check(abs(soma - float(ob['resgate'][k])) < 0.01, f'resgate+orto {k}: {soma:.2f} == antigo {float(ob["resgate"][k]):.2f}')
+        if k == 'receita':
+            check(soma >= float(ob['resgate'][k]) - 0.01, f'resgate+orto receita: {soma:.2f} >= antigo {float(ob["resgate"][k]):.2f}')
+        else:
+            check(abs(soma - float(ob['resgate'][k])) < 0.01, f'resgate+orto {k}: {soma:.2f} == antigo {float(ob["resgate"][k]):.2f}')
         for f in ('follow_campanha', 'follow_organico'):
-            check(abs(float(nb[f][k]) - float(ob[f][k])) < 0.01, f'{f} {k}: {float(nb[f][k]):.2f} == antigo {float(ob[f][k]):.2f}')
+            if k == 'receita':
+                check(float(nb[f][k]) >= float(ob[f][k]) - 0.01, f'{f} receita: {float(nb[f][k]):.2f} >= antigo {float(ob[f][k]):.2f}')
+            else:
+                check(abs(float(nb[f][k]) - float(ob[f][k])) < 0.01, f'{f} {k}: {float(nb[f][k]):.2f} == antigo {float(ob[f][k]):.2f}')
     nc, oc = novo['contatos_cw'], antigo['contatos_cw']
     # 09/11: o resgate passou a se dividir em sem orto / com orto (etiqueta orto); follow igual
     check(nc['follow'] == oc['follow'], f'contatos follow iguais ao antigo: {nc["follow"]} == {oc["follow"]}')
