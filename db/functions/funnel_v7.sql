@@ -34,6 +34,27 @@
 -- transação (db/functions/funnel_v7_origem_drop.sql), senão ficam duas versões e o PostgREST
 -- não sabe qual chamar.
 
+-- Data do anúncio do contato em Brasília (19/11/2026). O Chatwoot grava anuncio_*_dt SEM hora, como
+-- meia-noite UTC do dia do clique EM UTC: quem clicou em 31/10 às 21h06 (Brasília) já é 01/11 em UTC e
+-- fica "2026-11-01". Converter isso para meia-noite de Brasília de 01/11 jogava o lead 1 dia para frente
+-- (2.473 leads entre 21h e 23h59; 78 no mês errado — caso Roseane/Thauany, 31/10 contado em 01/11).
+-- Regra: (1) se o sync gravou a HORA exata (primeira mensagem do contato no dia do anúncio, desde
+-- 19/11), vale ela; (2) só a data, do MESMO dia UTC da criação do contato (ou antes) → é o mesmo evento,
+-- vale a hora exata da criação (devolve NULL); (3) só a data, de dia posterior (contato antigo que
+-- clicou de novo) → meia-noite de Brasília daquele dia.
+CREATE OR REPLACE FUNCTION public.lead_anuncio_brt(p_criado timestamp with time zone, p_anuncio timestamp with time zone)
+ RETURNS timestamp with time zone
+ LANGUAGE sql
+ STABLE
+AS $function$
+  SELECT CASE
+    WHEN p_anuncio IS NULL THEN NULL
+    WHEN (p_anuncio AT TIME ZONE 'UTC')::time <> time '00:00' THEN p_anuncio
+    WHEN p_criado IS NOT NULL AND (p_anuncio AT TIME ZONE 'UTC')::date <= (p_criado AT TIME ZONE 'UTC')::date THEN NULL
+    ELSE (p_anuncio AT TIME ZONE 'UTC')::date::timestamp AT TIME ZONE 'America/Sao_Paulo'
+  END
+$function$;
+
 CREATE OR REPLACE FUNCTION public.funnel_v7_rows(p_start timestamp with time zone, p_end timestamp with time zone, p_clinic_ids text[] DEFAULT NULL::text[], p_view text DEFAULT 'comissao'::text, p_creators text[] DEFAULT NULL::text[], p_agent_mode text DEFAULT 'ALL'::text, p_origem text[] DEFAULT NULL::text[])
  RETURNS TABLE(clinic_id text, patient_id uuid, patient_name text, phone_norm text, cw_contact_id integer, account_id integer, lead_name text, lead_dt timestamp with time zone, agendou boolean, confirmou boolean, compareceu boolean, total_pago numeric, n_pgto integer, canais text[], atendentes text[])
  LANGUAGE plpgsql
@@ -53,7 +74,7 @@ cr AS (
 lead_att AS MATERIALIZED (
   SELECT att.appt_id, att.cw_contact_id, att.account_id, att.lead_name, cl.phone_norm AS lead_phone,
          COALESCE(cl.created_at_cw, att.lead_created_at) AS cw_dt,
-         (cl.anuncio_dt AT TIME ZONE 'UTC')::date::timestamp AT TIME ZONE 'America/Sao_Paulo' AS an_dt
+         public.lead_anuncio_brt(COALESCE(cl.created_at_cw, att.lead_created_at), cl.anuncio_dt) AS an_dt
   FROM campaign_appt_attribution att
   LEFT JOIN chatwoot_leads cl ON cl.id = att.cw_contact_id AND cl.account_id = att.account_id
   WHERE ($3 IS NULL OR att.clinic_id = ANY($3))),
@@ -185,7 +206,7 @@ AS $function$
   SELECT DISTINCT ON (x.phone_norm) x.phone_norm, x.ecuro_clinic_id, x.account_id, x.id, x.name, x.lead_dt
   FROM (
     SELECT cl.*, GREATEST(cl.created_at_cw,
-                          COALESCE((cl.anuncio_dt AT TIME ZONE 'UTC')::date::timestamp AT TIME ZONE 'America/Sao_Paulo',
+                          COALESCE(public.lead_anuncio_brt(cl.created_at_cw, cl.anuncio_dt),
                                    cl.created_at_cw)) AS lead_dt
     FROM chatwoot_leads cl
     WHERE ('campanha' = ANY(cl.labels) OR cl.tem_anuncio)
