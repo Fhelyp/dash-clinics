@@ -46,7 +46,9 @@ Decisões e números em `docs/DECISOES_2026-11-05.md`; código em `db/functions/
   **Resgate Orto**, o "resgate de orto"), `CRC · Follow-Up - Campanha/Orgânico`, `CRC · Lead Orgânico`,
   `CRC · Indicação`. Só o que o CRC agenda; recepção não entra. Definições do manual de auditoria.
 - **Agendados** = criados no período (todas as especialidades); **compareceram** = `attended_time`.
-- **Receita** = pagamento do período vai para a vertente da última consulta atendida antes dele.
+- **Receita** = pagamento do período vai para a vertente da última consulta atendida antes dele;
+  se ela não é ação do CRC e houve ação do CRC atendida no **mesmo dia** antes do pagamento, vale a
+  ação do CRC (aprovado pelo Paulo em 19/11/2026).
   Cada pagamento num lugar só: depois de Follow-Up/Resgate sai da campanha; pagamento de paciente de
   campanha fica na campanha mesmo que a última consulta seja Orgânico/Indicação.
 - **Família** de paciente de campanha agendada como `Indicação` aparece em Indicação. Atenção: se o
