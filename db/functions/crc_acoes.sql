@@ -119,7 +119,7 @@ cand AS MATERIALIZED (
     AND ($3 IS NULL OR a.clinic_id = ANY($3))),
 lead_att AS MATERIALIZED (
   SELECT att.appt_id, COALESCE(cl.created_at_cw, att.lead_created_at) AS cw_dt,
-         (cl.anuncio_dt AT TIME ZONE 'UTC')::date::timestamp AT TIME ZONE 'America/Sao_Paulo' AS an_dt
+         public.lead_anuncio_brt(COALESCE(cl.created_at_cw, att.lead_created_at), cl.anuncio_dt) AS an_dt
   FROM campaign_appt_attribution att
   LEFT JOIN chatwoot_leads cl ON cl.id = att.cw_contact_id AND cl.account_id = att.account_id
   WHERE att.appt_id IN (SELECT id FROM cand)
