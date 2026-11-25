@@ -18,3 +18,6 @@ latest.html
 
 docs/_session_state/
 .claude/
+
+# Material com dados pessoais (transcrições, casos com nome de paciente): só local, o repo é público
+docs/_privado/

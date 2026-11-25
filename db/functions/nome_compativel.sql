@@ -7,7 +7,7 @@ AS $function$
   -- prefixo, >=3 letras). Ignora acento, caixa, emoji/numero, "dos/das" e o sufixo
   -- "(era ..., mudou ...)" do Ecuro. Usado pela atribuicao de campanha quando o MESMO telefone
   -- tem varios pacientes (familia): so conta quem bate com o nome do lead.
-  -- Ex.: "Ana Paula Alves" x "paula" = sim; "Maisa Sena Cunha" x "Maria do Socorro Sena Cunha" = nao.
+  -- Ex.: "Ana Paula Souza" x "paula" = sim; "Bruna Lima Costa" x "Maria Lima Costa" = nao.
   WITH n AS (
     SELECT regexp_split_to_array(btrim(regexp_replace(lower(public.immutable_unaccent(split_part(coalesce(p_a,''),'(era',1))),'[^a-z]+',' ','g')),' ') ra,
            regexp_split_to_array(btrim(regexp_replace(lower(public.immutable_unaccent(split_part(coalesce(p_b,''),'(era',1))),'[^a-z]+',' ','g')),' ') rb),
