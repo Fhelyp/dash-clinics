@@ -1,3 +1,5 @@
+> 📜 **Histórico (estado de maio/2026).** O estado atual está em [docs/contexto/](contexto/PRODUTO.md) e [AI_START_HERE](AI_START_HERE.md).
+
 # Night Shift — 30/04 → 01/05/2026
 
 Resumo do que foi feito enquanto você dormia, e o que ficou pendente pra você completar de manhã.

@@ -1,3 +1,5 @@
+> 📜 **Histórico (estado de maio/2026).** O estado atual está em [docs/contexto/](contexto/PRODUTO.md) e [AI_START_HERE](AI_START_HERE.md).
+
 # Hand-off — Dashboard de Clínicas
 
 > **Última atualização:** rodada da tarde 29/abr — bug do dashboard zerado corrigido,
