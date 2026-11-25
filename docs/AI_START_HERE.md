@@ -161,7 +161,7 @@ db/
   functions/       SQL versionado das RPCs (fonte de verdade dos números)
   ROLLUP_CRON.md   runbook do rollup/cron + incidentes
   SYNC_SCHEMA_DRIFT.md
-workers/           ⚠️ LEGADO — workers CF de sync. NÃO usar: o sync é na VPS. Ver "Sync".
+workers/           ⚠️ LEGADO — só sync-chatwoot (ainda publicado, sem uso; apagar). NÃO usar: o sync é na VPS.
 .github/workflows/ deploy.yml (prod) + deploy-homolog.yml (homolog)
 docs/              este arquivo, BUSINESS_RULES.md, HANDOFF.md, ...
 wrangler.toml      config do Pages (output=public; vars não-secretas)
@@ -175,9 +175,12 @@ wrangler.toml      config do Pages (output=public; vars não-secretas)
   `dash-clinics-sync-cw-leads` e `dash-clinics-health-check-sync` **deletados**;
   `dash-clinics-sync-ecuro` com **cron desligado** (dormente, será deletado).
   Os jobs de deploy desses workers foram removidos do `deploy.yml` (eles re-armavam os crons).
-- **Pendência:** `dash-clinics-sync-chatwoot` (agrega `campaign_contacts_cache` — usado pelo
-  contador de leads das "Métricas Thauany", com fallback) ainda NÃO existe na VPS. Migrar essa
-  agregação pro `dash-sync-jobs` e então deletar o worker CF. É o único sync que falta migrar.
+- **Pendência (25/11/2026):** o worker CF `dash-clinics-sync-chatwoot` **ainda está publicado, com cron
+  `0 1 * * *` (22h BRT)**: toda noite varre a API do Chatwoot e grava `campaign_contacts_cache`. **Nada lê
+  essa tabela** (front, APIs e funções do banco conferidos; o leitor era o proxy `/api/data`, removido em
+  05/11). O job equivalente da VPS foi desligado em 24/11. Falta o dono da conta Cloudflare apagar o worker
+  (ou o cron); depois, remover `workers/sync-chatwoot/`. `sync-ecuro` e `sync-cw-leads` já não existem na
+  Cloudflare e saíram do repo.
 - Os workers `gci-chatwoot-proxy` / `gci-ecuro-proxy` (sem cron, proxies sob demanda) e
   `mc-farol-collector` (produto Farol) **não são deste produto** — não mexer.
 

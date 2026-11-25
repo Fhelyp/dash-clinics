@@ -31,7 +31,7 @@ VPS / EasyPanel «dash-sync-jobs» (Forux-Digital/dash-sync-jobs)  ← FONTE DO 
          syncCwLeadsFull 0 6(sáb) · healthCheck 7 7 — status: /status
 ```
 
-> ⚠️ Os workers Cloudflare em `workers/` são **LEGADO** (o sync foi consolidado na VPS). Não
+> ⚠️ `workers/sync-chatwoot` é **LEGADO** (o sync foi consolidado na VPS; ainda publicado na Cloudflare, sem uso). Não
 > religar/recriar workers de sync na Cloudflare. Ver `docs/AI_START_HERE.md` › "Sync".
 
 ## Deploy (git → produção)
