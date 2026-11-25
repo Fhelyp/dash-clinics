@@ -63,6 +63,8 @@ BEGIN
     FROM pac pc
     LEFT JOIN "BI Payments" p ON p.patient_id = pc.patient_id AND p.deleted_at IS NULL
       -- receita = valor VENDIDO (Thauany 19/10/26): boleto da clinica conta inteiro; boleto programado so quando pago (date = dia do pagamento)
+      -- transferência de saldo (25/11/2026): o Ecuro grava a transferência como lançamento novo (is_transfer=1) e mantém o original vivo; conta só o original
+      AND NOT (COALESCE(p.is_transfer,0) = 1 AND EXISTS (SELECT 1 FROM "BI Payments" o_tr WHERE o_tr.id = p.origin_payment_id AND o_tr.deleted_at IS NULL))
       AND NOT (btrim(COALESCE(p.payment_type_name,'')) ILIKE 'boleto programado' AND COALESCE(p.is_confirmed,false) = false)
       AND p.date >= p_start AND p.date < p_end
       AND (p_clinic_ids IS NULL OR p.clinic_id = ANY(p_clinic_ids))

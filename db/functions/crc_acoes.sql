@@ -120,6 +120,8 @@ pay0 AS MATERIALIZED (
     ORDER BY (c.bucket IS NOT NULL) DESC, c.prio
     LIMIT 1) u
   WHERE p.deleted_at IS NULL AND p.date >= $1 AND p.date < $2
+    -- transferência de saldo (25/11/2026): o Ecuro grava a transferência como lançamento novo (is_transfer=1) e mantém o original vivo; conta só o original
+    AND NOT (COALESCE(p.is_transfer,0) = 1 AND EXISTS (SELECT 1 FROM "BI Payments" o_tr WHERE o_tr.id = p.origin_payment_id AND o_tr.deleted_at IS NULL))
     AND NOT (btrim(COALESCE(p.payment_type_name,'')) ILIKE 'boleto programado' AND COALESCE(p.is_confirmed,false) = false)
     AND ($3 IS NULL OR p.clinic_id = ANY($3))
     AND u.bucket IS NOT NULL),

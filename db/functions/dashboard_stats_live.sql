@@ -48,6 +48,8 @@ pays_all AS MATERIALIZED (
   SELECT id, patient_id, clinic_id, date, amount, specialty_name, specialty_id FROM "BI Payments"
   WHERE date >= $1 AND date < $2 AND deleted_at IS NULL
     -- receita = valor VENDIDO (Thauany 19/10/26): boleto da clinica conta inteiro; boleto programado so quando pago (date = dia do pagamento)
+    -- transferência de saldo (25/11/2026): o Ecuro grava a transferência como lançamento novo (is_transfer=1) e mantém o original vivo; conta só o original
+    AND NOT (COALESCE("BI Payments".is_transfer,0) = 1 AND EXISTS (SELECT 1 FROM "BI Payments" o_tr WHERE o_tr.id = "BI Payments".origin_payment_id AND o_tr.deleted_at IS NULL))
     AND NOT (btrim(COALESCE(payment_type_name,'')) ILIKE 'boleto programado' AND COALESCE(is_confirmed,false) = false)
   AND ($3 IS NULL OR clinic_id = ANY($3))
 ),
