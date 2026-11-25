@@ -54,7 +54,7 @@ trazido (71 diffs). Corrigido no `dash-sync-jobs` (#23): o job só valida até o
 1. `/status` da VPS: último `sync-ecuro` e `sync-cw-leads` com `ok`, versão esperada.
 2. Supabase, `cron.job_run_details`: as duas últimas execuções do rollup com `succeeded`.
 3. Frescor: toda unidade com `Dash=true` tem agendamento até D-1 (exceto cadastro inválido).
-4. `curl -s https://dash-clinics.pages.dev/login.html | grep gci-sso.js`: sem isso o embed cai no
+4. `curl -sL https://dash-clinics.pages.dev/login | grep gci-sso.js`: sem isso o embed cai no
    login (incidente 10–14/09). O deploy de produção já confere sozinho.
 5. `python tests/sql/drift_funcoes.py`: funções do repo == banco.
 

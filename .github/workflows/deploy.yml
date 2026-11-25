@@ -43,7 +43,7 @@ jobs:
       - name: Conferir produção no ar (login + SSO do embed)
         run: |
           for i in 1 2 3 4 5 6; do
-            if curl -fsS https://dash-clinics.pages.dev/login.html | grep -q '/gci-sso.js'; then
+            if curl -fsSL https://dash-clinics.pages.dev/login | grep -q '/gci-sso.js'; then
               echo "login.html no ar com gci-sso.js"; exit 0
             fi
             sleep 10

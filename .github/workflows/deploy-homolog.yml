@@ -42,7 +42,7 @@ jobs:
       - name: Conferir homolog no ar
         run: |
           for i in 1 2 3 4 5 6; do
-            if curl -fsS https://homolog.dash-clinics.pages.dev/login.html | grep -q '/gci-sso.js'; then
+            if curl -fsSL https://homolog.dash-clinics.pages.dev/login | grep -q '/gci-sso.js'; then
               echo "homolog no ar (${GITHUB_REF_NAME} @ ${GITHUB_SHA::7})" | tee -a "$GITHUB_STEP_SUMMARY"; exit 0
             fi
             sleep 10
