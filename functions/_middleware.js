@@ -1,5 +1,6 @@
 import { verifyJWT, readCookie } from './_lib/auth.js';
 import { ehOperador, OPERADOR_LIBERADO, OPERADOR_APIS } from './_lib/acesso.js';
+import { sessaoRevogada } from './_lib/sessao.js';
 
 const PUBLIC_PATHS = new Set([
   '/',           // a "casca" do SPA é pública: a auth é decidida no cliente (cookie OU token no
@@ -44,6 +45,15 @@ export async function onRequest(context) {
     }
     if (isPublicAsset(path) && path !== '/') return next();
     return Response.redirect(new URL('/login.html', request.url), 302);
+  }
+
+  // Sessão encerrada (logout) não acessa dados, mesmo com o JWT dentro das 12 h (25/11/2026).
+  // Na dúvida (sem linha da sessão, banco fora), vale como antes. Ver _lib/sessao.js.
+  if (path.startsWith('/api/') && path !== '/api/logout' && await sessaoRevogada(env, token)) {
+    return new Response(JSON.stringify({ error: 'unauthorized', reason: 'session_revoked' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' }
+    });
   }
 
   // Escopo vazio NUNCA vira acesso total. Os endpoints tratam `allowed_clinic_ids` null como
