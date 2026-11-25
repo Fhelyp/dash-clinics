@@ -30,7 +30,7 @@ virar código.
 | Campos do Jordão sem dado: ID do Ecuro inválido em `unitConfigs` (read-only para nós) | Luã → quem mantém a Maria Clara | aberto |
 | **Bug:** em modo operador o filtro "Operador" fica vazio (a lista vem do `stats`, que o operador não acessa) | dev | aberto (achado 25/11) |
 | Visão do operador "só o meu" (casar usuário do Chatwoot ↔ criador no Ecuro) | dev + Luã | proposta pronta (25/11); falta medir o casamento de nomes com a lista de agentes do Chatwoot e decidir padrão × restrição |
-| Funil/CRC ~16 s sem cache: pré-cálculo no rollup | dev (medir antes; não pesar a madrugada) | aberto |
+| Funil/CRC ~16 s sem cache | dev + Luã | CRC: PR #25 (regra do mesmo dia com limite de data: 5,7 s → 0,67 s no servidor, resultado idêntico). Funil: gargalo é ler as Avaliações (tabela + índices > memória do plano); recomendação = índice parcial de cobertura (DDL, precisa de autorização). Detalhe: `entregas/2026-11-25_proposta_desempenho_funil.md` (local) |
 | Sessão revogável (`auth_sessions.revoked_at` não é consultado) | dev | PR #24 (homolog ok, 33/33); falta teste com login pelo Luã |
 | Data do lead: anúncios ainda só com data (sem mensagem no dia) | dev (só leitura) | ✅ verificado 24/11: out–nov, 38 de 7.484 (0,5%); 19 entram na conta; 1 por mês no dia 1º (único com risco de mudar de mês) |
 
