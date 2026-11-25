@@ -25,6 +25,7 @@ virar código.
 
 | Item | Quem | Status |
 |---|---|---|
+| Worker `dash-clinics-sync-chatwoot` **ainda publicado na Cloudflare** (cron 22h BRT): varre a API do Chatwoot toda noite para `campaign_contacts_cache`, que nada lê. Apagar o worker ou o cron | Luã (Cloudflare) | aberto (achado 25/11) |
 | Aplicar no banco os comentários sem nome de paciente de `nome_compativel` e `refresh_campaign_attribution` (código igual) | dev, na próxima promoção | aberto |
 | Campos do Jordão sem dado: ID do Ecuro inválido em `unitConfigs` (read-only para nós) | Luã → quem mantém a Maria Clara | aberto |
 | Visão do operador "só o meu" (casar usuário do Chatwoot ↔ criador no Ecuro) | dev | aberto |
@@ -36,7 +37,8 @@ virar código.
 
 | Item | Quem | Status |
 |---|---|---|
-| `workers/` (sync antigo na Cloudflare) e `index.html` da raiz são legado: confirmar que nada usa e remover | dev | aberto |
+| `workers/` (sync antigo na Cloudflare) | dev | PR #23: `sync-ecuro`/`sync-cw-leads` removidos; `sync-chatwoot` fica até o worker ser apagado |
+| `index.html` da raiz: é a página inicial do GitHub Pages (`fhelyp.github.io/dash-clinics`, demo com nomes fictícios) | Luã | decidir junto com desligar o Pages |
 | Funções legadas em `db/functions/` (v5, v6, `funnel_stats`, `dashboard_stats`): manter só o rollback (v6) | dev | aberto |
 | `docs/HANDOFF.md` e `docs/NIGHT_SHIFT_2026-05-01.md` descrevem o estado de maio | dev | ✅ marcados como histórico (24/11) |
 | CI no `dash-sync-jobs` (testes no PR, como aqui) | dev | PR Forux-Digital/dash-sync-jobs#24 (verde), aguarda merge |
