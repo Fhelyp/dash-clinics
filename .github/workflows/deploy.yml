@@ -1,19 +1,31 @@
 name: Deploy to Cloudflare
 
-# Pipeline de produção do dash-clinics (frontend).
-# push no `main`  ->  deploy automático do Pages (Direct Upload via wrangler-action).
+# Pipeline de PRODUÇÃO do dash-clinics (frontend). Ver docs/contexto/PROCESSO_DEPLOY.md.
+# merge/push no `main`  ->  testes (ci.yml)  ->  deploy do Pages  ->  conferência no ar  ->  tag + release.
+# O merge no `main` é a PROMOÇÃO: só acontece depois de validado em homolog e autorizado pelo Luã.
 # NUNCA fazer `wrangler pages deploy` de clone local: tudo passa pelo git -> main.
-# Homologação: ver workflow deploy-homolog.yml (branch `homolog` -> preview URL).
 
 on:
   push:
     branches: [main]
   workflow_dispatch:
 
+# Dois merges seguidos não deployam ao mesmo tempo; o segundo espera o primeiro terminar.
+concurrency:
+  group: producao
+  cancel-in-progress: false
+
 jobs:
+  testes:
+    uses: ./.github/workflows/ci.yml
+
   # ─── Pages (frontend dashboard) ──────────────────────────────
   deploy-pages:
+    needs: testes
     runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://dash-clinics.pages.dev
     permissions:
       contents: read
       deployments: write
@@ -27,7 +39,43 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: de356bf3b5b6db75835e33e84876eefb
-          command: pages deploy public --project-name=dash-clinics --branch=main --commit-dirty=true
+          command: pages deploy public --project-name=dash-clinics --branch=main --commit-hash=${{ github.sha }} --commit-dirty=true
+      - name: Conferir produção no ar (login + SSO do embed)
+        run: |
+          for i in 1 2 3 4 5 6; do
+            if curl -fsS https://dash-clinics.pages.dev/login.html | grep -q '/gci-sso.js'; then
+              echo "login.html no ar com gci-sso.js"; exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::login.html em produção sem gci-sso.js (o embed do hub GCI cai no login). Reverter o merge."
+          exit 1
+
+  # ─── Versão estável: tag + release a cada promoção ───────────
+  # Tag vAAAA.MM.DD.N (data de Brasília, N = promoção do dia). Notas = PRs desde a última versão.
+  release:
+    needs: deploy-pages
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Criar tag e release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          DIA=$(TZ=America/Sao_Paulo date +%Y.%m.%d)
+          N=$(git tag -l "v${DIA}.*" | wc -l)
+          TAG="v${DIA}.$((N + 1))"
+          ANTERIOR=$(git tag -l 'v20*' --sort=-creatordate | head -1 || true)
+          [ -z "$ANTERIOR" ] && ANTERIOR=$(git tag --sort=-creatordate | head -1 || true)
+          ARGS=(--target "$GITHUB_SHA" --title "$TAG" --generate-notes)
+          [ -n "$ANTERIOR" ] && ARGS+=(--notes-start-tag "$ANTERIOR")
+          gh release create "$TAG" "${ARGS[@]}"
+          echo "Versão em produção: $TAG ($GITHUB_SHA)" >> "$GITHUB_STEP_SUMMARY"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # REMOVIDO em 14/09/2026: os jobs `deploy-worker-ecuro` e `deploy-worker-chatwoot`.
@@ -35,6 +83,4 @@ jobs:
 # na VPS (EasyPanel, repo Forux-Digital/dash-sync-jobs) — fonte AUTORITATIVA e única.
 # Os workers Cloudflare de sync eram duplicados e re-armavam seus crons a cada deploy
 # (risco de sync dobrado -> Supabase saturado). Mantidos fora do pipeline de propósito.
-# Pendência: migrar a agregação `campaign_contacts_cache` (worker sync-chatwoot) pra VPS
-# e então deletar o worker CF. Ver docs/AI_START_HERE.md.
 # ─────────────────────────────────────────────────────────────────────────────
