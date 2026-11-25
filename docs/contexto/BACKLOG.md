@@ -39,7 +39,7 @@ virar código.
 | `workers/` (sync antigo na Cloudflare) e `index.html` da raiz são legado: confirmar que nada usa e remover | dev | aberto |
 | Funções legadas em `db/functions/` (v5, v6, `funnel_stats`, `dashboard_stats`): manter só o rollback (v6) | dev | aberto |
 | `docs/HANDOFF.md` e `docs/NIGHT_SHIFT_2026-05-01.md` descrevem o estado de maio | dev | ✅ marcados como histórico (24/11) |
-| CI no `dash-sync-jobs` (testes no PR, como aqui) | dev | aberto |
+| CI no `dash-sync-jobs` (testes no PR, como aqui) | dev | PR Forux-Digital/dash-sync-jobs#24 (verde), aguarda merge |
 
 ## Feito recentemente
 
