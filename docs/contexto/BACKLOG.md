@@ -30,7 +30,7 @@ virar código.
 | Campos do Jordão sem dado: ID do Ecuro inválido em `unitConfigs` (read-only para nós) | Luã → quem mantém a Maria Clara | aberto |
 | Visão do operador "só o meu" (casar usuário do Chatwoot ↔ criador no Ecuro) | dev | aberto |
 | Funil/CRC ~16 s sem cache: pré-cálculo no rollup | dev (medir antes; não pesar a madrugada) | aberto |
-| Sessão revogável (`auth_sessions.revoked_at` não é consultado) | dev | aberto |
+| Sessão revogável (`auth_sessions.revoked_at` não é consultado) | dev | PR #24 (homolog ok, 33/33); falta teste com login pelo Luã |
 | Data do lead: anúncios ainda só com data (sem mensagem no dia) | dev (só leitura) | ✅ verificado 24/11: out–nov, 38 de 7.484 (0,5%); 19 entram na conta; 1 por mês no dia 1º (único com risco de mudar de mês) |
 
 ## P2: dívida técnica
