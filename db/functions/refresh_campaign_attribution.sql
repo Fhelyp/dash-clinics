@@ -43,7 +43,7 @@ BEGIN
   ELSE DELETE FROM public.campaign_appt_attribution WHERE clinic_id = ANY(p_clinic_ids); END IF;
   -- Telefone compartilhado (19/10/26): se o telefone do lead aparece em MAIS DE UM paciente (familia
   -- que usa o mesmo numero), so atribui quem tem nome compativel com o lead. Antes, todos viravam
-  -- campanha (ex.: Maisa e Marilia Sena Cunha casavam com o lead da mae). Paciente sozinho no
+  -- campanha (ex.: duas filhas casavam com o lead da mae). Paciente sozinho no
   -- numero continua casando como antes, mesmo com apelido no Chatwoot.
   WITH m AS (
     SELECT a.id, a.clinic_id, a.patient_id, a.patient_name, a.phone_norm, a.patient_channel_name,

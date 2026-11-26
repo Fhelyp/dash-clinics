@@ -1,0 +1,27 @@
+name: CI
+
+# Testes do dash-clinics. Rodam:
+#  - em todo pull request (o PR mostra ✔/✖ antes do merge);
+#  - antes de CADA deploy: deploy.yml (produção) e deploy-homolog.yml chamam este workflow e só
+#    deployam se ele passar.
+# O que cobre (npm test, só Node, sem dependências): middleware/RBAC, endpoints, visão do operador,
+# login/SSO, sintaxe do JS inline das páginas, gci-sso.js no login, nenhum segredo versionado.
+# As validações contra o banco (tests/sql/*.py) precisam de credencial e rodam fora do CI.
+
+on:
+  pull_request:
+  workflow_call:
+  workflow_dispatch:
+
+jobs:
+  testes:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: npm test
+        run: npm test

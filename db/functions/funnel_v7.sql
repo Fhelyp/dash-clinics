@@ -37,7 +37,7 @@
 -- Data do anúncio do contato em Brasília (19/11/2026). O Chatwoot grava anuncio_*_dt SEM hora, como
 -- meia-noite UTC do dia do clique EM UTC: quem clicou em 31/10 às 21h06 (Brasília) já é 01/11 em UTC e
 -- fica "2026-11-01". Converter isso para meia-noite de Brasília de 01/11 jogava o lead 1 dia para frente
--- (2.473 leads entre 21h e 23h59; 78 no mês errado — caso Roseane/Thauany, 31/10 contado em 01/11).
+-- (2.473 leads entre 21h e 23h59; 78 no mês errado — caso apontado pela Thauany, 31/10 contado em 01/11).
 -- Regra: (1) se o sync gravou a HORA exata (primeira mensagem do contato no dia do anúncio, desde
 -- 19/11), vale ela; (2) só a data, do MESMO dia UTC da criação do contato (ou antes) → é o mesmo evento,
 -- vale a hora exata da criação (devolve NULL); (3) só a data, de dia posterior (contato antigo que

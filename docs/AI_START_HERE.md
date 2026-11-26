@@ -94,13 +94,16 @@ financeiro e auditoria das ~37 clínicas. É acessado de 2 formas:
 ### Como fazer uma mudança (passo a passo)
 1. `git checkout main && git pull` (sempre parta do main atualizado).
 2. Crie uma branch: `git checkout -b feat/minha-melhoria`.
-3. Faça a mudança. Rode `node --check` no JS que mexeu (o `index.html` tem JS grande).
-4. Pra validar em homolog: `git push origin feat/minha-melhoria:homolog` (ou abra PR pra `homolog`).
+3. Faça a mudança. Rode `npm test` (inclui a sintaxe do JS inline das páginas, o `gci-sso.js` no
+   login e a busca por segredo versionado; o repo é **público**).
+4. Abra PR pro `main` (o CI roda). Mande pra homolog: Actions › *Deploy Homolog (preview)* › *Run
+   workflow* na sua branch (ou `git push origin feat/minha-melhoria:homolog --force-with-lease`).
    Veja em `https://homolog.dash-clinics.pages.dev`.
-5. Validado: abra PR da sua branch pro `main`, revise o diff, faça merge.
-6. O merge no `main` deploya sozinho em produção. Confira em `https://dash-clinics.pages.dev`.
+5. **Promoção só com autorização do Luã:** validado em homolog e autorizado, merge do PR no `main`.
+6. O merge deploya em produção (testes → deploy → conferência no ar → tag/release `vAAAA.MM.DD.N`).
+   Confira em `https://dash-clinics.pages.dev`. Detalhe: `docs/contexto/PROCESSO_DEPLOY.md`.
 7. Se a mudança for na LÓGICA de números, edite a RPC no Supabase e **versione** o SQL em
-   `db/functions/`.
+   `db/functions/`; depois `python tests/sql/drift_funcoes.py --estrito` tem de dar `repo == banco`.
 
 ## Subsistemas & armadilhas conhecidas (leia antes de mexer)
 

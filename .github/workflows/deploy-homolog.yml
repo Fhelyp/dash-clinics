@@ -1,18 +1,30 @@
 name: Deploy Homolog (preview)
 
-# Homologação do dash-clinics.
-# push na branch `homolog`  ->  deploy num alias de preview: https://homolog.dash-clinics.pages.dev
-# Valide ali e, se estiver OK, faça merge de `homolog` no `main` (que deploya produção).
-# Mesmo projeto Pages, mesma conta; branch != main => deployment de preview (não afeta produção).
+# Homologação do dash-clinics: https://homolog.dash-clinics.pages.dev
+# Ver docs/contexto/PROCESSO_DEPLOY.md. Duas formas de mandar uma branch para homolog:
+#  1. Actions > "Deploy Homolog (preview)" > Run workflow > escolher a branch (sem mexer em git); ou
+#  2. git push origin <branch>:homolog --force-with-lease  (a branch `homolog` é descartável).
+# Testes (ci.yml) rodam antes. Mesmo projeto Pages; branch != main => preview (não afeta produção).
 
 on:
   push:
     branches: [homolog]
   workflow_dispatch:
 
+concurrency:
+  group: homolog
+  cancel-in-progress: true
+
 jobs:
+  testes:
+    uses: ./.github/workflows/ci.yml
+
   deploy-homolog:
+    needs: testes
     runs-on: ubuntu-latest
+    environment:
+      name: homolog
+      url: https://homolog.dash-clinics.pages.dev
     permissions:
       contents: read
       deployments: write
@@ -26,9 +38,17 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: de356bf3b5b6db75835e33e84876eefb
-          command: pages deploy public --project-name=dash-clinics --branch=homolog
+          command: pages deploy public --project-name=dash-clinics --branch=homolog --commit-hash=${{ github.sha }} --commit-dirty=true
+      - name: Conferir homolog no ar
+        run: |
+          for i in 1 2 3 4 5 6; do
+            if curl -fsSL https://homolog.dash-clinics.pages.dev/login | grep -q '/gci-sso.js'; then
+              echo "homolog no ar (${GITHUB_REF_NAME} @ ${GITHUB_SHA::7})" | tee -a "$GITHUB_STEP_SUMMARY"; exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::homolog sem login.html/gci-sso.js"; exit 1
 
 # NOTA: o ambiente de PREVIEW do Pages usa os secrets de "preview" do projeto. Se as APIs
 # (login/dados) não funcionarem em homolog, é preciso setar os secrets de preview espelhando
-# os de produção: `wrangler pages secret put JWT_SECRET --project-name=dash-clinics` etc.
-# (no painel: Pages > dash-clinics > Settings > Environment variables > Preview).
+# os de produção (painel: Pages > dash-clinics > Settings > Environment variables > Preview).

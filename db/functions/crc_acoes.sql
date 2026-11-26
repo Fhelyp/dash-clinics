@@ -18,7 +18,7 @@
 --   Receita       pagamento do período vai para a vertente da ÚLTIMA consulta atendida do paciente
 --                 antes dele; se essa consulta não é ação do CRC (ex.: a recepção abriu outra consulta
 --                 depois) e houve consulta de ação do CRC atendida no MESMO DIA antes do pagamento,
---                 vale a ação do CRC (aprovado pelo Paulo em 19/11/2026 — caso Dulcineia/Matheus). Boleto programado só quando pago. Cada pagamento conta num lugar só:
+--                 vale a ação do CRC (aprovado pelo Paulo em 19/11/2026 — caso de São José, gerente Matheus). Boleto programado só quando pago. Cada pagamento conta num lugar só:
 --                 Follow-Up/Resgate já saem do funil de campanha (funnel_v7_rows, CTE pg); e um
 --                 pagamento que o funil de campanha já conta (paciente de campanha, regras 1, 2, 4 e
 --                 6 do v7) NÃO entra em Lead Orgânico/Indicação.
