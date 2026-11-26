@@ -67,7 +67,7 @@
       <tr><td>Remarcação</td><td>Conta como agendado uma vez só, no primeiro agendamento (outra consulta de campanha do paciente nos 60 dias anteriores é remarcação). O comparecimento depois conta.</td></tr>
       <tr><td>Lead que não agendou com o CRC e foi direto à clínica</td><td>Consulta criada pela recepção (fachada e outros canais) conta como campanha se foi criada depois do lead e em até 30 dias dele. Depois disso, é orgânico.</td></tr>
       <tr><td>Família no mesmo telefone</td><td>Só a pessoa do lead conta como campanha; os demais são indicação.</td></tr>
-      <tr><td>Receita</td><td>Valores lançados como pagamento no Ecuro. Boleto da clínica pelo valor lançado; boleto programado só quando pago. Transferência de saldo não conta de novo: vale só o pagamento original. Venda que vem depois de consulta de Follow-Up ou Resgate não é da campanha: entra no bloco Resgate &amp; Follow-up — depois de Follow-Up conta no Follow-Up, depois de Resgate no Resgate. Cada pagamento conta num lugar só.</td></tr>
+      <tr><td>Receita</td><td>Valores lançados como pagamento no Ecuro. Boleto da clínica pelo valor lançado; boleto programado só quando pago. Transferência de saldo não conta de novo: vale só o pagamento original. Lançamento positivo de “Ajustar Saldo” (carga de saldo quando a unidade entra no Ecuro) não é venda e não conta. Venda que vem depois de consulta de Follow-Up ou Resgate não é da campanha: entra no bloco Resgate &amp; Follow-up — depois de Follow-Up conta no Follow-Up, depois de Resgate no Resgate. Cada pagamento conta num lugar só.</td></tr>
       <tr><td>Confirmados</td><td>Informativo, fora da meta.</td></tr>
       <tr><td>Visões</td><td><strong>Comissão</strong>: cada etapa no período em que aconteceu, não importa quando o lead caiu. <strong>Safra de leads</strong>: só os leads que caíram no período e agendaram no período; comparecimento e venda contam desse agendamento em diante, mesmo depois do período.</td></tr>
       <tr><td>Data do lead de um agendamento</td><td>O sinal de lead mais recente <strong>antes</strong> do agendamento (criação do contato no Chatwoot ou anúncio). Anúncio clicado depois de agendar é outro lead e não muda a data daquele agendamento.</td></tr>
@@ -119,6 +119,8 @@
     <p>Os valores lançados como pagamento no Ecuro. Boleto da clínica entra pelo valor lançado; boleto programado só quando é pago. Estorno ainda não é descontado.</p></details>
   <details class="faq"><summary>A clínica transferiu o saldo de um pagamento para outro tratamento (ou outro paciente). Conta duas vezes?</summary>
     <p>Não. O Ecuro grava a transferência como um lançamento novo, com o mesmo valor, e mantém o pagamento original. O dash conta só o original, no dia em que o dinheiro entrou; o lançamento da transferência não entra na receita. Vale para o dash inteiro (receita geral, funil de campanha e ações do CRC) desde 25/11/2026.</p></details>
+  <details class="faq"><summary>O que é “Ajustar Saldo” e por que não entra na receita?</summary>
+    <p>É o lançamento que o Ecuro usa para carregar o saldo que o paciente já tinha quando a unidade passou a usar o sistema. O dinheiro entrou antes, no sistema antigo: não é venda do período. Por isso o lançamento positivo não entra na receita, em nenhuma tela do dash, desde 26/11/2026. O ajuste negativo (baixa de saldo) continua como hoje, igual a estorno: essa regra ainda está em aberto. Se depois o paciente usar esse saldo num tratamento, a transferência também não conta. Exemplo: em 16/10/2026 a Vila Matilde carregou 13.864 lançamentos (R$ 6,07 milhões) de uma vez.</p></details>
   <details class="faq"><summary>Qual a diferença entre as visões Comissão e Safra de leads?</summary>
     <p>Comissão mostra o que aconteceu no período (agendou, compareceu, pagou), não importa quando o lead caiu: é a base da comissão. Safra mostra só os leads que caíram no período que agendaram no período, e o comparecimento e a venda deles desse agendamento em diante: é o resultado do mês e a base da análise trimestral.</p></details>
   <details class="faq"><summary>A Safra pode ter mais agendados que a Comissão?</summary>
@@ -208,7 +210,7 @@
 
   <h2>6 · Receita do Período</h2>
   <div class="card">
-    <div class="formula">Receita = SUM(amount) em BI Payments WHERE deleted_at IS NULL AND date BETWEEN d1 AND d2 AND clinic_id IN unidades_filtradas AND NOT (boleto programado ainda não pago) AND NOT (transferência de saldo cujo pagamento original está no banco)</div>
+    <div class="formula">Receita = SUM(amount) em BI Payments WHERE deleted_at IS NULL AND date BETWEEN d1 AND d2 AND clinic_id IN unidades_filtradas AND NOT (boleto programado ainda não pago) AND NOT (transferência de saldo cujo pagamento original está no banco) AND NOT (Ajustar Saldo com valor positivo)</div>
     <p>"Melhor Mês" exibe o mês com maior receita confirmada no dataset completo (não respeita filtro de período, por design).</p>
   </div>
 
