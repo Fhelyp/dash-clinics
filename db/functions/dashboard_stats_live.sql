@@ -50,6 +50,8 @@ pays_all AS MATERIALIZED (
     -- receita = valor VENDIDO (Thauany 19/10/26): boleto da clinica conta inteiro; boleto programado so quando pago (date = dia do pagamento)
     -- transferência de saldo (25/11/2026): o Ecuro grava a transferência como lançamento novo (is_transfer=1) e mantém o original vivo; conta só o original
     AND NOT (COALESCE("BI Payments".is_transfer,0) = 1 AND EXISTS (SELECT 1 FROM "BI Payments" o_tr WHERE o_tr.id = "BI Payments".origin_payment_id AND o_tr.deleted_at IS NULL))
+    -- ajuste de saldo (26/11/2026): 'Ajustar Saldo' é carga de saldo na entrada da unidade no Ecuro (Vila Matilde 16/10/26: 13.864 lançamentos, R$ 6,07 mi), não é venda; o ajuste NEGATIVO (baixa de saldo) segue como hoje, junto com estorno (D7)
+    AND NOT (btrim(COALESCE(payment_type_name,'')) ILIKE 'ajustar saldo' AND COALESCE(amount,0) > 0)
     AND NOT (btrim(COALESCE(payment_type_name,'')) ILIKE 'boleto programado' AND COALESCE(is_confirmed,false) = false)
   AND ($3 IS NULL OR clinic_id = ANY($3))
 ),
