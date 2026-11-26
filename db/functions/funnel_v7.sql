@@ -180,6 +180,8 @@ pg AS (
                        AND x.channel_name = 'CRC'
                        AND public.crc_acao_bucket(x.channel_name, x.subchannel_name, x.speciality_id) IS NOT NULL
                        AND (x.start_time AT TIME ZONE 'America/Sao_Paulo')::date = (p.date AT TIME ZONE 'America/Sao_Paulo')::date
+                       -- índice para na meia-noite (BRT) do dia do pagamento (mesma forma de crc_acoes_base, 25/11)
+                       AND x.start_time >= ((p.date AT TIME ZONE 'America/Sao_Paulo')::date::timestamp AT TIME ZONE 'America/Sao_Paulo')
                      ORDER BY x.start_time DESC LIMIT 1) ub ON true
   WHERE NOT (COALESCE(ua.subchannel_name, '') ~* '^(follow|resgate)'
              OR (public.crc_acao_bucket(ua.channel_name, ua.subchannel_name, ua.speciality_id) IS NULL

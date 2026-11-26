@@ -116,6 +116,9 @@ pay0 AS MATERIALIZED (
          AND x.channel_name = 'CRC'
          AND public.crc_acao_bucket(x.channel_name, x.subchannel_name, x.speciality_id) IS NOT NULL
          AND (x.start_time AT TIME ZONE 'America/Sao_Paulo')::date = (p.date AT TIME ZONE 'America/Sao_Paulo')::date
+         -- limite inferior para o índice parar na meia-noite (BRT) do dia do pagamento; sem ele a busca
+         -- percorria todo o histórico de atendimentos do paciente (25/11: 5,7 s -> 0,7 s, resultado igual)
+         AND x.start_time >= ((p.date AT TIME ZONE 'America/Sao_Paulo')::date::timestamp AT TIME ZONE 'America/Sao_Paulo')
        ORDER BY x.start_time DESC LIMIT 1)) c
     ORDER BY (c.bucket IS NOT NULL) DESC, c.prio
     LIMIT 1) u
