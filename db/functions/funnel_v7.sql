@@ -158,6 +158,8 @@ pg0 AS MATERIALIZED (
   FROM "BI Payments" p
   JOIN pac_tot t ON t.patient_id = p.patient_id
   WHERE p.deleted_at IS NULL
+    -- transferência de saldo (25/11/2026): o Ecuro grava a transferência como lançamento novo (is_transfer=1) e mantém o original vivo; conta só o original
+    AND NOT (COALESCE(p.is_transfer,0) = 1 AND EXISTS (SELECT 1 FROM "BI Payments" o_tr WHERE o_tr.id = p.origin_payment_id AND o_tr.deleted_at IS NULL))
     AND NOT (btrim(COALESCE(p.payment_type_name,'')) ILIKE 'boleto programado' AND COALESCE(p.is_confirmed,false) = false)
     AND ($3 IS NULL OR p.clinic_id = ANY($3))
     AND CASE WHEN $4 = 'safra'
